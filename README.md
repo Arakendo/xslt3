@@ -1,6 +1,8 @@
 # @arakendo/xslt
 
-A TypeScript implementation of an **XSLT 3.0** engine.
+A TypeScript-native **XSLT 3.0 compiler** that emits inspectable, typed,
+debuggable transform modules — with an interpreter backend for
+conformance and dynamic features.
 
 <sub>repo: `xslt3` · internal codename: *Weaver*</sub>
 
@@ -9,6 +11,17 @@ A TypeScript implementation of an **XSLT 3.0** engine.
 > **Open source, closed contributions.** This project is MIT licensed — fork
 > and use it however you like. External pull requests and issues are not
 > accepted. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## Why another XSLT engine?
+
+Because existing ones treat XSLT as a black box. This one treats it as a
+**build step**: compile your `.xsl` once, get a typed, tree-shakeable,
+source-mapped TypeScript module you can import, debug in DevTools,
+type-check your params against, and bundle with Vite or esbuild.
+
+See [docs/DIFFERENTIATORS.md](./docs/DIFFERENTIATORS.md) for the four
+things this project aims to be clearly best at. See
+[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for how it is built.
 
 ## Requirements
 
@@ -83,14 +96,17 @@ and the pinned decisions behind each layer.
 
 ## Roadmap
 
-- [x] M0 — Project scaffold
-- [ ] M1 — XPath vertical slice (lex/parse/eval, hand-picked cases)
-- [ ] M2 — XPath core (all axes, predicates, comparisons, ~40 fn:* functions)
-- [ ] M3 — XSLT MVP (templates, apply-templates, value-of, for-each, choose, variables)
-- [ ] M4 — XPath type system + maps/arrays + higher-order functions
-- [ ] M5 — XSLT 3.0 feature-complete (non-streaming)
-- [ ] M6 — Conformance push (≥70% of W3C XSLT 3.0 required tests)
-- [ ] M7 — Streaming (maybe)
+- [x] M0 — Project scaffold + W3C test suites cataloged (14.6k XSLT, 31.8k QT3)
+- [ ] M1 — XPath vertical slice + diagnostic bones
+- [ ] M2 — XPath core on interpreter (~20% of QT3)
+- [ ] M3 — XSLT MVP on interpreter (first golden test green)
+- [ ] M4 — **Codegen backend v1** (IR → readable TypeScript)
+- [ ] M5 — Typed params, typed extension functions, CLI compile
+- [ ] M6 — Source maps, `.xsl.map`, static-analysis diagnostics v2
+- [ ] M7 — XPath type system, maps/arrays, higher-order functions
+- [ ] M8 — XSLT 3.0 feature-complete (non-streaming)
+- [ ] M9 — Conformance push (≥70% under both backends)
+- [ ] M10 — Practical streaming subset, `<ts:eval>` escape hatch
 
 ## License
 
