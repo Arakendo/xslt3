@@ -96,6 +96,9 @@ and the pinned decisions behind each layer.
 
 ## Roadmap
 
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full MVP / MVP+N execution
+plan with scope and exit criteria per increment. High-level milestones:
+
 - [x] M0 — Project scaffold + W3C test suites cataloged (14.6k XSLT, 31.8k QT3)
 - [ ] M1 — XPath vertical slice + diagnostic bones
 - [ ] M2 — XPath core on interpreter (~20% of QT3)
