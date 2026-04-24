@@ -102,11 +102,11 @@ and the pinned decisions behind each layer.
 - [ ] M3 — XSLT MVP on interpreter (first golden test green)
 - [ ] M4 — **Codegen backend v1** (IR → readable TypeScript)
 - [ ] M5 — Typed params, typed extension functions, CLI compile
-- [ ] M6 — Source maps, `.xsl.map`, static-analysis diagnostics v2
+- [ ] M6 — Watch mode, source maps, static-analysis diagnostics v2
 - [ ] M7 — XPath type system, maps/arrays, higher-order functions
 - [ ] M8 — XSLT 3.0 feature-complete (non-streaming)
 - [ ] M9 — Conformance push (≥70% under both backends)
-- [ ] M10 — Practical streaming subset, `<ts:eval>` escape hatch
+- [ ] M10 — Practical streaming subset, gated `<ts:eval>` escape hatch
 
 ## License
 

@@ -375,11 +375,11 @@ diagnostics polish, then the codegen backend which is the product.
 | **M3** | XSLT MVP on interpreter | `xsl:template`, `xsl:apply-templates`, `xsl:value-of`, `xsl:for-each`, `xsl:choose`, `xsl:variable`, `xsl:param`, literal result elements. First golden test green. |
 | **M4** | **Codegen backend (v1)** | IR → readable TypeScript for M3 features; all golden + M3 conformance tests pass under codegen; generated output committed to a fixtures folder for review |
 | **M5** | Typed params + typed extension functions | `.d.ts` emission; `defineXsltFunctions` with compile-time signature checking; CLI `arakendo-xslt compile` |
-| **M6** | Source maps + diagnostics v2 | `.xsl.map` output from codegen; static-analysis pass for unreachable templates, unused vars, priority conflicts, "did you mean" suggestions |
+| **M6** | Watch mode + source maps + diagnostics v2 | `arakendo-xslt watch`; Vite/esbuild plugin; `.xsl.map` output; static-analysis pass for unreachable templates, unused vars, priority conflicts, "did you mean" suggestions |
 | **M7** | XPath type system + maps/arrays + higher-order | `cast as`, `instance of`, SequenceTypes, maps, arrays, function items |
 | **M8** | XSLT 3.0 feature-complete (non-streaming) | `xsl:accumulator`, `xsl:iterate`, `xsl:merge`, packages, modes, keys |
 | **M9** | Conformance push | ≥70% of XSLT 3.0 required tests passing under **both** backends |
-| **M10+** | Practical streaming subset | forward-only opt-in streaming (DIFFERENTIATORS D2e); `<ts:eval>` escape hatch (D4) |
+| **M10+** | Practical streaming subset + gated `<ts:eval>` | forward-only opt-in streaming (DIFFERENTIATORS D2e); `<ts:eval>` escape hatch behind `features: { tsEval: true }` (D4 discipline) |
 
 Time estimates intentionally omitted.
 

@@ -16,7 +16,18 @@ it over Saxon-JS*. Update together.
 
 ---
 
-## The four things we will be the best at
+## The things we will be the best at
+
+Five product commitments, in descending order of importance. See the
+per-item detail below.
+
+| # | Commitment | One-line test |
+|---|------------|---------------|
+| D1 | Error messages that point at the XSLT | A user looking at a stack trace can find the exact `.xsl` line and column without guessing |
+| D2 | Compile to inspectable TypeScript | The generated `.xsl.ts` is reviewable in a PR and debuggable in Chrome DevTools |
+| D3 | Typed params, typed extension functions, typed results | Calling the compiled transform is a type-checked TypeScript call, not a dynamic one |
+| D4 | Escape hatches that aren't `xsl:script` | `<ts:eval>` exists, is typed, is gated, and does not metastasize |
+| D5 | Watch mode + bundler plugin, first-class | `edit \u2192 save \u2192 see diagnostic + compiled TS` is sub-second with no separate tool |
 
 ### D1. **Error messages that point at the XSLT**
 
@@ -156,6 +167,52 @@ TS compiler API), type-checked against a provided `ctx`, and inlined
 into the generated code. No `eval`, no `new Function`. Source map
 preserved. Type errors surface with stylesheet location.
 
+#### D4 discipline (the gravity problem)
+
+This feature's natural trajectory is to become *the* way users write
+"XSLT" — at which point we ship a weird templating wrapper around
+inline TypeScript and the XSLT layer is vestigial. To prevent that:
+
+- `<ts:eval>` lands **last** (after M10). No shortcuts, no "just a
+  prototype." If we have it before codegen is polished, users will
+  bypass the hard parts of the compiler and we'll never build them.
+- **Opt-in per compilation** with a `features: { tsEval: true }` flag.
+  Off by default in v1.
+- **Lint-level warnings** when a stylesheet's ratio of `<ts:eval>`
+  content to native XSLT crosses a threshold. "This stylesheet is
+  63% TypeScript by volume. Consider writing a TS module."
+- **No XSLT features emulated in `<ts:eval>`.** If someone writes
+  `<ts:eval>ctx.applyTemplates(...)</ts:eval>`, that's a smell. The
+  runtime API we expose inside `<ts:eval>` is deliberately narrow:
+  context access, params, output writer, extension functions. Not
+  template dispatch, not XPath compilation, not accumulator state.
+
+The test: if the answer to "why are you using `<ts:eval>` here?" is
+"because XSLT can't do X easily," that's fine. If the answer is
+"because I don't want to learn XSLT," our tool is the wrong choice
+and our docs should say so.
+
+### D5. **Watch mode, first-class**
+
+```bash
+npx arakendo-xslt watch src/stylesheets/
+```
+
+A modern dev-experience pitch loses its point the moment the user's
+feedback loop is `edit → CLI → reload → guess`. Watch mode is part of
+the core product, not a separate tool:
+
+- Recompiles on stylesheet change (sub-second target)
+- Writes generated `.xsl.ts` + `.d.ts` + `.xsl.map` atomically
+- **Streams diagnostics to stdout in real time** with the D1 format
+- Integrates with Vite / esbuild via a plugin so HMR "just works"
+- Exits non-zero on diagnostic errors — usable in `npm run dev`
+  pipelines without wrapping scripts
+- Keeps a persistent IR cache so only changed stylesheets recompile
+
+This lands in M6 alongside the CLI, not after. The pitch is
+"XSLT with a modern dev loop"; without watch mode we're lying.
+
 ---
 
 ## Scope boundaries (intentional)
@@ -213,12 +270,82 @@ not for *scope* — see that doc for the feature list per M:
 | 3 | XPath core + XSLT MVP on the interpreter | Conformance foundation |
 | 4 | **Codegen backend** producing readable TS | The product differentiator |
 | 5 | Typed params, typed extension functions | The integration differentiator |
-| 6 | Conformance push (both backends) | Credibility |
-| 7 | Incremental / practical streaming | Power-user differentiator |
-| 8 | `<ts:eval>` escape hatch | Nice-to-have, after everything else works |
+| 6 | **Watch mode + CLI + bundler plugin** (D5) | Feedback loop — the pitch doesn't work without it |
+| 7 | Conformance push (both backends) | Credibility |
+| 8 | Incremental / practical streaming | Power-user differentiator |
+| 9 | `<ts:eval>` escape hatch (D4, gated) | Only after everything above works; see D4 discipline |
 
 The rule: **we do not add features that make the diagnostic story
 worse.** A feature with poor error messages is not done.
+
+---
+
+## Known hazards (pre-documented so future-us can't pretend to be surprised)
+
+### H1. The IR is the whole game
+
+If the IR leaks runtime assumptions, lacks source-location fidelity,
+or fails to encode semantic properties (purity, context dependence,
+streamability), every layer above it breaks:
+
+- codegen produces tangled, un-optimizable output
+- diagnostics can't reference source positions they never recorded
+- streaming becomes architecturally impossible
+- optimization passes have nothing to analyze
+
+And we slowly become an interpreter with extra steps.
+
+**Mitigation:** DEC-005 (IR as contract) and DEC-013 (diagnostics-first)
+in ARCHITECTURE.md. The mantra is **"IR → string, or fix the IR."**
+Say it out loud before every codegen-adjacent commit.
+
+### H2. We are secretly building an XPath engine
+
+The XSLT layer is the visible surface. The XPath 3.1 evaluator is
+where most of the bugs, most of the spec nuance, and most of the
+actual code will live:
+
+- sequences vs. singletons (and the atomization rules between them)
+- value comparison (`eq`/`ne`) vs. general (`=`/`!=`) vs. node (`is`) —
+  three different semantics sharing overlapping syntax
+- implicit numeric promotion across `xs:integer`/`xs:decimal`/`xs:double`
+- function overloading by arity and by SequenceType
+- context sensitivity: `.`, `position()`, `last()` — every step
+  reshapes the focus
+- 220+ built-in functions, each with a spec-defined signature
+
+If this layer is *slightly* off, every XSLT feature built on top is
+cursed in hard-to-diagnose ways.
+
+**Mitigation:** run QT3 conformance tests from the moment the lexer
+produces output. Treat the XPath suite as the daily scoreboard
+separately from the XSLT suite. Budget accordingly.
+
+### H3. Codegen will expose every IR mistake at maximum volume
+
+Interpreter bugs are "fix it later" lines of code. Codegen bugs are
+**printed into 4,000 lines of generated TypeScript**, visible in PRs,
+visible to users. The first codegen backend will almost certainly
+require at least one IR revision to accommodate it. The *second*
+backend (e.g. the streaming codegen) will probably require another.
+
+**Mitigation:**
+- Accept that the IR version will tick forward during M4–M5
+- Check generated output into a fixtures folder under version control
+  so IR changes surface as reviewable diffs
+- Do not ship the codegen as `1.0` until after the first real-world
+  stylesheet compiles cleanly ("real-world" = not one we wrote)
+
+### H4. The "step through in DevTools" success criterion is load-bearing
+
+Everything else in this document is in service of that experience.
+A feature that passes conformance tests but breaks source-map
+step-through is a regression. A feature that extends the language
+but isn't visible in the generated TS is suspect.
+
+When weighing tradeoffs, optimize for the developer who has just
+set a breakpoint on `invoice.xsl:42` and wants to see the right
+thing in the debugger. That person is the customer.
 
 ---
 
