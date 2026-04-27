@@ -388,11 +388,101 @@ describe('XPath MVP+2 start', () => {
     expect([...evaluate(parseXPath('matches("_", "^[\\I]+$")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: false },
     ]);
+    expect([...evaluate(parseXPath('matches("_", "^[^\\I]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("1", "^[^\\I]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
     expect([...evaluate(parseXPath('matches("?a?", "^[\\C\\?a-c\\?]+$")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: true },
     ]);
     expect([...evaluate(parseXPath('matches("?d?", "^[\\C\\?a-c\\?]+$")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("_", "^[^\\C\\?a-c\\?]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("?", "^[^\\C\\?a-c\\?]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("ad", "^[a-d-[b-c]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("b", "^[a-d-[b-c]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("24680", "^[\\d-[357]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("357", "^[\\d-[357]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("abc", "^[a-c-[^a-c]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("d", "^[a-c-[^a-c]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("meet", "^m[\\w-[^aeiou]][\\w-[^aeiou]]t$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("mbbt", "^m[\\w-[^aeiou]][\\w-[^aeiou]]t$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("bfxyz", "^[^cde-[ag]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("d", "^[^cde-[ag]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("_:alpha", "^[\\c-[^\\i]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("1", "^[\\c-[^\\i]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("_", "^[\\i-[^\\c]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("1", "^[\\i-[^\\c]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("_:alpha", "^[\\c-[\\I]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("a1", "^[\\c-[\\I]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("_:alpha", "^[\\i-[\\C]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("a1", "^[\\i-[\\C]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("1.-", "^[\\c-[\\i\\C]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("_", "^[\\c-[\\i\\C]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("_", "^[\\i-[\\c\\I]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches(":", "^[\\i-[\\c\\I]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("_:alpha", "^[^\\c-[\\i\\C]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("1.-", "^[^\\c-[\\i\\C]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("_:alpha", "^[^\\i-[\\c\\I]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+    expect([...evaluate(parseXPath('matches("1.-", "^[^\\i-[\\c\\I]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
     ]);
     expect([...evaluate(parseXPath('matches("abc", "a b c", "x")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: true },

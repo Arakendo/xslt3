@@ -15,7 +15,7 @@ export type RegexSpanLike = {
 };
 
 export function compileRegex(pattern: string, flags: string, span: RegexSpanLike, global = false): RegExp {
-  const translatedPattern = translateRegexPattern(pattern, flags, span);
+  const translatedPattern = translateRegexPattern(pattern, flags);
   const ecmaFlags = toEcmaRegexFlags(flags, span, global, translatedPattern);
   try {
     return new RegExp(translatedPattern, ecmaFlags);
@@ -53,12 +53,12 @@ export function toEcmaRegexFlags(flags: string, span: RegexSpanLike, global = fa
   return result;
 }
 
-export function translateRegexPattern(pattern: string, flags: string, span?: RegexSpanLike): string {
+export function translateRegexPattern(pattern: string, flags: string): string {
   if (flags.includes('q')) {
     return escapeRegexLiteral(pattern);
   }
 
-  let translated = translateXmlNameEscapes(pattern, span);
+  let translated = translateXmlNameEscapes(pattern);
 
   if (flags.includes('x')) {
     translated = stripExpandedWhitespace(translated);
@@ -124,13 +124,13 @@ function stripExpandedWhitespace(pattern: string): string {
   return result;
 }
 
-function translateXmlNameEscapes(pattern: string, span?: RegexSpanLike): string {
+function translateXmlNameEscapes(pattern: string): string {
   let result = '';
   for (let index = 0; index < pattern.length; index += 1) {
     const char = pattern[index]!;
 
     if (char === '[') {
-      const translatedClass = translateCharacterClass(pattern, index, span ?? DEFAULT_REGEX_SPAN);
+      const translatedClass = translateCharacterClass(pattern, index);
       result += translatedClass.source;
       index = translatedClass.endIndex;
       continue;
@@ -158,9 +158,10 @@ function translateXmlNameEscapes(pattern: string, span?: RegexSpanLike): string 
   return result;
 }
 
-function translateCharacterClass(pattern: string, startIndex: number, span: RegexSpanLike): { source: string; endIndex: number } {
+function translateCharacterClass(pattern: string, startIndex: number): { source: string; endIndex: number } {
   let index = startIndex + 1;
   let escaped = false;
+  let nestedCharacterClassDepth = 0;
 
   while (index < pattern.length) {
     const char = pattern[index]!;
@@ -176,8 +177,20 @@ function translateCharacterClass(pattern: string, startIndex: number, span: Rege
       continue;
     }
 
+    if (char === '[') {
+      nestedCharacterClassDepth += 1;
+      index += 1;
+      continue;
+    }
+
     if (char === ']') {
-      break;
+      if (nestedCharacterClassDepth === 0) {
+        break;
+      }
+
+      nestedCharacterClassDepth -= 1;
+      index += 1;
+      continue;
     }
 
     index += 1;
@@ -192,32 +205,139 @@ function translateCharacterClass(pattern: string, startIndex: number, span: Rege
 
   const content = pattern.slice(startIndex + 1, index);
   return {
-    source: translateCharacterClassContent(content, span),
+    source: translateCharacterClassContent(content),
     endIndex: index,
   };
 }
 
-function translateCharacterClassContent(content: string, span: RegexSpanLike): string {
+function translateCharacterClassContent(content: string): string {
   const outerNegated = content.startsWith('^');
   const body = outerNegated ? content.slice(1) : content;
-  const terms = tokenizeCharacterClassTerms(body);
-  const hasComplementXmlEscape = terms.some((term) => term.kind === 'xml-complement');
+  const subtraction = splitTopLevelCharacterClassSubtraction(body);
 
-  if (outerNegated && hasComplementXmlEscape) {
-    throw createRegexError(
-      FOCA0002,
-      'The current regex translator does not yet support XML name complement escapes inside negated character classes.',
-      span,
-    );
+  if (subtraction !== undefined) {
+    const basePattern = translateCharacterClassContent(subtraction.base);
+    const subtractPattern = translateCharacterClassContent(subtraction.subtract);
+    const subtractedPattern = subtractSingleCharacterPattern(basePattern, subtractPattern);
+    return outerNegated ? complementSingleCharacterPattern(subtractedPattern) : subtractedPattern;
   }
+
+  return outerNegated
+    ? complementSingleCharacterPattern(translateSimpleCharacterClass(body))
+    : translateSimpleCharacterClass(body);
+}
+
+function translateSimpleCharacterClass(content: string): string {
+  const terms = tokenizeCharacterClassTerms(content);
+  const hasComplementXmlEscape = terms.some((term) => term.kind === 'xml-complement');
 
   if (!hasComplementXmlEscape) {
     const translatedBody = terms.map((term) => characterClassTermToClassBody(term)).join('');
-    return `[${outerNegated ? '^' : ''}${translatedBody}]`;
+    return `[${translatedBody}]`;
   }
 
   const translatedTerms = terms.map((term) => characterClassTermToAlternationAtom(term));
   return `(?:${translatedTerms.join('|')})`;
+}
+
+function splitTopLevelCharacterClassSubtraction(content: string):
+  | { base: string; subtract: string }
+  | undefined {
+  let escaped = false;
+  let nestedCharacterClassDepth = 0;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index]!;
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '[') {
+      nestedCharacterClassDepth += 1;
+      continue;
+    }
+
+    if (char === ']') {
+      if (nestedCharacterClassDepth > 0) {
+        nestedCharacterClassDepth -= 1;
+      }
+      continue;
+    }
+
+    if (char !== '-' || nestedCharacterClassDepth !== 0 || content[index + 1] !== '[') {
+      continue;
+    }
+
+    const nestedRange = findMatchingCharacterClassRange(content, index + 1);
+    if (nestedRange === undefined || nestedRange.endIndex !== content.length - 1) {
+      continue;
+    }
+
+    return {
+      base: content.slice(0, index),
+      subtract: nestedRange.content,
+    };
+  }
+
+  return undefined;
+}
+
+function findMatchingCharacterClassRange(content: string, startIndex: number):
+  | { content: string; endIndex: number }
+  | undefined {
+  let escaped = false;
+  let nestedCharacterClassDepth = 0;
+
+  for (let index = startIndex + 1; index < content.length; index += 1) {
+    const char = content[index]!;
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '[') {
+      nestedCharacterClassDepth += 1;
+      continue;
+    }
+
+    if (char === ']') {
+      if (nestedCharacterClassDepth === 0) {
+        return {
+          content: content.slice(startIndex + 1, index),
+          endIndex: index,
+        };
+      }
+
+      nestedCharacterClassDepth -= 1;
+    }
+  }
+
+  return undefined;
+}
+
+function subtractSingleCharacterPattern(basePattern: string, subtractPattern: string): string {
+  return `(?:(?!${toLookaheadPattern(subtractPattern)})${basePattern})`;
+}
+
+function complementSingleCharacterPattern(pattern: string): string {
+  return `(?:(?!${toLookaheadPattern(pattern)})[\\s\\S])`;
+}
+
+function toLookaheadPattern(pattern: string): string {
+  return pattern.startsWith('(?:') && pattern.endsWith(')') ? pattern : `(?:${pattern})`;
 }
 
 type CharacterClassTerm =
@@ -329,15 +449,6 @@ function translateXmlNameEscapeInCharacterClass(escape: 'i' | 'c'): string {
       return XML_NAME_CHAR_CLASS;
   }
 }
-
-const DEFAULT_REGEX_SPAN: RegexSpanLike = {
-  line: 1,
-  column: 1,
-  start: 0,
-  endLine: 1,
-  endColumn: 1,
-  end: 0,
-};
 
 function createRegexError(code: string, message: string, span: RegexSpanLike): XPathError {
   return new XPathError(code, message, {

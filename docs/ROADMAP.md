@@ -136,7 +136,7 @@ sequence/atomization rules are right, or everything downstream is cursed
 - `substring()` and `string-join()` now work through the same string-value path.
 - `sum()`, `min()`, `max()`, and `avg()` now work over atomized numeric sequences.
 - `distinct-values()` now works over atomized sequences.
-- `matches()`, `replace()`, and `tokenize()` now have an initial regex translator slice with ECMAScript-compatible regexes plus `q` handling, `x` whitespace/comment handling, and XML name escapes (`\i`, `\I`, `\c`, `\C`) outside character classes plus in-class support for ordinary `\i`/`\I`/`\c`/`\C` usage; negated character classes that also contain XML name complement escapes and the broader schema-regex translator are still pending.
+- `matches()`, `replace()`, and `tokenize()` now have an initial regex translator slice with ECMAScript-compatible regexes plus `q` handling, `x` whitespace/comment handling, XML name escapes (`\i`, `\I`, `\c`, `\C`) both outside character classes and in ordinary/negated character classes, and an initial character-class subtraction slice; the broader schema-regex translator is still pending.
 - The `to` operator now has an initial integer-only range-expression slice.
 - `()` and comma-separated parenthesized expressions now have an initial sequence-constructor slice.
 - `if (...) then ... else ...` now has an initial flow-expression slice.
