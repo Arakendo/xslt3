@@ -37,8 +37,10 @@ export type TokenKind =
   | 'pipe'
   | 'and'
   | 'eq'
+  | 'else'
   | 'ge'
   | 'gt'
+  | 'if'
   | 'is'
   | 'le'
   | 'lt'
@@ -46,6 +48,8 @@ export type TokenKind =
   | 'nodeAfter'
   | 'nodeBefore'
   | 'or'
+  | 'then'
+  | 'to'
   | 'div'
   | 'mod';
 
@@ -68,14 +72,18 @@ const KEYWORD_KINDS = {
   and: 'and',
   div: 'div',
   eq: 'eq',
+  else: 'else',
   ge: 'ge',
   gt: 'gt',
+  if: 'if',
   is: 'is',
   le: 'le',
   lt: 'lt',
   mod: 'mod',
   ne: 'ne',
   or: 'or',
+  then: 'then',
+  to: 'to',
 } as const satisfies Record<string, TokenKind>;
 
 export function tokenize(expression: string): readonly Token[] {

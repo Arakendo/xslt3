@@ -7,7 +7,7 @@
 
 import type { Node } from '@xmldom/xmldom';
 
-import { FOAR0001, XPDY0002, XPST0008, XPST0017, XPTY0004 } from '../../errors/codes.js';
+import { FOAR0001, FOCA0002, XPDY0002, XPST0008, XPST0017, XPTY0004 } from '../../errors/codes.js';
 import { XPathError } from '../../errors/XPathError.js';
 import { createSequence, materialize } from '../../xdm/sequence.js';
 import {
@@ -44,10 +44,16 @@ function evaluateExpression(ast: XPathAst, context: DynamicContext): XdmItem[] {
       return [requireContextItem(context, ast.span)];
     case 'functionCall':
       return evaluateFunctionCall(ast.callee, ast.arguments, context, ast.span);
+    case 'if':
+      return effectiveBooleanValue(evaluateExpression(ast.test, context), ast.test.span)
+        ? evaluateExpression(ast.thenBranch, context)
+        : evaluateExpression(ast.elseBranch, context);
     case 'number':
       return [createXdmNumber(ast.value)];
     case 'string':
       return [createXdmString(ast.value)];
+    case 'sequence':
+      return ast.items.flatMap((item) => evaluateExpression(item, context));
     case 'unary': {
       const operand = requireSingleNumber(evaluateExpression(ast.operand, context), ast.operand.span);
       return [createXdmNumber(-operand)];
@@ -74,6 +80,230 @@ function evaluateFunctionCall(
     case 'fn:last':
       requireArity(normalized, args, 0, span);
       return [createXdmNumber(context.contextSize)];
+    case 'fn:count':
+      requireArity(normalized, args, 1, span);
+      return [createXdmNumber(evaluateExpression(args[0]!, context).length)];
+    case 'fn:exists':
+      requireArity(normalized, args, 1, span);
+      return [createXdmBoolean(evaluateExpression(args[0]!, context).length > 0)];
+    case 'fn:empty':
+      requireArity(normalized, args, 1, span);
+      return [createXdmBoolean(evaluateExpression(args[0]!, context).length === 0)];
+    case 'fn:boolean':
+      requireArity(normalized, args, 1, span);
+      return [createXdmBoolean(effectiveBooleanValue(evaluateExpression(args[0]!, context), span))];
+    case 'fn:not':
+      requireArity(normalized, args, 1, span);
+      return [createXdmBoolean(!effectiveBooleanValue(evaluateExpression(args[0]!, context), span))];
+    case 'fn:string': {
+      const item = evaluateOptionalSingletonItemArg(normalized, args, context, span);
+      return [createXdmString(itemToStringValue(item))];
+    }
+    case 'fn:string-length': {
+      const item = evaluateOptionalSingletonItemArg(normalized, args, context, span);
+      return [createXdmNumber(itemToStringValue(item).length)];
+    }
+    case 'fn:substring': {
+      if (args.length !== 2 && args.length !== 3) {
+        throw createXPathError(XPST0017, `Function ${normalized} expects 2 or 3 arguments but got ${args.length}.`, span);
+      }
+      const source = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized));
+      const start = Math.round(requireSingleNumber(evaluateExpression(args[1]!, context), span));
+      const zeroBasedStart = Math.max(start - 1, 0);
+      if (args.length === 2) {
+        return [createXdmString(source.slice(zeroBasedStart))];
+      }
+      const length = Math.max(Math.round(requireSingleNumber(evaluateExpression(args[2]!, context), span)), 0);
+      return [createXdmString(source.slice(zeroBasedStart, zeroBasedStart + length))];
+    }
+    case 'fn:concat': {
+      if (args.length < 2) {
+        throw createXPathError(XPST0017, `Function ${normalized} expects at least 2 arguments but got ${args.length}.`, span);
+      }
+      return [createXdmString(args.map((arg) => itemToStringValue(evaluateSingletonStringishArg(arg, context, span, normalized))).join(''))];
+    }
+    case 'fn:string-join': {
+      requireArity(normalized, args, 2, span);
+      const items = evaluateExpression(args[0]!, context);
+      const separator = itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized));
+      return [createXdmString(items.map(itemToStringValue).join(separator))];
+    }
+    case 'fn:matches': {
+      if (args.length !== 2 && args.length !== 3) {
+        throw createXPathError(XPST0017, `Function ${normalized} expects 2 or 3 arguments but got ${args.length}.`, span);
+      }
+      const input = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized));
+      const pattern = itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized));
+      const flags = args.length === 3
+        ? itemToStringValue(evaluateSingletonStringishArg(args[2]!, context, span, normalized))
+        : '';
+      return [createXdmBoolean(compileRegex(pattern, flags, span).test(input))];
+    }
+    case 'fn:replace': {
+      if (args.length !== 3 && args.length !== 4) {
+        throw createXPathError(XPST0017, `Function ${normalized} expects 3 or 4 arguments but got ${args.length}.`, span);
+      }
+      const input = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized));
+      const pattern = itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized));
+      const replacement = itemToStringValue(evaluateSingletonStringishArg(args[2]!, context, span, normalized));
+      const flags = args.length === 4
+        ? itemToStringValue(evaluateSingletonStringishArg(args[3]!, context, span, normalized))
+        : '';
+      return [createXdmString(input.replace(compileRegex(pattern, flags, span, true), replacement))];
+    }
+    case 'fn:tokenize': {
+      if (args.length !== 2 && args.length !== 3) {
+        throw createXPathError(XPST0017, `Function ${normalized} expects 2 or 3 arguments but got ${args.length}.`, span);
+      }
+      const input = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized));
+      const pattern = itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized));
+      const flags = args.length === 3
+        ? itemToStringValue(evaluateSingletonStringishArg(args[2]!, context, span, normalized))
+        : '';
+      return input.split(compileRegex(pattern, flags, span, true)).map(createXdmString);
+    }
+    case 'fn:normalize-space': {
+      const item = evaluateOptionalSingletonItemArg(normalized, args, context, span);
+      return [createXdmString(normalizeSpace(itemToStringValue(item)))];
+    }
+    case 'fn:contains':
+      requireArity(normalized, args, 2, span);
+      return [
+        createXdmBoolean(
+          itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized)).includes(
+            itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized)),
+          ),
+        ),
+      ];
+    case 'fn:starts-with':
+      requireArity(normalized, args, 2, span);
+      return [
+        createXdmBoolean(
+          itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized)).startsWith(
+            itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized)),
+          ),
+        ),
+      ];
+    case 'fn:ends-with':
+      requireArity(normalized, args, 2, span);
+      return [
+        createXdmBoolean(
+          itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized)).endsWith(
+            itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized)),
+          ),
+        ),
+      ];
+    case 'fn:upper-case': {
+      requireArity(normalized, args, 1, span);
+      return [createXdmString(itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized)).toUpperCase())];
+    }
+    case 'fn:lower-case': {
+      requireArity(normalized, args, 1, span);
+      return [createXdmString(itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized)).toLowerCase())];
+    }
+    case 'fn:number': {
+      const item = evaluateOptionalSingletonItemArg(normalized, args, context, span);
+      return [createXdmNumber(itemToNumberValue(item))];
+    }
+    case 'fn:sum': {
+      requireArity(normalized, args, 1, span);
+      const values = atomizedNumericValues(evaluateExpression(args[0]!, context), span, normalized);
+      return [createXdmNumber(values.reduce((total, value) => total + value, 0))];
+    }
+    case 'fn:min': {
+      requireArity(normalized, args, 1, span);
+      const values = atomizedNumericValues(evaluateExpression(args[0]!, context), span, normalized);
+      return values.length === 0 ? [] : [createXdmNumber(Math.min(...values))];
+    }
+    case 'fn:max': {
+      requireArity(normalized, args, 1, span);
+      const values = atomizedNumericValues(evaluateExpression(args[0]!, context), span, normalized);
+      return values.length === 0 ? [] : [createXdmNumber(Math.max(...values))];
+    }
+    case 'fn:avg': {
+      requireArity(normalized, args, 1, span);
+      const values = atomizedNumericValues(evaluateExpression(args[0]!, context), span, normalized);
+      return values.length === 0
+        ? []
+        : [createXdmNumber(values.reduce((total, value) => total + value, 0) / values.length)];
+    }
+    case 'fn:distinct-values': {
+      requireArity(normalized, args, 1, span);
+      const items = atomizeItems(evaluateExpression(args[0]!, context));
+      const distinct = new Set<string>();
+      const results: XdmAtomicValue[] = [];
+      for (const item of items) {
+        const key = `${typeof item}:${String(item)}`;
+        if (distinct.has(key)) {
+          continue;
+        }
+        distinct.add(key);
+        results.push(createAtomicValueFromAtomized(item));
+      }
+      return results;
+    }
+    case 'fn:data':
+      requireArity(normalized, args, 1, span);
+      return atomizeItems(evaluateExpression(args[0]!, context)).map(createAtomicValueFromAtomized);
+    case 'fn:root': {
+      const item = evaluateOptionalSingletonNodeArg(normalized, args, context, span);
+      if (item === undefined) {
+        return [];
+      }
+      return [getRootNode(item)];
+    }
+    case 'fn:reverse':
+      requireArity(normalized, args, 1, span);
+      return [...evaluateExpression(args[0]!, context)].reverse();
+    case 'fn:head': {
+      requireArity(normalized, args, 1, span);
+      const items = evaluateExpression(args[0]!, context);
+      return items.length === 0 ? [] : [items[0]!];
+    }
+    case 'fn:tail': {
+      requireArity(normalized, args, 1, span);
+      const items = evaluateExpression(args[0]!, context);
+      return items.slice(1);
+    }
+    case 'fn:subsequence': {
+      if (args.length !== 2 && args.length !== 3) {
+        throw createXPathError(XPST0017, `Function ${normalized} expects 2 or 3 arguments but got ${args.length}.`, span);
+      }
+      const items = evaluateExpression(args[0]!, context);
+      const start = Math.trunc(requireSingleNumber(evaluateExpression(args[1]!, context), span));
+      const zeroBasedStart = Math.max(start - 1, 0);
+      if (args.length === 2) {
+        return items.slice(zeroBasedStart);
+      }
+      const length = Math.max(Math.trunc(requireSingleNumber(evaluateExpression(args[2]!, context), span)), 0);
+      return items.slice(zeroBasedStart, zeroBasedStart + length);
+    }
+    case 'fn:name': {
+      const item = evaluateOptionalSingletonNodeArg(normalized, args, context, span);
+      return [createXdmString(getNodeNameValue(item))];
+    }
+    case 'fn:local-name': {
+      const item = evaluateOptionalSingletonNodeArg(normalized, args, context, span);
+      return [createXdmString(getLocalNameValue(item))];
+    }
+    case 'fn:true':
+      requireArity(normalized, args, 0, span);
+      return [createXdmBoolean(true)];
+    case 'fn:false':
+      requireArity(normalized, args, 0, span);
+      return [createXdmBoolean(false)];
+    case 'fn:abs':
+      requireArity(normalized, args, 1, span);
+      return [createXdmNumber(Math.abs(requireSingleNumber(evaluateExpression(args[0]!, context), span)))];
+    case 'fn:floor':
+      requireArity(normalized, args, 1, span);
+      return [createXdmNumber(Math.floor(requireSingleNumber(evaluateExpression(args[0]!, context), span)))];
+    case 'fn:ceiling':
+      requireArity(normalized, args, 1, span);
+      return [createXdmNumber(Math.ceil(requireSingleNumber(evaluateExpression(args[0]!, context), span)))];
+    case 'fn:round':
+      requireArity(normalized, args, 1, span);
+      return [createXdmNumber(Math.round(requireSingleNumber(evaluateExpression(args[0]!, context), span)))];
     default:
       throw createXPathError(XPST0017, `Unknown function ${callee} with arity ${args.length}.`, span);
   }
@@ -123,6 +353,10 @@ function evaluateBinaryExpression(
     }
   }
 
+  if (operator === 'to') {
+    return evaluateRangeExpression(leftAst, rightAst, context);
+  }
+
   if (operator === 'eq' || operator === 'ne' || operator === 'lt' || operator === 'le' || operator === 'gt' || operator === 'ge') {
     return compareValue(
       operator,
@@ -151,6 +385,25 @@ function evaluateBinaryExpression(
       ),
     ),
   ];
+}
+
+function evaluateRangeExpression(
+  leftAst: XPathAst,
+  rightAst: XPathAst,
+  context: DynamicContext,
+): XdmItem[] {
+  const start = requireSingleInteger(evaluateExpression(leftAst, context), leftAst.span, 'Range expression start');
+  const end = requireSingleInteger(evaluateExpression(rightAst, context), rightAst.span, 'Range expression end');
+
+  if (start > end) {
+    return [];
+  }
+
+  const items: XdmItem[] = [];
+  for (let value = start; value <= end; value += 1) {
+    items.push(createXdmNumber(value));
+  }
+  return items;
 }
 
 function compareNodes(
@@ -293,6 +546,14 @@ function requireSingleNumber(items: readonly XdmItem[], span: SpanLike): number 
     throw createXPathError(XPTY0004, 'Expected a single numeric value.', span);
   }
   return (item as XdmAtomicValue).value as number;
+}
+
+function requireSingleInteger(items: readonly XdmItem[], span: SpanLike, description: string): number {
+  const value = requireSingleNumber(items, span);
+  if (!Number.isInteger(value)) {
+    throw createXPathError(XPTY0004, `${description} must be an integer in this slice.`, span);
+  }
+  return value;
 }
 
 function requireContextItem(context: DynamicContext, span: SpanLike): XdmItem {
@@ -566,6 +827,158 @@ function effectiveBooleanValue(items: readonly XdmItem[], span: SpanLike): boole
   return (atomic.value as string).length > 0;
 }
 
+function evaluateOptionalSingletonItemArg(
+  name: string,
+  args: readonly XPathAst[],
+  context: DynamicContext,
+  span: SpanLike,
+): XdmItem | undefined {
+  if (args.length === 0) {
+    return requireContextItem(context, span);
+  }
+
+  requireArity(name, args, 1, span);
+  const items = evaluateExpression(args[0]!, context);
+  if (items.length === 0) {
+    return undefined;
+  }
+  if (items.length !== 1) {
+    throw createXPathError(XPTY0004, `Function ${name} requires an empty sequence or singleton item.`, span);
+  }
+  return items[0];
+}
+
+function evaluateOptionalSingletonNodeArg(
+  name: string,
+  args: readonly XPathAst[],
+  context: DynamicContext,
+  span: SpanLike,
+): XdmNode | undefined {
+  const item = evaluateOptionalSingletonItemArg(name, args, context, span);
+  if (item === undefined) {
+    return undefined;
+  }
+  if (!isXdmNode(item)) {
+    throw createXPathError(XPTY0004, `Function ${name} requires a node argument.`, span);
+  }
+  return item;
+}
+
+function evaluateSingletonStringishArg(
+  arg: XPathAst,
+  context: DynamicContext,
+  span: SpanLike,
+  name: string,
+): XdmItem | undefined {
+  const items = evaluateExpression(arg, context);
+  if (items.length === 0) {
+    return undefined;
+  }
+  if (items.length !== 1) {
+    throw createXPathError(XPTY0004, `Function ${name} requires empty-sequence() or a singleton item argument.`, span);
+  }
+  return items[0];
+}
+
+function itemToStringValue(item: XdmItem | undefined): string {
+  if (item === undefined) {
+    return '';
+  }
+
+  if (item.xdmKind === 'node') {
+    return (item as XdmNode).node.textContent ?? '';
+  }
+
+  const atomic = item as XdmAtomicValue;
+  if (atomic.type === 'xs:boolean') {
+    return atomic.value === true ? 'true' : 'false';
+  }
+
+  return String(atomic.value);
+}
+
+function itemToNumberValue(item: XdmItem | undefined): number {
+  if (item === undefined) {
+    return Number.NaN;
+  }
+
+  if (item.xdmKind === 'node') {
+    return Number((item as XdmNode).node.textContent ?? '');
+  }
+
+  const atomic = item as XdmAtomicValue;
+  if (atomic.type === 'xs:boolean') {
+    return atomic.value === true ? 1 : 0;
+  }
+
+  return Number(atomic.value);
+}
+
+function createAtomicValueFromAtomized(value: boolean | number | string): XdmAtomicValue {
+  if (typeof value === 'boolean') {
+    return createXdmBoolean(value);
+  }
+
+  if (typeof value === 'number') {
+    return createXdmNumber(value);
+  }
+
+  return createXdmString(value);
+}
+
+function normalizeSpace(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function compileRegex(pattern: string, flags: string, span: SpanLike, global = false): RegExp {
+  const ecmaFlags = toEcmaRegexFlags(flags, span, global);
+  try {
+    return new RegExp(pattern, ecmaFlags);
+  } catch {
+    throw createXPathError(FOCA0002, 'Invalid regular expression for the current ECMAScript-compatible regex slice.', span);
+  }
+}
+
+function toEcmaRegexFlags(flags: string, span: SpanLike, global: boolean): string {
+  let result = global ? 'g' : '';
+
+  for (const flag of flags) {
+    if (flag === 'i' || flag === 'm' || flag === 's') {
+      if (!result.includes(flag)) {
+        result += flag;
+      }
+      continue;
+    }
+
+    throw createXPathError(
+      FOCA0002,
+      `Unsupported regular expression flag ${flag} in the current ECMAScript-compatible regex slice.`,
+      span,
+    );
+  }
+
+  return result;
+}
+
+function getNodeNameValue(node: XdmNode | undefined): string {
+  if (node === undefined) {
+    return '';
+  }
+
+  const rawName = node.node.nodeName;
+  return rawName.startsWith('#') ? '' : rawName;
+}
+
+function getLocalNameValue(node: XdmNode | undefined): string {
+  const name = getNodeNameValue(node);
+  if (name.length === 0) {
+    return '';
+  }
+
+  const separator = name.indexOf(':');
+  return separator >= 0 ? name.slice(separator + 1) : name;
+}
+
 function compareGeneral(
   operator: '=' | '!=' | '<' | '<=' | '>' | '>=',
   leftItems: readonly XdmItem[],
@@ -593,6 +1006,21 @@ function atomizeItems(items: readonly XdmItem[]): readonly (boolean | number | s
     }
 
     return (item as XdmAtomicValue).value;
+  });
+}
+
+function atomizedNumericValues(items: readonly XdmItem[], span: SpanLike, functionName: string): number[] {
+  return atomizeItems(items).map((value) => {
+    if (typeof value === 'boolean') {
+      throw createXPathError(XPTY0004, `Function ${functionName} requires numeric values after atomization.`, span);
+    }
+
+    const numericValue = coerceNumericValue(value);
+    if (numericValue === undefined) {
+      throw createXPathError(XPTY0004, `Function ${functionName} requires numeric values after atomization.`, span);
+    }
+
+    return numericValue;
   });
 }
 

@@ -126,6 +126,20 @@ sequence/atomization rules are right, or everything downstream is cursed
 **Started slice:**
 - Function-call AST + arity-based dispatch is now seeded in-tree.
 - Zero-argument `position()` and `last()` support works inside predicates.
+- `count()`, `exists()`, and `empty()` now work over evaluated sequences.
+- `boolean()` and `not()` now reuse effective-boolean-value semantics over evaluated sequences.
+- `true()`, `false()`, `abs()`, `floor()`, `ceiling()`, and `round()` now work through the shared function dispatch path.
+- `string()`, `string-length()`, `number()`, `data()`, and `root()` now work through local string-value and atomization helpers.
+- `name()` and `local-name()` now work for singleton node arguments.
+- `reverse()`, `head()`, `tail()`, and `subsequence()` now work over evaluated sequences.
+- `concat()`, `normalize-space()`, `contains()`, `starts-with()`, `ends-with()`, `upper-case()`, and `lower-case()` now work through the shared string-value helpers.
+- `substring()` and `string-join()` now work through the same string-value path.
+- `sum()`, `min()`, `max()`, and `avg()` now work over atomized numeric sequences.
+- `distinct-values()` now works over atomized sequences.
+- `matches()`, `replace()`, and `tokenize()` now have an initial ECMAScript-compatible regex slice; the schema-regex translator is still pending.
+- The `to` operator now has an initial integer-only range-expression slice.
+- `()` and comma-separated parenthesized expressions now have an initial sequence-constructor slice.
+- `if (...) then ... else ...` now has an initial flow-expression slice.
 - Value comparison operators `eq ne lt le gt ge` are now distinct from general comparison,
   including a first type-error guard for mismatched singleton operands.
 - The `parent` axis is now available via both `..` and `parent::`.

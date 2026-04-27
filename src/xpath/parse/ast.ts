@@ -4,8 +4,10 @@ export type XPathAst =
   | BinaryExpression
   | ContextItemExpression
   | FunctionCallExpression
+  | IfExpression
   | NumberLiteral
   | PathExpression
+  | SequenceExpression
   | StringLiteral
   | UnaryExpression
   | VariableReference;
@@ -46,6 +48,7 @@ export type XPathBinaryOperator =
   | 'ne'
   | '<<'
   | 'or'
+  | 'to'
   | '>>';
 
 export interface BinaryExpression {
@@ -65,6 +68,14 @@ export interface FunctionCallExpression {
   readonly kind: 'functionCall';
   readonly callee: string;
   readonly arguments: readonly XPathAst[];
+  readonly span: SourceSpan;
+}
+
+export interface IfExpression {
+  readonly kind: 'if';
+  readonly test: XPathAst;
+  readonly thenBranch: XPathAst;
+  readonly elseBranch: XPathAst;
   readonly span: SourceSpan;
 }
 
@@ -124,5 +135,11 @@ export interface StepExpression {
   readonly axis: XPathAxis;
   readonly nodeTest: KindTest | NameTest | WildcardTest;
   readonly predicates: readonly XPathAst[];
+  readonly span: SourceSpan;
+}
+
+export interface SequenceExpression {
+  readonly kind: 'sequence';
+  readonly items: readonly XPathAst[];
   readonly span: SourceSpan;
 }

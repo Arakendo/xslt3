@@ -10,10 +10,12 @@ import { XPathError } from '../../errors/XPathError.js';
 import { tokenize, type SourceSpan, type Token, type TokenKind } from '../lex/lexer.js';
 import type {
   FunctionCallExpression,
+  IfExpression,
   KindTest,
   NameTest,
   NumberLiteral,
   PathExpression,
+  SequenceExpression,
   StepExpression,
   StringLiteral,
   UnaryExpression,
@@ -40,6 +42,9 @@ class Parser {
   }
 
   parseExpression(): XPathAst {
+    if (this.current().kind === 'if') {
+      return this.parseIfExpression();
+    }
     return this.parseOrExpression();
   }
 
@@ -87,7 +92,7 @@ class Parser {
   }
 
   private parseComparisonExpression(): XPathAst {
-    return this.parseBinaryChain(this.parseAdditiveExpression.bind(this), [
+    return this.parseBinaryChain(this.parseRangeExpression.bind(this), [
       'equals',
       'eq',
       'ge',
@@ -104,6 +109,10 @@ class Parser {
       'greaterThanOrEqual',
       'ne',
     ]);
+  }
+
+  private parseRangeExpression(): XPathAst {
+    return this.parseBinaryChain(this.parseAdditiveExpression.bind(this), ['to']);
   }
 
   private parseAdditiveExpression(): XPathAst {
@@ -150,6 +159,24 @@ class Parser {
     return expression;
   }
 
+  private parseIfExpression(): IfExpression {
+    const ifToken = this.expect('if', 'Expected if to start the conditional expression.');
+    this.expect('leftParen', 'Expected ( after if.');
+    const test = this.parseExpression();
+    this.expect('rightParen', 'Expected ) after the if test expression.');
+    this.expect('then', 'Expected then after the if test expression.');
+    const thenBranch = this.parseExpression();
+    this.expect('else', 'Expected else after the then branch.');
+    const elseBranch = this.parseExpression();
+    return {
+      kind: 'if',
+      test,
+      thenBranch,
+      elseBranch,
+      span: mergeSpans(ifToken.span, elseBranch.span),
+    };
+  }
+
   private parsePrimaryExpression(): XPathAst {
     const token = this.current();
 
@@ -165,6 +192,8 @@ class Parser {
           return this.parseFunctionCallExpression();
         }
         return this.parsePathExpression();
+      case 'leftParen':
+        return this.parseSequenceExpression();
       case 'dot':
         if (this.peek().kind !== 'slash' && this.peek().kind !== 'slashSlash') {
           this.index += 1;
@@ -233,6 +262,27 @@ class Parser {
       callee: callee.value,
       arguments: args,
       span: mergeSpans(callee.span, rightParen.span),
+    };
+  }
+
+  private parseSequenceExpression(): SequenceExpression {
+    const leftParen = this.expect('leftParen', 'Expected ( to start the sequence constructor.');
+    const items: XPathAst[] = [];
+
+    if (this.current().kind !== 'rightParen') {
+      while (true) {
+        items.push(this.parseExpression());
+        if (this.match('comma') === undefined) {
+          break;
+        }
+      }
+    }
+
+    const rightParen = this.expect('rightParen', 'Expected ) to close the sequence constructor.');
+    return {
+      kind: 'sequence',
+      items,
+      span: mergeSpans(leftParen.span, rightParen.span),
     };
   }
 
@@ -445,6 +495,8 @@ function tokenKindToBinaryOperator(kind: TokenKind): XPathBinaryOperator {
       return '>=';
     case 'ne':
       return 'ne';
+    case 'to':
+      return 'to';
     case 'and':
       return 'and';
     case 'or':
