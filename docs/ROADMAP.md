@@ -59,7 +59,7 @@ yet. No CLI yet. Just: the thing works end-to-end in TypeScript.
 
 ---
 
-### MVP+1 — XPath vertical slice + diagnostic bones
+### MVP+1 — XPath vertical slice + diagnostic bones (done)
 
 **Goal:** evaluate `1 + 2`, `//foo`, `foo/bar[1]` against a DOM with
 source-located AST and caret-formatted errors. This is where the
@@ -97,25 +97,42 @@ diagnostics-first culture gets built in; everything after inherits it.
   looks easy in isolation
 
 **Exit criteria:**
-- [ ] Unit tests cover every AST kind + every axis + every operator
-- [ ] One golden error-format test: a known-bad expression produces a
+- [x] Unit tests cover every AST kind + every axis + every operator
+- [x] One golden error-format test: a known-bad expression produces a
       byte-exact expected diagnostic string
-- [ ] `DiagnosticReport` snapshots exist for at least one parse failure
+- [x] `DiagnosticReport` snapshots exist for at least one parse failure
   and one runtime type failure; both pass invariant validation
-- [ ] Evaluating `//book/title[1]/text()` over a fixture doc returns the
+- [x] Evaluating `//book/title[1]/text()` over a fixture doc returns the
       first book's title text
-- [ ] QT3 conformance runner **filters to the slice** (arithmetic +
+- [x] QT3 conformance runner **filters to the slice** (arithmetic +
       path + predicates only) and reports a real pass rate, not "0 skipped"
-- [ ] Every XPath-layer failure can be converted into a `DiagnosticReport`
+- [x] Every XPath-layer failure can be converted into a `DiagnosticReport`
   with a populated primary span
+
+**Completed notes:**
+- Focused XPath tests cover the implemented AST, axis, operator, and predicate slice.
+- `src/diagnostics/` now provides `DiagnosticReport` conversion, invariant validation,
+  and caret formatting.
+- A curated QT3 MVP+1 slice executes against vendor cases and currently reports `6/6` passing.
 
 ---
 
-### MVP+2 — XPath core on interpreter
+### MVP+2 — XPath core on interpreter (in progress)
 
 **Goal:** pass a meaningful chunk of the QT3 suite. "Meaningful" = the
 sequence/atomization rules are right, or everything downstream is cursed
 (hazard H2).
+
+**Started slice:**
+- Function-call AST + arity-based dispatch is now seeded in-tree.
+- Zero-argument `position()` and `last()` support works inside predicates.
+- Value comparison operators `eq ne lt le gt ge` are now distinct from general comparison,
+  including a first type-error guard for mismatched singleton operands.
+- The `parent` axis is now available via both `..` and `parent::`.
+- The `ancestor` and `ancestor-or-self` axes are now available through named axis syntax.
+- Node comparison operators `is`, `<<`, and `>>` now work for singleton-node identity and order checks.
+- The `following-sibling`, `preceding-sibling`, `following`, and `preceding` axes now work, including reverse-axis predicate ordering.
+- This is only the opening slice for MVP+2, not increment completion.
 
 **Scope (in):**
 - Remaining axes: `parent`, `ancestor`, `ancestor-or-self`, `following`,

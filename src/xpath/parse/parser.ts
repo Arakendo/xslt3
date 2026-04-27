@@ -9,6 +9,7 @@ import { XPST0003 } from '../../errors/codes.js';
 import { XPathError } from '../../errors/XPathError.js';
 import { tokenize, type SourceSpan, type Token, type TokenKind } from '../lex/lexer.js';
 import type {
+  FunctionCallExpression,
   KindTest,
   NameTest,
   NumberLiteral,
@@ -88,11 +89,20 @@ class Parser {
   private parseComparisonExpression(): XPathAst {
     return this.parseBinaryChain(this.parseAdditiveExpression.bind(this), [
       'equals',
+      'eq',
+      'ge',
+      'is',
       'notEquals',
+      'gt',
+      'le',
       'lessThan',
       'lessThanOrEqual',
+      'lt',
+      'nodeAfter',
+      'nodeBefore',
       'greaterThan',
       'greaterThanOrEqual',
+      'ne',
     ]);
   }
 
@@ -150,16 +160,22 @@ class Parser {
         return this.parseStringLiteral();
       case 'dollar':
         return this.parseVariableReference();
+      case 'name':
+        if (this.peek().kind === 'leftParen' && token.value !== 'node' && token.value !== 'text') {
+          return this.parseFunctionCallExpression();
+        }
+        return this.parsePathExpression();
       case 'dot':
         if (this.peek().kind !== 'slash' && this.peek().kind !== 'slashSlash') {
           this.index += 1;
           return { kind: 'contextItem', span: token.span };
         }
         return this.parsePathExpression();
+      case 'dotDot':
+        return this.parsePathExpression();
       case 'slash':
       case 'slashSlash':
       case 'at':
-      case 'name':
       case 'star':
         return this.parsePathExpression();
       default:
@@ -194,6 +210,29 @@ class Parser {
       kind: 'variable',
       name: name.value,
       span: mergeSpans(start.span, name.span),
+    };
+  }
+
+  private parseFunctionCallExpression(): FunctionCallExpression {
+    const callee = this.expect('name', 'Expected a function name.');
+    this.expect('leftParen', 'Expected ( after the function name.');
+
+    const args: XPathAst[] = [];
+    if (this.current().kind !== 'rightParen') {
+      while (true) {
+        args.push(this.parseExpression());
+        if (this.match('comma') === undefined) {
+          break;
+        }
+      }
+    }
+
+    const rightParen = this.expect('rightParen', 'Expected ) to close the function call.');
+    return {
+      kind: 'functionCall',
+      callee: callee.value,
+      arguments: args,
+      span: mergeSpans(callee.span, rightParen.span),
     };
   }
 
@@ -249,6 +288,14 @@ class Parser {
 
     if (this.match('dot') !== undefined) {
       return this.finishStep(startToken.span, 'self', {
+        kind: 'kindTest',
+        name: 'node',
+        span: startToken.span,
+      });
+    }
+
+    if (this.match('dotDot') !== undefined) {
+      return this.finishStep(startToken.span, 'parent', {
         kind: 'kindTest',
         name: 'node',
         span: startToken.span,
@@ -335,9 +382,16 @@ function createSyntheticDescendantOrSelfStep(span: SourceSpan): StepExpression {
 
 function parseAxisName(token: Token): XPathAxis {
   if (
+    token.value === 'ancestor' ||
+    token.value === 'ancestor-or-self' ||
     token.value === 'child' ||
     token.value === 'descendant' ||
     token.value === 'descendant-or-self' ||
+    token.value === 'following' ||
+    token.value === 'following-sibling' ||
+    token.value === 'parent' ||
+    token.value === 'preceding' ||
+    token.value === 'preceding-sibling' ||
     token.value === 'self'
   ) {
     return token.value;
@@ -363,16 +417,34 @@ function tokenKindToBinaryOperator(kind: TokenKind): XPathBinaryOperator {
       return 'mod';
     case 'equals':
       return '=';
+    case 'eq':
+      return 'eq';
+    case 'ge':
+      return 'ge';
+    case 'is':
+      return 'is';
     case 'notEquals':
       return '!=';
+    case 'gt':
+      return 'gt';
+    case 'le':
+      return 'le';
     case 'lessThan':
       return '<';
     case 'lessThanOrEqual':
       return '<=';
+    case 'lt':
+      return 'lt';
+    case 'nodeAfter':
+      return '>>';
+    case 'nodeBefore':
+      return '<<';
     case 'greaterThan':
       return '>';
     case 'greaterThanOrEqual':
       return '>=';
+    case 'ne':
+      return 'ne';
     case 'and':
       return 'and';
     case 'or':
@@ -389,7 +461,7 @@ function unescapeStringLiteral(lexeme: string): string {
 }
 
 function isStepStart(token: Token): boolean {
-  return token.kind === 'dot' || token.kind === 'at' || token.kind === 'name' || token.kind === 'star';
+  return token.kind === 'dot' || token.kind === 'dotDot' || token.kind === 'at' || token.kind === 'name' || token.kind === 'star';
 }
 
 function createParseError(message: string, span: SourceSpan): XPathError {

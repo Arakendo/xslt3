@@ -36,6 +36,15 @@ export type TokenKind =
   | 'doubleColon'
   | 'pipe'
   | 'and'
+  | 'eq'
+  | 'ge'
+  | 'gt'
+  | 'is'
+  | 'le'
+  | 'lt'
+  | 'ne'
+  | 'nodeAfter'
+  | 'nodeBefore'
   | 'or'
   | 'div'
   | 'mod';
@@ -58,7 +67,14 @@ export interface Token {
 const KEYWORD_KINDS = {
   and: 'and',
   div: 'div',
+  eq: 'eq',
+  ge: 'ge',
+  gt: 'gt',
+  is: 'is',
+  le: 'le',
+  lt: 'lt',
   mod: 'mod',
+  ne: 'ne',
   or: 'or',
 } as const satisfies Record<string, TokenKind>;
 
@@ -193,7 +209,10 @@ export function tokenize(expression: string): readonly Token[] {
       }
       case '<': {
         advanceChar(state);
-        if (peekChar(state) === '=') {
+        if (peekChar(state) === '<') {
+          advanceChar(state);
+          tokens.push(makeToken(state, start, 'nodeBefore'));
+        } else if (peekChar(state) === '=') {
           advanceChar(state);
           tokens.push(makeToken(state, start, 'lessThanOrEqual'));
         } else {
@@ -203,7 +222,10 @@ export function tokenize(expression: string): readonly Token[] {
       }
       case '>': {
         advanceChar(state);
-        if (peekChar(state) === '=') {
+        if (peekChar(state) === '>') {
+          advanceChar(state);
+          tokens.push(makeToken(state, start, 'nodeAfter'));
+        } else if (peekChar(state) === '=') {
           advanceChar(state);
           tokens.push(makeToken(state, start, 'greaterThanOrEqual'));
         } else {

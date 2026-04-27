@@ -3,13 +3,26 @@ import type { SourceSpan } from '../lex/lexer.js';
 export type XPathAst =
   | BinaryExpression
   | ContextItemExpression
+  | FunctionCallExpression
   | NumberLiteral
   | PathExpression
   | StringLiteral
   | UnaryExpression
   | VariableReference;
 
-export type XPathAxis = 'attribute' | 'child' | 'descendant' | 'descendant-or-self' | 'self';
+export type XPathAxis =
+  | 'ancestor'
+  | 'ancestor-or-self'
+  | 'attribute'
+  | 'child'
+  | 'descendant'
+  | 'descendant-or-self'
+  | 'following'
+  | 'following-sibling'
+  | 'parent'
+  | 'preceding'
+  | 'preceding-sibling'
+  | 'self';
 
 export type XPathBinaryOperator =
   | '+'
@@ -24,7 +37,16 @@ export type XPathBinaryOperator =
   | '>'
   | '>='
   | 'and'
-  | 'or';
+  | 'eq'
+  | 'ge'
+  | 'gt'
+  | 'is'
+  | 'le'
+  | 'lt'
+  | 'ne'
+  | '<<'
+  | 'or'
+  | '>>';
 
 export interface BinaryExpression {
   readonly kind: 'binary';
@@ -36,6 +58,13 @@ export interface BinaryExpression {
 
 export interface ContextItemExpression {
   readonly kind: 'contextItem';
+  readonly span: SourceSpan;
+}
+
+export interface FunctionCallExpression {
+  readonly kind: 'functionCall';
+  readonly callee: string;
+  readonly arguments: readonly XPathAst[];
   readonly span: SourceSpan;
 }
 

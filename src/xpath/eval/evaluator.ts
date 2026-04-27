@@ -7,7 +7,7 @@
 
 import type { Node } from '@xmldom/xmldom';
 
-import { FOAR0001, XPDY0002, XPST0008, XPTY0004 } from '../../errors/codes.js';
+import { FOAR0001, XPDY0002, XPST0008, XPST0017, XPTY0004 } from '../../errors/codes.js';
 import { XPathError } from '../../errors/XPathError.js';
 import { createSequence, materialize } from '../../xdm/sequence.js';
 import {
@@ -42,6 +42,8 @@ function evaluateExpression(ast: XPathAst, context: DynamicContext): XdmItem[] {
       return evaluateBinaryExpression(ast.operator, ast.left, ast.right, context, ast.span);
     case 'contextItem':
       return [requireContextItem(context, ast.span)];
+    case 'functionCall':
+      return evaluateFunctionCall(ast.callee, ast.arguments, context, ast.span);
     case 'number':
       return [createXdmNumber(ast.value)];
     case 'string':
@@ -54,6 +56,26 @@ function evaluateExpression(ast: XPathAst, context: DynamicContext): XdmItem[] {
       return resolveVariableReference(ast.name, context, ast.span);
     case 'path':
       return evaluatePath(ast, context);
+  }
+}
+
+function evaluateFunctionCall(
+  callee: string,
+  args: readonly XPathAst[],
+  context: DynamicContext,
+  span: SpanLike,
+): XdmItem[] {
+  const normalized = callee.includes(':') ? callee : `fn:${callee}`;
+
+  switch (normalized) {
+    case 'fn:position':
+      requireArity(normalized, args, 0, span);
+      return [createXdmNumber(context.contextPosition)];
+    case 'fn:last':
+      requireArity(normalized, args, 0, span);
+      return [createXdmNumber(context.contextSize)];
+    default:
+      throw createXPathError(XPST0017, `Unknown function ${callee} with arity ${args.length}.`, span);
   }
 }
 
@@ -101,6 +123,24 @@ function evaluateBinaryExpression(
     }
   }
 
+  if (operator === 'eq' || operator === 'ne' || operator === 'lt' || operator === 'le' || operator === 'gt' || operator === 'ge') {
+    return compareValue(
+      operator,
+      evaluateExpression(leftAst, context),
+      evaluateExpression(rightAst, context),
+      span,
+    );
+  }
+
+  if (operator === 'is' || operator === '<<' || operator === '>>') {
+    return compareNodes(
+      operator,
+      evaluateExpression(leftAst, context),
+      evaluateExpression(rightAst, context),
+      span,
+    );
+  }
+
   return [
     createXdmBoolean(
       compareGeneral(
@@ -111,6 +151,43 @@ function evaluateBinaryExpression(
       ),
     ),
   ];
+}
+
+function compareNodes(
+  operator: 'is' | '<<' | '>>',
+  leftItems: readonly XdmItem[],
+  rightItems: readonly XdmItem[],
+  span: SpanLike,
+): XdmItem[] {
+  const left = requireSingletonNode(leftItems, span, 'left');
+  const right = requireSingletonNode(rightItems, span, 'right');
+
+  if (left === undefined || right === undefined) {
+    return [];
+  }
+
+  if (operator === 'is') {
+    return [createXdmBoolean(left.node === right.node)];
+  }
+
+  const order = compareNodeOrder(left.node, right.node);
+  return [createXdmBoolean(operator === '<<' ? order < 0 : order > 0)];
+}
+
+function compareValue(
+  operator: 'eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge',
+  leftItems: readonly XdmItem[],
+  rightItems: readonly XdmItem[],
+  span: SpanLike,
+): XdmItem[] {
+  const leftValue = atomizeSingleton(leftItems, span);
+  const rightValue = atomizeSingleton(rightItems, span);
+
+  if (leftValue === undefined || rightValue === undefined) {
+    return [];
+  }
+
+  return [createXdmBoolean(compareValueOperands(operator, leftValue, rightValue, span))];
 }
 
 function evaluatePath(ast: PathExpression, context: DynamicContext): XdmNode[] {
@@ -151,6 +228,10 @@ function applyStep(step: StepExpression, input: readonly XdmNode[], context: Dyn
 
 function selectAxis(step: StepExpression, node: Node): XdmNode[] {
   switch (step.axis) {
+    case 'ancestor':
+      return collectAncestors(node, false).map(createXdmNode);
+    case 'ancestor-or-self':
+      return collectAncestors(node, true).map(createXdmNode);
     case 'attribute':
       return collectAttributes(node).map(createXdmNode);
     case 'child':
@@ -159,6 +240,16 @@ function selectAxis(step: StepExpression, node: Node): XdmNode[] {
       return collectDescendants(node).map(createXdmNode);
     case 'descendant-or-self':
       return collectDescendantsOrSelf(node).map(createXdmNode);
+    case 'following':
+      return collectFollowingNodes(node).map(createXdmNode);
+    case 'following-sibling':
+      return collectFollowingSiblings(node).map(createXdmNode);
+    case 'parent':
+      return collectParent(node).map(createXdmNode);
+    case 'preceding':
+      return collectPrecedingNodes(node).map(createXdmNode);
+    case 'preceding-sibling':
+      return collectPrecedingSiblings(node).map(createXdmNode);
     case 'self':
       return [createXdmNode(node)];
   }
@@ -306,6 +397,112 @@ function collectDescendantsOrSelf(node: Node): Node[] {
   return [node, ...collectDescendants(node)];
 }
 
+function collectParent(node: Node): Node[] {
+  return node.parentNode === null ? [] : [node.parentNode];
+}
+
+function collectAncestors(node: Node, includeSelf: boolean): Node[] {
+  const items: Node[] = [];
+
+  if (includeSelf) {
+    items.push(node);
+  }
+
+  let current = node.parentNode;
+  while (current !== null) {
+    items.push(current);
+    current = current.parentNode;
+  }
+
+  return items;
+}
+
+function collectFollowingSiblings(node: Node): Node[] {
+  const parent = node.parentNode;
+  if (parent === null) {
+    return [];
+  }
+
+  const siblings = parent.childNodes;
+  const items: Node[] = [];
+  let seenCurrent = false;
+  for (let index = 0; index < siblings.length; index += 1) {
+    const sibling = siblings.item(index);
+    if (sibling === null) {
+      continue;
+    }
+    if (seenCurrent) {
+      items.push(sibling);
+      continue;
+    }
+    if (sibling === node) {
+      seenCurrent = true;
+    }
+  }
+
+  return items;
+}
+
+function collectPrecedingSiblings(node: Node): Node[] {
+  const parent = node.parentNode;
+  if (parent === null) {
+    return [];
+  }
+
+  const siblings = parent.childNodes;
+  const items: Node[] = [];
+  for (let index = 0; index < siblings.length; index += 1) {
+    const sibling = siblings.item(index);
+    if (sibling === null) {
+      continue;
+    }
+    if (sibling === node) {
+      break;
+    }
+    items.push(sibling);
+  }
+
+  return items.reverse();
+}
+
+function collectFollowingNodes(node: Node): Node[] {
+  const items: Node[] = [];
+  let current: Node | null = node;
+
+  while (current !== null && current.parentNode !== null) {
+    for (const sibling of collectFollowingSiblings(current)) {
+      items.push(sibling);
+      items.push(...collectDescendants(sibling));
+    }
+    current = current.parentNode;
+  }
+
+  return items;
+}
+
+function collectPrecedingNodes(node: Node): Node[] {
+  const items: Node[] = [];
+  let current: Node | null = node;
+
+  while (current !== null && current.parentNode !== null) {
+    for (const sibling of collectPrecedingSiblings(current)) {
+      items.push(...collectDescendantsOrSelfReverse(sibling));
+    }
+    current = current.parentNode;
+  }
+
+  return items;
+}
+
+function collectDescendantsOrSelfReverse(node: Node): Node[] {
+  const items: Node[] = [];
+  for (const child of collectChildren(node).reverse()) {
+    items.push(...collectDescendantsOrSelfReverse(child));
+  }
+  items.push(node);
+  return items;
+}
+
 function resolveVariableReference(name: string, context: DynamicContext, span: SpanLike): XdmItem[] {
   const value = context.variables.get(name) ?? context.variables.get(`{}${name}`);
   if (value === undefined) {
@@ -429,6 +626,119 @@ function compareAtomicValues(
   return compareScalars(operator, String(left), String(right));
 }
 
+function atomizeSingleton(
+  items: readonly XdmItem[],
+  span: SpanLike,
+): boolean | number | string | undefined {
+  if (items.length === 0) {
+    return undefined;
+  }
+
+  if (items.length !== 1) {
+    throw createXPathError(XPTY0004, 'Value comparisons require singleton operands.', span);
+  }
+
+  const [item] = items;
+  if (item?.xdmKind === 'node') {
+    return (item as XdmNode).node.textContent ?? '';
+  }
+
+  return (item as XdmAtomicValue).value;
+}
+
+function requireSingletonNode(
+  items: readonly XdmItem[],
+  span: SpanLike,
+  side: 'left' | 'right',
+): XdmNode | undefined {
+  if (items.length === 0) {
+    return undefined;
+  }
+
+  if (items.length !== 1 || items[0]?.xdmKind !== 'node') {
+    throw createXPathError(XPTY0004, `Node comparisons require a singleton node on the ${side} side.`, span);
+  }
+
+  return items[0] as XdmNode;
+}
+
+function compareNodeOrder(left: Node, right: Node): number {
+  if (left === right) {
+    return 0;
+  }
+
+  const leftPath = getDocumentOrderPath(left);
+  const rightPath = getDocumentOrderPath(right);
+  const length = Math.min(leftPath.length, rightPath.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = leftPath[index]!;
+    const rightPart = rightPath[index]!;
+    if (leftPart !== rightPart) {
+      return leftPart < rightPart ? -1 : 1;
+    }
+  }
+
+  return leftPath.length < rightPath.length ? -1 : 1;
+}
+
+function getDocumentOrderPath(node: Node): readonly number[] {
+  const path: number[] = [];
+  let current: Node | null = node;
+
+  while (current !== null) {
+    path.unshift(getNodeSiblingIndex(current));
+    current = current.parentNode;
+  }
+
+  return path;
+}
+
+function getNodeSiblingIndex(node: Node): number {
+  const parent = node.parentNode;
+  if (parent === null) {
+    return 0;
+  }
+
+  const siblings = parent.childNodes;
+  for (let index = 0; index < siblings.length; index += 1) {
+    if (siblings.item(index) === node) {
+      return index;
+    }
+  }
+
+  return 0;
+}
+
+function compareValueOperands(
+  operator: 'eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge',
+  left: boolean | number | string,
+  right: boolean | number | string,
+  span: SpanLike,
+): boolean {
+  if (typeof left === 'boolean' || typeof right === 'boolean') {
+    if (typeof left !== 'boolean' || typeof right !== 'boolean') {
+      throw createXPathError(XPTY0004, 'Value comparisons require matching operand types.', span);
+    }
+
+    if (operator !== 'eq' && operator !== 'ne') {
+      throw createXPathError(XPTY0004, 'Relational value comparisons are not defined for booleans.', span);
+    }
+
+    return compareScalars(operator, left, right);
+  }
+
+  if (typeof left === 'number' || typeof right === 'number') {
+    if (typeof left !== 'number' || typeof right !== 'number') {
+      throw createXPathError(XPTY0004, 'Value comparisons require matching operand types.', span);
+    }
+
+    return compareScalars(operator, left, right);
+  }
+
+  return compareScalars(operator, left, right);
+}
+
 function coerceNumericValue(value: number | string): number | undefined {
   if (typeof value === 'number') {
     return value;
@@ -438,23 +748,29 @@ function coerceNumericValue(value: number | string): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
-function compareScalars<T extends number | string>(
-  operator: '=' | '!=' | '<' | '<=' | '>' | '>=',
+function compareScalars<T extends boolean | number | string>(
+  operator: '=' | '!=' | '<' | '<=' | '>' | '>=' | 'eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge',
   left: T,
   right: T,
 ): boolean {
   switch (operator) {
     case '=':
+    case 'eq':
       return left === right;
     case '!=':
+    case 'ne':
       return left !== right;
     case '<':
+    case 'lt':
       return left < right;
     case '<=':
+    case 'le':
       return left <= right;
     case '>':
+    case 'gt':
       return left > right;
     case '>=':
+    case 'ge':
       return left >= right;
   }
 }
@@ -469,4 +785,10 @@ function createXPathError(code: string, message: string, span: SpanLike): XPathE
     endColumn: span.endColumn,
     endOffset: span.end,
   });
+}
+
+function requireArity(name: string, args: readonly XPathAst[], expected: number, span: SpanLike): void {
+  if (args.length !== expected) {
+    throw createXPathError(XPST0017, `Function ${name} expects ${expected} arguments but got ${args.length}.`, span);
+  }
 }
