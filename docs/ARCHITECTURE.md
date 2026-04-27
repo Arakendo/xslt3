@@ -6,6 +6,8 @@
 > See [DIFFERENTIATORS.md](./DIFFERENTIATORS.md) for the *why*. This file is
 > the *how*. See [SEMANTIC_BOUNDARIES.md](./SEMANTIC_BOUNDARIES.md) for
 > cross-cutting rules about where meaning boundaries must stay explicit.
+> See [IKVM_INTEGRATION.md](./IKVM_INTEGRATION.md) for the later-stage plan
+> for .NET/NuGet hosting without creating a second semantic engine.
 
 ## 1. Goals & non-goals
 
