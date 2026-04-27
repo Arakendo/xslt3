@@ -26,6 +26,9 @@
 - Add comments only when they clarify non-obvious behavior or a design constraint.
 - This project is still pre-stability. Favor correctness and clearer design over preserving premature compatibility.
 
+## Local Consistency Check
+- When modifying a file, briefly scan surrounding code for violations of the above guidelines. Prefer small, localized improvements (naming, structure, duplication) when they are low-risk and directly adjacent to the change. Avoid large or unrelated refactors. If the file is already large or has organizational issues, note them in the audit tracker and move on to the intended change.
+
 ## Build and Test
 - Install dependencies with `npm install`.
 - Validate types with `npm run typecheck`.

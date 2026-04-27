@@ -37,7 +37,7 @@ mean nothing to humans. Stack traces are internal to the processor.
 
 We will do better:
 
-- **Every** IR node carries `{ source, line, column }` from the source
+- **Every** IR node carries a full `SourceSpan` from the source
   stylesheet. Non-negotiable.
 - **Every** XPath AST node carries the same from the expression text,
   *plus* a pointer back to the IR node that contained the expression.
@@ -70,6 +70,8 @@ If a user sees a red squiggle in their XSLT file before running it,
 we have succeeded. If they see "XPTY0004 at line 42" with no context,
 we have failed.
 
+Tattoo-rule version: **no node without a span; no span without a test.**
+
 ### D2. **Compile to inspectable TypeScript**
 
 Primary backend is a **codegen** that emits plain, readable TS:
@@ -100,6 +102,11 @@ Consequences:
 - Debuggable with the same tools the user already has
 - Reviewable in PRs as a TS file, not a binary SEF blob
 - Publishable as a standalone package — consumer doesn't need our engine
+
+Generated TypeScript is therefore a **debuggable artifact**, not a stable
+API surface. We commit to it being readable and inspectable, but we do
+**not** promise that helper names, local function names, or internal
+emission structure are semver-stable for consumers to import directly.
 
 The interpreter backend remains for:
 - Dynamic XSLT features (`xsl:evaluate`, dynamic mode names)
@@ -140,6 +147,17 @@ defineXsltFunctions('app', {
 At compile time, `app:formatCurrency(price, $locale)` in the stylesheet
 type-checks against this signature. Mismatched arg types → compile-time
 error, not runtime surprise.
+
+Typing contract: TypeScript signatures describe the **post-coercion JS
+values** seen by the extension implementation. Weaver is responsible for
+either:
+
+- proving at compile time that the XDM value flow matches the signature,
+- coercing the runtime XDM value into that JS shape before the call, or
+- raising a structured diagnostic/error before control reaches user TS.
+
+We do **not** expose "typed" extension functions that secretly receive an
+arbitrary XDM grab-bag and hope the user sorts it out.
 
 #### Typed result shapes (stretch goal)
 When a sample input or a schema is provided, we can infer the result's
@@ -192,6 +210,11 @@ The test: if the answer to "why are you using `<ts:eval>` here?" is
 "because I don't want to learn XSLT," our tool is the wrong choice
 and our docs should say so.
 
+Additional rule: **no feature should require `<ts:eval>` to be usable.**
+If a realistic use case only becomes practical once the user drops into
+TypeScript, then the missing capability belongs in the language/runtime
+roadmap, not behind the escape hatch.
+
 ### D5. **Watch mode, first-class**
 
 ```bash
@@ -209,6 +232,10 @@ the core product, not a separate tool:
 - Exits non-zero on diagnostic errors — usable in `npm run dev`
   pipelines without wrapping scripts
 - Keeps a persistent IR cache so only changed stylesheets recompile
+
+This is a first-class execution surface, not a thin wrapper around the
+CLI command. If watch mode is slow, flaky, or diagnostically inconsistent,
+the modern-DX claim is false regardless of how good the batch compiler is.
 
 This lands in M6 alongside the CLI, not after. The pitch is
 "XSLT with a modern dev loop"; without watch mode we're lying.
@@ -244,14 +271,17 @@ XPath AST) must be:
 
 1. **Pure, JSON-serializable data.** No DOM references, no closures,
    no cyclic pointers. Serializable IR → cacheable IR → inspectable IR.
-2. **Source-located, exhaustively.** Every node has `{ source, line,
-   column, length }`. Lose this at your peril.
+2. **Source-located, exhaustively.** Every node has a full `SourceSpan`
+  compatible with `docs/ERRORS.md`. Lose this at your peril.
 3. **Semantically rich.** Explicit `purity`, `streamability`,
    `mayThrow`, `refersToContext` flags set during a static-analysis
    pass. Backends query these rather than recomputing them.
-4. **Versioned.** Adding an IR node kind is a minor version bump;
+4. **Versioned.** The root `StylesheetIR` carries an explicit `version`.
+  Adding an IR node kind is a minor version bump;
    changing the shape of an existing kind is major. External tools
    (editor plugins, debugger UIs) may consume the IR.
+5. **Free of execution caches.** Runtime-only and codegen-only helpers
+  live in plan overlays, not on the IR itself.
 
 Concretely: if the codegen backend can't be written as a pure function
 `IR → string`, the IR is doing too little. Fix the IR, not the backend.

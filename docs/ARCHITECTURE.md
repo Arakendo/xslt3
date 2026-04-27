@@ -4,7 +4,8 @@
 > drift. Update this file when a decision changes.
 >
 > See [DIFFERENTIATORS.md](./DIFFERENTIATORS.md) for the *why*. This file is
-> the *how*.
+> the *how*. See [SEMANTIC_BOUNDARIES.md](./SEMANTIC_BOUNDARIES.md) for
+> cross-cutting rules about where meaning boundaries must stay explicit.
 
 ## 1. Goals & non-goals
 
@@ -110,10 +111,33 @@ DOM. Conversion happens at the boundary.
 
 Rationale: copying a large input document doubles memory and is slow.
 Adapter layer preserves the option to swap in a native tree later.
+The adapter is allowed to cache derived views lazily (children, string
+value, document-order helpers) so we pay the DOM-to-XDM normalization cost
+once per node, not on every XPath step.
+
+Cache constraints:
+
+- caches are per-node, not global
+- cached values are immutable after first computation
+- the adapter assumes the underlying DOM is immutable once wrapped
+- wrappers are canonicalized per underlying DOM node
+
+If callers mutate the DOM after wrapping it in `XdmNode`, behavior is
+undefined. The adapter is a semantic view over a stable tree, not a live
+DOM observer.
+
+Canonical node identity is required for XPath node identity semantics.
+`XdmNode` wrappers should therefore be produced through a single factory /
+cache (for example a `WeakMap<Node, XdmNode>`), not via ad hoc `new XdmNode(...)`
+calls sprinkled across the engine. If the same DOM node yields two distinct
+wrappers, the `is` operator and duplicate-elimination logic will lie.
 
 ### DEC-003 — XPath engine: **hand-rolled, owned in-tree**
 Rejected: `fontoxpath` (MIT, mature). Chosen: build our own under
 `src/xpath/`. Reasons:
+
+Implementation strategy and risk areas are expanded in
+[XPATH.md](./XPATH.md).
 
 - Full control over evaluation model (needed for future streaming)
 - No runtime dependency on a 2 MB library
@@ -121,6 +145,17 @@ Rejected: `fontoxpath` (MIT, mature). Chosen: build our own under
 
 Accepts the cost: ~17–24 focused weeks of XPath work before XSLT layer
 benefits. Documented in README as a scope risk.
+
+XPath delivery is intentionally tiered to prevent scope soup:
+
+- M1: navigation + arithmetic + predicates + diagnostic bones
+- M2: core expressions + function library + comparison semantics
+- M7: type system, maps/arrays, higher-order functions
+
+Do not quietly pull later tiers forward piecemeal because one function or
+operator looks easy in isolation. XPath semantics do not reward that habit.
+Where practical, tests and feature gates should enforce the current tier so
+"just one more function" does not drag M7 semantics back into M2.
 
 ### DEC-004 — Parser style: **recursive descent + Pratt for expressions**
 - Statement/path structure → recursive descent
@@ -139,23 +174,76 @@ It must be:
 
 1. **Pure, JSON-serializable data.** No DOM refs, no closures, no cycles.
 2. **Source-located exhaustively.** Every node carries
-   `{ source, line, column, length }`. Non-negotiable — see DEC-013.
+  a full source span compatible with [ERRORS.md](./ERRORS.md)
+  `SourceSpan` (`uri`, UTF-16 offsets, start/end line + column).
+  Non-negotiable — see DEC-013.
 3. **Semantically annotated** by a static-analysis pass: `purity`,
    `streamability`, `mayThrow`, `refersToContext`, `referencedNames`.
    Backends query these rather than recomputing them.
 4. **Versioned.** Adding a node kind = minor bump. Changing a shape =
-   major bump. External tools may consume the IR.
+  major bump. The root `StylesheetIR` object carries an explicit `version`
+  field; external tools should not infer version from package metadata.
+5. **Free of execution caches.** Pre-resolved bindings, dispatch tables,
+  memoized analysis artifacts, and runtime helpers live in a separate
+  `RuntimePlan` / `EmitPlan` overlay keyed off the IR, not on IR nodes
+  themselves.
 
 If the codegen backend can't be written as a (mostly) pure function
 `IR → string`, the IR is doing too little. Fix the IR, not the backend.
 
+If the interpreter needs richer runtime toys (resolved QNames, compiled
+dispatch tables, memoized bindings), build them in the execution plan
+layer, not by smuggling `_internalCache` fields onto the IR.
+
+Plan boundary:
+
+- **`RuntimePlan`** owns interpreter-only execution structures:
+  dispatch tables, resolved QNames, memoized evaluation helpers,
+  rule-matcher indexes, and other "how to run" concerns.
+- **`EmitPlan`** owns codegen-only structures:
+  symbol naming, import tracking, hoisting decisions, helper selection,
+  and other "how to generate code" concerns.
+
+If a structure is needed by both plans, first ask whether it actually
+belongs in the IR. If the answer is no, duplicate the derived view rather
+than letting `RuntimePlan` and `EmitPlan` slowly merge into one blob.
+
 XPath expressions inside instructions are **pre-parsed once at compile
 time** into XPath ASTs and embedded in the IR. No re-parsing per call.
 
-### DEC-006 — Sequences: lazy iterators
-Sequences are represented as `Iterable<XdmItem>` internally, not arrays.
-A materialized `Sequence` class is provided for cases that need count /
-indexed access. Rationale: `1 to 1_000_000` must not allocate 1M ints.
+### DEC-006 — Sequences: owned lazy sequence abstraction
+Sequences are lazy, but not exposed as naked JS iterables across the engine.
+We provide an engine-owned sequence abstraction backed by generators /
+iterables internally, with explicit operations for iteration,
+materialization, and focus-sensitive behavior.
+
+Rationale:
+
+- `1 to 1_000_000` must not allocate 1M ints
+- raw JS iterables are too easy to consume accidentally only once
+- XPath needs controlled semantics for `position()`, `last()`, and replay
+
+Sequence guarantees:
+
+- re-iteration is stable unless a sequence is explicitly documented as
+  one-shot internally
+- document order is preserved unless an operation explicitly changes it
+- duplicates are preserved or eliminated according to XPath semantics,
+  not according to incidental JS collection behavior
+- node identity comparisons (`is`) observe stable wrapped-node identity
+
+Materialization policy:
+
+- materialization is allowed for operations that semantically require it
+  (`last()`, counting, explicit sequence construction, duplicate-sensitive
+  set operations, indexed access)
+- materialization is not the default fallback for convenience
+- future streaming or forward-only contexts may forbid materialization
+  entirely for specific execution paths
+
+A materialized `Sequence` helper is still provided for cases that need
+count or indexed access, but the abstraction boundary is ours, not the JS
+iterator protocol's.
 
 ### DEC-007 — Error model: `XdmError` with codes *and context*
 One error class hierarchy:
@@ -170,6 +258,34 @@ XdmError (base)
 Every throw sets a W3C error code. Static/parse-time errors include
 source location; dynamic errors include XPath location **and** a call
 stack of IR nodes (template, instruction) that led to the failure.
+
+The boundary-facing structured diagnostic contract is defined in
+[ERRORS.md](./ERRORS.md). `XdmError` is the engine-facing throwable type;
+`DiagnosticReport` is the durable boundary shape for formatting, tests,
+watch mode, and future editor tooling.
+
+Pinned rules from that contract:
+
+- W3C error codes are the primary diagnostic identity whenever the spec
+  defines one; `WEAVER_*` local codes are reserved for boundary/runtime
+  failures where no W3C code reasonably fits.
+- Boundary translation flows `XdmError -> DiagnosticReport`; core engine
+  code does not format user-facing prose ad hoc and no boundary parses
+  formatted strings back into structure.
+- `DiagnosticReport` is structured, not stringly: `primary`, `related`,
+  `frames`, `details`, `suggestions`, and `causes` are first-class data,
+  not text fragments stuffed into `message`.
+- Boundary diagnostics are treated as immutable contract objects once
+  created.
+- Cause chains are normalized at the boundary into structured
+  `causes[]`, with cycle-safe formatting and a flat enough shape for
+  watch mode, tests, and editor consumers.
+
+Validation rule: development builds and tests should reject malformed
+diagnostics via a small invariant checker (`assertValidDiagnostic` or
+equivalent). At minimum, it validates code shape, classification fields,
+span ordering, and required detail fields for the small set of codes
+where missing structure would materially weaken the diagnostic.
 
 An error message is not considered acceptable unless it identifies:
 - the W3C code
@@ -195,6 +311,17 @@ This project's reason to exist is better XSLT ergonomics. Therefore:
 4. **No feature is done with poor errors.** A feature that passes its
    happy-path tests but produces `XPTY0004: type mismatch` at runtime
    for simple misuse is incomplete.
+5. **Diagnostics are testable artifacts.** Formatter output and
+  structured diagnostic shape get fixture or snapshot coverage; they are
+  not left to ad hoc manual inspection.
+6. **One report contract across surfaces.** Parse errors, static
+  analysis, runtime failures, serialization failures, watch-mode output,
+  and codegen diagnostics all project to the same `DiagnosticReport`
+  shape. Different renderers are allowed; different meanings are not.
+7. **Parity is semantic, not cosmetic.** Where interpreter and codegen
+  both implement a feature, diagnostics match on code, phase, category,
+  severity, primary span when source is available, and relevant details.
+  Minor wording drift in formatted text is secondary.
 
 ### DEC-014 — Codegen backend: TypeScript source, not bytecode
 The codegen backend emits **plain TypeScript source** (`.xsl.ts`) plus a
@@ -207,13 +334,23 @@ The codegen backend emits **plain TypeScript source** (`.xsl.ts`) plus a
   as the primary output.
 - **Emitting via TypeScript Compiler API `ts.factory.*`** — considered
   for phase 2 once the string-templated emitter stabilizes. First
-  emitter is a string-based template for simplicity and readability
-  of the output.
+  emitter lowers into a tiny TypeScript output model and then renders to
+  strings for simplicity and readability of the output.
 
 Generated code imports from `@arakendo/xslt/runtime` for shared helpers
 (writer, XPath primitives, template dispatcher, XDM operations). The
 runtime is a separate subpath export so projects can bundle *only* the
 runtime without the compiler.
+
+Even before we adopt `ts.factory.*`, emission should not be raw string
+concatenation everywhere. A tiny output-node layer is worth it for name
+hygiene, string escaping, and source-map stability.
+
+Name hygiene rule: all generated identifiers are collision-free and
+deterministic across runs. Symbol creation flows through one allocator,
+not ad hoc string formatting at call sites. If the same stylesheet
+compiles twice, the generated names should be stable unless the input IR
+meaningfully changed.
 
 ### DEC-015 — Extension functions: typed bindings
 Users register extension functions with TypeScript signatures:
@@ -238,16 +375,26 @@ Not a user-facing API.
 Default collation is `http://www.w3.org/2005/xpath-functions/collation/codepoint`.
 `Intl.Collator`-backed locale collations are a later milestone.
 
-### DEC-010 — Testing strategy (three tiers, two backends)
+### DEC-010 — Testing strategy (four tiers, two backends)
 1. **Unit tests** next to implementation (`foo.test.ts`)
 2. **Golden tests** — `test/golden/<name>/{input.xml, stylesheet.xsl, expected.xml}` with one generic runner; **runs each case under both backends** and asserts equal output
-3. **Conformance** — git submodules `w3c/xslt30-test` and `w3c/qt3tests`;
+3. **Parity tests** — targeted fixtures that run interpreter + codegen,
+  then deep-compare **structured diagnostics and behavior**, not just
+  final output. This is where evaluation order, laziness, and dynamic
+  error semantics get pinned.
+4. **Conformance** — git submodules `w3c/xslt30-test` and `w3c/qt3tests`;
    reports pass/fail percentage for each suite under each backend.
    Initially all expected to fail; number should only ever go up.
 
 The rule: a feature is considered landed only when it passes the same
-tests under both the interpreter and the codegen backends. This keeps
-the two implementations honest and catches IR gaps early.
+tests under both the interpreter and the codegen backends, and where a
+diagnostic is part of the behavior contract, the structured reports must
+also match. This keeps the two implementations honest and catches IR gaps,
+evaluation-order bugs, and diagnostic drift early.
+
+Diagnostic ordering must also be stable and deterministic. "Same set of
+errors in a different order" is still parity drift once tests, watch mode,
+or editor tooling consume the report stream.
 
 ### DEC-011 — Module layout
 ESM only. Everything under `src/`:
@@ -261,6 +408,7 @@ src/
     XdmError.ts
     XPathError.ts
     XsltError.ts
+    SerializationError.ts
     codes.ts               # all W3C codes as consts
 
   xml/
@@ -271,7 +419,7 @@ src/
     types.ts               # XdmItem | XdmAtomic | XdmNode | XdmFunction
     atomic/                # xs:string, xs:integer, xs:date, ...
     node/                  # XdmNode adapter over DOM
-    sequence.ts            # lazy sequence helpers
+    sequence.ts            # owned Sequence abstraction over lazy iterators
     map.ts                 # XDM map
     array.ts               # XDM array
 
@@ -311,9 +459,12 @@ src/
       analyze.ts           # static-analysis passes (purity, streamability, diagnostics)
     eval/                  # interpreter backend (DEC-014)
       transform.ts
+      plan.ts              # IR -> RuntimePlan overlay (caches, bindings)
       rule-matcher.ts      # template match priority
       modes.ts
     codegen/               # codegen backend (DEC-014)
+      plan.ts              # IR -> EmitPlan overlay (names, bindings, helpers)
+      ts-ir.ts             # tiny TS output model for hygienic emission
       emit.ts              # IR → TypeScript string
       emit-types.ts        # IR → .d.ts for typed params
       sourcemap.ts
@@ -326,7 +477,9 @@ src/
     ext.ts                 # defineXsltFunctions (DEC-015)
 
   diagnostics/             # DEC-013
+    report.ts              # DiagnosticReport types + conversions
     format.ts              # pretty-print error with source snippet + caret
+    json.ts                # JSON-safe projection for future boundaries
     suggest.ts             # "did you mean" heuristics
 
   processor/               # public orchestration
@@ -341,6 +494,11 @@ src/
 
 ### DEC-012 — Public API surface
 Keep tiny and stable. Two entry points:
+
+The host/application contract for URI resolution and external resource
+loading is defined in [URI_RESOLUTION.md](./URI_RESOLUTION.md). `baseUri`
+is part of that contract; it does not imply ambient filesystem or network
+access from core engine code.
 
 ```ts
 // Runtime / interpreter usage
@@ -373,7 +531,7 @@ diagnostics polish, then the codegen backend which is the product.
 | **M1** | XPath vertical slice + diagnostic bones | Parse & evaluate `1 + 2`, `//foo`, `foo/bar[1]`; all AST nodes source-located; errors print file:line:col with source snippet + caret |
 | **M2** | XPath core on interpreter | All axes, predicates, value/general/node comparisons, `if/for/let/some/every`, ~40 fn:* functions. Target: 20% of QT3 passing. |
 | **M3** | XSLT MVP on interpreter | `xsl:template`, `xsl:apply-templates`, `xsl:value-of`, `xsl:for-each`, `xsl:choose`, `xsl:variable`, `xsl:param`, literal result elements. First golden test green. |
-| **M4** | **Codegen backend (v1)** | IR → readable TypeScript for M3 features; all golden + M3 conformance tests pass under codegen; generated output committed to a fixtures folder for review |
+| **M4** | **Codegen backend (v1)** | IR → readable TypeScript for M3 features; golden + parity fixtures compare output and structured diagnostics under both backends; M3 conformance slice passes under codegen; generated output committed to a fixtures folder for review |
 | **M5** | Typed params + typed extension functions | `.d.ts` emission; `defineXsltFunctions` with compile-time signature checking; CLI `arakendo-xslt compile` |
 | **M6** | Watch mode + source maps + diagnostics v2 | `arakendo-xslt watch`; Vite/esbuild plugin; `.xsl.map` output; static-analysis pass for unreachable templates, unused vars, priority conflicts, "did you mean" suggestions |
 | **M7** | XPath type system + maps/arrays + higher-order | `cast as`, `instance of`, SequenceTypes, maps, arrays, function items |
@@ -392,8 +550,9 @@ Time estimates intentionally omitted.
 - BigInt for `xs:integer`? (Spec says arbitrary precision. Probably yes
   eventually; `number` for M1.)
 - Worker-based parallel evaluation? (Deferred indefinitely.)
-- String-templated codegen vs. `ts.factory.*` — first pass is string
-  templates; migrate if/when emission complexity demands it.
+- Tiny TS output model vs. `ts.factory.*` — first pass is a small
+  output-node layer rendered to strings; migrate if/when emission
+  complexity demands the full TS compiler API.
 - How aggressive can compile-time diagnostics be without a sample input?
   (Without a sample: structural only. With a sample doc or schema:
   element/attribute name validation, basic type inference.)

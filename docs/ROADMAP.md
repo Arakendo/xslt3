@@ -2,7 +2,8 @@
 
 > Execution plan, not a spec. See [ARCHITECTURE.md](./ARCHITECTURE.md) for
 > pinned design decisions and [DIFFERENTIATORS.md](./DIFFERENTIATORS.md)
-> for the product thesis.
+> for the product thesis. See [XPATH.md](./XPATH.md) for the XPath-specific
+> implementation strategy that informs M1, M2, and M7.
 >
 > Each increment is **shippable on its own**: it compiles, it tests green,
 > it demonstrates *something* a user could see. Nothing here is "do a lot
@@ -66,7 +67,8 @@ diagnostics-first culture gets built in; everything after inherits it.
 
 **Scope (in):**
 - Hand-written lexer (`src/xpath/lex/lexer.ts`) with **every token carrying
-  `{ start, end, line, column }`** (SourceSpan). No exceptions.
+  a full `SourceSpan`** compatible with `docs/ERRORS.md` (`uri`, UTF-16
+  offsets, start/end line + column). No exceptions.
 - Recursive-descent parser (`src/xpath/parse/parser.ts`) + Pratt operator
   precedence for `+ - * div mod`, `= != < <= > >=`, `and or`, unary `-`
 - AST node kinds: `NumberLiteral`, `StringLiteral`, `PathExpr`,
@@ -75,8 +77,12 @@ diagnostics-first culture gets built in; everything after inherits it.
 - Node-tests: `name`, `*`, `text()`, `node()`
 - Axes: `child`, `descendant`, `descendant-or-self`, `self`, `attribute`
   (+ their abbreviations `/`, `//`, `@`)
-- Evaluator over `XdmNode`-wrapped DOM; sequence results as `Iterable<XdmItem>`
-- `src/diagnostics/` module: `formatDiagnostic(err, sourceText)` produces
+- Evaluator over `XdmNode`-wrapped DOM; sequence results use the engine-owned
+  `Sequence` abstraction rather than exposing naked JS iterables
+- `DiagnosticReport` introduced as the canonical boundary shape, plus
+  `XdmError -> DiagnosticReport` conversion and a small invariant checker
+  for spans/classification basics
+- `src/diagnostics/` module: `formatDiagnostic(report, sourceText)` produces
   the caret format documented in D1
 - Error taxonomy: `XPathError extends XdmError` with W3C codes
   (`XPST0003` parse, `XPDY0002` no context, `XPTY0004` type mismatch)
@@ -87,16 +93,21 @@ diagnostics-first culture gets built in; everything after inherits it.
 - Namespaces (expanded-QNames) — deferred to MVP+3
 - Value-comparison (`eq`/`ne`) — deferred to MVP+2; only general-comparison
   in this slice
+- Pulling M7 type-system semantics forward because one function/operator
+  looks easy in isolation
 
 **Exit criteria:**
 - [ ] Unit tests cover every AST kind + every axis + every operator
 - [ ] One golden error-format test: a known-bad expression produces a
       byte-exact expected diagnostic string
+- [ ] `DiagnosticReport` snapshots exist for at least one parse failure
+  and one runtime type failure; both pass invariant validation
 - [ ] Evaluating `//book/title[1]/text()` over a fixture doc returns the
       first book's title text
 - [ ] QT3 conformance runner **filters to the slice** (arithmetic +
       path + predicates only) and reports a real pass rate, not "0 skipped"
-- [ ] Every error thrown from the XPath layer has `location` populated
+- [ ] Every XPath-layer failure can be converted into a `DiagnosticReport`
+  with a populated primary span
 
 ---
 
@@ -125,9 +136,15 @@ sequence/atomization rules are right, or everything downstream is cursed
 - Function-call AST + overload-resolution-by-arity (SequenceType matching
   is MVP+7; for now, arity only)
 - Regex translator (schema-regex → ECMAScript regex) for `matches/replace/tokenize`
+- Structured diagnostic details for the common XPath failures in this
+  increment (`expectedType`, `actualType`, `functionName`, `axis`,
+  context/focus failures) so formatter output is backed by stable fields
 
 **Exit criteria:**
 - [ ] **20% of QT3 "required" tests passing** (baseline real conformance %)
+- [ ] No comparison operator (`=`, `!=`, `<`, `<=`, `>`, `>=`, `eq`,
+  `ne`, `lt`, `le`, `gt`, `ge`, `is`, `<<`, `>>`) lands without:
+  at least 3 cross-type tests and at least 1 sequence-based test
 - [ ] Atomization tests: `1 eq '1'` → type error with clear message,
       not a silent `false`
 - [ ] `position()` and `last()` inside predicates work correctly against
@@ -136,6 +153,8 @@ sequence/atomization rules are right, or everything downstream is cursed
       examples, outputs = ECMAScript source strings)
 - [ ] Error messages show the *subexpression* that failed, not just the
       whole expression
+- [ ] Required-detail validation exists for at least the codes the engine
+  materially depends on in this slice (`XPTY0004`, `XPST0017`, etc.)
 
 ---
 
@@ -147,6 +166,9 @@ first moment `@arakendo/xslt` does what it says on the tin.
 **Scope (in):**
 - Stylesheet loader: parse `.xsl` via `@xmldom/xmldom`, emit IR via
   `src/xslt/compile/compiler.ts`
+- Priority mini-spec written before template dispatch lands: default
+  priority rules, built-in template rules, conflict resolution, and at
+  least 3 overlapping-pattern examples captured as executable fixtures
 - IR node kinds (plain-data, source-located, versioned — DEC-005):
   `Stylesheet, Template, ApplyTemplates, ValueOf, ForEach, Choose,
   When, Otherwise, If, Variable, Param, LiteralResultElement,
@@ -161,6 +183,8 @@ first moment `@arakendo/xslt` does what it says on the tin.
   attributes quoted, no pretty-printing required
 - Namespace handling (just enough): expanded-QNames for element/attribute
   names; `xmlns` declarations preserved in LREs
+- Runtime diagnostic frames and related spans for template, instruction,
+  caller chain, and enclosing match/select context
 - Golden test harness flips on: `test/golden/hello/` (literal result),
   `test/golden/invoice-simple/` (apply-templates + value-of), others
   expected to grow
@@ -175,12 +199,18 @@ first moment `@arakendo/xslt` does what it says on the tin.
 
 **Exit criteria:**
 - [ ] At least 3 goldens under `test/golden/` pass byte-exact
+- [ ] Overlapping-pattern and default-priority fixtures exist and are
+  named in the priority mini-spec; no "mostly right" dispatch
+  behavior ships without those examples going green
 - [ ] XSLT conformance runner filtered to the supported feature set
       reports a non-trivial pass rate
 - [ ] A runtime error in an `<xsl:value-of select="...">` prints:
       stylesheet file + line + column, the offending subexpression with
       caret, the enclosing template's match pattern, and a call chain
       back to `apply-templates` (D1 requirement, not a nice-to-have)
+- [ ] At least one XSLT runtime-failure fixture snapshots the structured
+  `DiagnosticReport` including `frames` and `related` spans, not only
+  the formatted text
 - [ ] README has a working "hello world" copy-paste example
 
 **This is the MVP.** Everything after this is increments.
@@ -192,11 +222,14 @@ first moment `@arakendo/xslt` does what it says on the tin.
 **Goal:** compile the MVP+3 feature set to readable, debuggable
 TypeScript. The interpreter stays; it is no longer the product, it is the
 reference. Hazard H3 (codegen exposes every IR mistake) cashes in here —
-we will probably rev the IR once.
+we should expect to rev the IR whenever codegen exposes a missing semantic.
 
 **Scope (in):**
 - `src/xslt/codegen/emit.ts` — pure function `IR → string` (if it needs
   side effects, **fix the IR, not the backend** — mantra)
+- Evaluation order, context state, and variable lifetime are treated as
+  IR contract problems, not "codegen special cases". If codegen feels
+  clever, stop and repair the IR first.
 - Generated module shape:
   ```ts
   // invoice.xsl.ts (generated from invoice.xsl)
@@ -210,6 +243,8 @@ we will probably rev the IR once.
 - `src/runtime/` — the minimal runtime the generated code imports: XPath
   kernel (re-exported from the interpreter's evaluator core), serializer,
   `TransformContext`. This is what ships alongside generated code.
+- Generated runtime helpers reconstruct equivalent structured diagnostics
+  rather than collapsing failures to prose-only strings
 - JSDoc provenance comments on every dispatch: `/** match="invoice" (invoice.xsl:12) */`
 - `test/generated-fixtures/` — generated `.ts` for every golden checked in
   so IR changes surface as PR diffs
@@ -226,6 +261,9 @@ we will probably rev the IR once.
       + generated files in a sandbox, execute, see output.)
 - [ ] IR version is documented; any IR schema change requires updating
       `src/xslt/compile/ir.ts` version constant
+- [ ] Diagnostic parity fixtures compare interpreter and codegen
+  `DiagnosticReport` values for representative runtime and compile-time
+  failures; parity is on structure first, formatter text second
 - [ ] Sanity check: set a breakpoint in the generated TS in VS Code
       debugger, run a test, breakpoint hits, `ctx` is inspectable
 
@@ -270,6 +308,9 @@ we will probably rev the IR once.
 **Goal:** the modern-dev-loop pitch becomes real. Without this, D2 and
 D3 are theoretical.
 
+Rule of engagement: **watch correctness beats watch speed**. A 500 ms
+rebuild that serves stale output or stale diagnostics is a failed increment.
+
 **Scope (in):**
 - `arakendo-xslt watch <glob>`: chokidar-based, sub-second recompile on
   save, writes outputs atomically, streams diagnostics to stdout in the
@@ -292,9 +333,16 @@ D3 are theoretical.
 - Bundler plugins (thin wrappers over the compiler):
   - `@arakendo/xslt/vite` — `import './invoice.xsl'` works in Vite dev
   - `@arakendo/xslt/esbuild` — same for esbuild / tsup
+- JSON-safe diagnostic projection available for future editor/CLI
+  boundaries without inventing a second report contract
 
 **Exit criteria:**
 - [ ] `arakendo-xslt watch` round-trips under 500ms for a 200-line stylesheet
+- [ ] Watch invalidation fixtures prove that editing a dependency updates
+  emitted `.xsl.ts`, `.d.ts`, `.xsl.map`, and diagnostics together;
+  no stale-output or stale-diagnostic regressions
+- [ ] Watch-mode output and any JSON projection originate from the same
+      underlying `DiagnosticReport` values; no formatter-specific data loss
 - [ ] Chrome DevTools shows the `.xsl` in the source tree and stops on
       breakpoints (manual verification recorded as a GIF in the PR)
 - [ ] Each static-analysis rule has a fixture of its own in
@@ -307,6 +355,11 @@ D3 are theoretical.
 
 **Goal:** close the XPath 3.1 feature gap that the MVP skipped. This is
 XPath maturity work; XSLT-visible features are mostly additive.
+
+Entry gate: do not start this increment while MVP+4 through MVP+6 still
+have unresolved parity bugs, stale-watch bugs, or diagnostic regressions.
+This increment is a brain-burner already; it does not get to coexist with
+foundational instability.
 
 **Scope (in):**
 - `cast as`, `castable as`, `instance of` with full SequenceType grammar
@@ -379,7 +432,8 @@ XPath maturity work; XSLT-visible features are mostly additive.
 ## MVP+10 — practical streaming subset
 
 **Goal:** handle inputs that don't fit in memory, without attempting the
-full XSLT 3.0 streamability analysis (non-goal).
+full XSLT 3.0 streamability analysis (non-goal). Treat this as a second
+execution model with shared semantics, not a bolt-on optimization pass.
 
 **Scope (in):**
 - Opt-in per stylesheet: `<xsl:stylesheet streaming="forward-only">`
@@ -462,6 +516,10 @@ Between each increment, a short retrospective (one doc paragraph is fine):
 3. What got deferred? Add to scope-creep log.
 4. Did any diagnostic regress? If yes, stop and fix before the next
    increment starts.
+5. Did any semantic boundary weaken? Check against
+  [SEMANTIC_BOUNDARIES.md](./SEMANTIC_BOUNDARIES.md): lexical vs
+  resolved identity, plain contract objects vs overlays/plans,
+  relation-type separation, and interpreter/codegen parity.
 
 The roadmap is updated as we go. An increment's exit criteria are not
 edited downward during the increment — only between increments, and only
