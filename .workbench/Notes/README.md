@@ -12,8 +12,8 @@ belongs under `docs/`.
   `docs/ENTITY_RESOLUTION.md`.
 - `sugar.md` — keep as an idea backlog; the durable, narrowed
   diagnostic-intrinsics boundary now lives in `docs/DIAGNOSTIC_INTRINSICS.md`.
-- `other tests.md` — keep as a discovery note until it names concrete test
-  suite sources, repositories, and adoption criteria.
+- `other tests.md` — keep as scratch context; durable source-selection
+  guidance now lives in `docs/TEST_SOURCES.md`.
 - `C# Nuget package.md` — empty placeholder; no durable action yet.
 
 ## Working rule
