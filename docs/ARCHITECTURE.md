@@ -519,6 +519,21 @@ const { code, declarations, sourceMap, diagnostics } =
 import { defineXsltFunctions, Writer, Ctx } from '@arakendo/xslt/runtime';
 ```
 
+Post-M6.5, a workbench-oriented boundary may sit alongside these surfaces,
+but it must follow the same rules:
+
+- accepts in-memory `uri + text` sources rather than assuming filesystem paths
+- returns structured artifacts (`diagnostics`, `generatedTs`, source-map data,
+  output) instead of forcing consumers to scrape formatted strings
+- reuses the same compiler/runtime entry points as CLI and watch mode rather
+  than creating a UI-only semantic path
+- keeps generated TS read-only in the first workbench slice; editability is a
+  separate design problem, not an MVP convenience
+
+See [WORKBENCH_API.md](./WORKBENCH_API.md) for the narrower engine-facing
+contract. That document intentionally defines the Weaver boundary only, not the
+external product or UI that may consume it.
+
 Everything else is internal. No deep imports from consumers.
 
 ## 4. Milestones
@@ -536,6 +551,7 @@ diagnostics polish, then the codegen backend which is the product.
 | **M4** | **Codegen backend (v1)** | IR → readable TypeScript for M3 features; golden + parity fixtures compare output and structured diagnostics under both backends; M3 conformance slice passes under codegen; generated output committed to a fixtures folder for review |
 | **M5** | Typed params + typed extension functions | `.d.ts` emission; `defineXsltFunctions` with compile-time signature checking; CLI `arakendo-xslt compile` |
 | **M6** | Watch mode + source maps + diagnostics v2 | `arakendo-xslt watch`; Vite/esbuild plugin; `.xsl.map` output; static-analysis pass for unreachable templates, unused vars, priority conflicts, "did you mean" suggestions |
+| **M6.5** | Live workbench / playground | four-pane XML + XSLT + generated TS + output loop over in-memory sources; generated TS stays read-only; linked highlighting consumes source-map and diagnostic artifacts rather than screen-scraped text |
 | **M7** | XPath type system + maps/arrays + higher-order | `cast as`, `instance of`, SequenceTypes, maps, arrays, function items |
 | **M8** | XSLT 3.0 feature-complete (non-streaming) | `xsl:accumulator`, `xsl:iterate`, `xsl:merge`, packages, modes, keys |
 | **M9** | Conformance push | ≥70% of XSLT 3.0 required tests passing under **both** backends |

@@ -108,6 +108,11 @@ API surface. We commit to it being readable and inspectable, but we do
 **not** promise that helper names, local function names, or internal
 emission structure are semver-stable for consumers to import directly.
 
+This also sets up a future Weaver-native workbench: XSLT, generated TS,
+diagnostics, and runtime output shown side-by-side from the same compile/run
+pipeline. That workbench is not a separate product thesis; it is D2 made
+visible instead of implied.
+
 The interpreter backend remains for:
 - Dynamic XSLT features (`xsl:evaluate`, dynamic mode names)
 - Development / REPL usage
@@ -239,6 +244,10 @@ the modern-DX claim is false regardless of how good the batch compiler is.
 
 This lands in M6 alongside the CLI, not after. The pitch is
 "XSLT with a modern dev loop"; without watch mode we're lying.
+
+The workbench/playground slice lands immediately after this foundation, not
+before it. A live editor that shows stale generated TS, stale diagnostics, or
+string-scraped boundary data would undercut D1, D2, and D5 all at once.
 
 ---
 

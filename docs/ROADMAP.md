@@ -401,6 +401,63 @@ rebuild that serves stale output or stale diagnostics is a failed increment.
 
 ---
 
+## MVP+6.5 — live workbench / playground
+
+**Goal:** make the product thesis visible. A user can edit source XML and
+XSLT, inspect the generated TypeScript, and see output + diagnostics update
+from the same structured compile/run pipeline.
+
+Entry gate: do not start this increment until MVP+4 through MVP+6 have
+delivered readable codegen, source maps, watch correctness, and stable
+boundary diagnostics. The workbench is a consumer of those foundations, not
+an excuse to build them halfway.
+
+**Scope (in):**
+- Browser- and in-memory-friendly compile/run boundary that does not require
+  filesystem assumptions for the core loop:
+  - source documents identified by URI + text
+  - compile result returns structured diagnostics and any available
+    inspectable artifacts (`generatedTs`, IR handle, source-map handle)
+  - transform result returns output plus the same `DiagnosticReport` contract
+- Minimal four-pane workbench shell:
+  - editable source XML pane
+  - editable XSLT pane
+  - read-only generated TypeScript pane
+  - live output + diagnostics pane
+- Debounced compile-and-run loop driven by the same engine surfaces used by
+  the CLI/watch path; no second compiler, no UI-only diagnostic format
+- Linked highlighting v1 for the spans we already own:
+  - diagnostic -> XSLT
+  - XSLT instruction/expression -> generated TS span when source maps exist
+- Plain prototype UI is acceptable; Monaco/editor polish is explicitly not
+  the point of this increment
+
+**Scope (out):**
+- Editable generated TS
+- Step debugger / trace timeline / output-to-source mapping
+- Shareable playground URLs, examples gallery, multi-file workspace UX
+- Executing user-generated TS in the main page or with ambient I/O
+
+**Exit criteria:**
+- [ ] Workbench demo runs entirely from in-memory XML/XSLT sources; no local
+      files required for the core loop
+- [ ] Editing either XML or XSLT updates diagnostics and output from the same
+      underlying compile/run surfaces used by non-UI entry points
+- [ ] Generated TS pane shows the emitted `.xsl.ts` for a successful compile
+      and remains read-only
+- [ ] At least one linked-highlighting fixture proves that selecting an
+      XSLT span can reveal the corresponding generated TS span
+- [ ] Browser execution, if used for generated code, is sandboxed in a worker
+      or equivalent isolated boundary; no `eval()` in the main page
+- [ ] A small public design note or README section demonstrates the four-pane
+      loop with a copy-pasteable example
+
+Design note: [WORKBENCH_API.md](./WORKBENCH_API.md) defines the Weaver-side
+engine contract for this increment. The actual workbench product may live in a
+separate repository; this repo only owns the engine boundary.
+
+---
+
 ## MVP+7 — XPath type system + maps + arrays + higher-order
 
 **Goal:** close the XPath 3.1 feature gap that the MVP skipped. This is
