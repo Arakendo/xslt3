@@ -48,3 +48,4 @@
 - Do not mark a feature done if it only passes happy-path tests and still has poor diagnostics.
 - When design or organization decisions change, update the nearest durable document rather than leaving rationale only in code or chat.
 - Prefer linking existing docs over duplicating them in instructions.
+- Treat `vendor/` as a large conformance corpus, not a normal exploration surface: avoid attaching, listing, or reading broad swaths of `vendor/**` when a targeted file or subtree will do. Prefer specific catalog files, specific test-set files, or narrowly scoped searches inside `vendor/qt3tests` and `vendor/xslt30-test` to avoid request-size/tooling failures.
