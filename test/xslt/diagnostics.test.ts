@@ -13,6 +13,70 @@ function captureError(action: () => void): unknown {
 }
 
 describe('XSLT diagnostics', () => {
+  it('adds a suggestion when xsl:value-of is missing select', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:template match="/">',
+      '    <out><xsl:value-of/></out>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root><item>apple</item></root>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report.suggestions).toEqual([
+      {
+        kind: 'fix',
+        label: 'add a select="..." attribute to xsl:value-of',
+        replacement: 'select="..."',
+        confidence: 1,
+      },
+    ]);
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0010]: xsl:value-of requires a select attribute.',
+      '--> <stylesheet>:3:10',
+      '3 |     <out><xsl:value-of/></out>',
+      '  |          ^',
+      '  help: add a select="..." attribute to xsl:value-of',
+    ].join('\n'));
+  });
+
+  it('adds a suggestion for near-miss unsupported XSLT instructions', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:template match="/">',
+      '    <out><xsl:vale-of select="/root/item"/></out>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root><item>apple</item></root>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report.suggestions).toEqual([
+      {
+        kind: 'fix',
+        label: 'did you mean xsl:value-of?',
+        replacement: 'xsl:value-of',
+        confidence: expect.any(Number),
+      },
+    ]);
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0010]: Unsupported XSLT instruction xsl:vale-of in current MVP+3 slice.',
+      '--> <stylesheet>:3:10',
+      '3 |     <out><xsl:vale-of select="/root/item"/></out>',
+      '  |          ^',
+      '  help: did you mean xsl:value-of?',
+    ].join('\n'));
+  });
+
   it('converts unsupported XSLT instructions into static diagnostics with stylesheet spans', () => {
     const stylesheet = [
       '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',

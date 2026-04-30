@@ -8,7 +8,7 @@
 import type { Attr, Element, Node } from '@xmldom/xmldom';
 
 import { XTSE0010 } from '../../errors/codes.js';
-import { XsltError } from '../../errors/index.js';
+import { XsltError, type ErrorContext, type ErrorSuggestion } from '../../errors/index.js';
 import type { PathExpression, StepExpression, XPathAst } from '../../xpath/parse/ast.js';
 import { parseXPath } from '../../xpath/parse/parser.js';
 import { getAttributeValueSourceLocation, getNodeSourceLocation, parseXml } from '../../xml/parse.js';
@@ -16,6 +16,7 @@ import type { AttributeInstruction, Instruction, StylesheetIR, TemplateRule } fr
 
 const XSLT_NAMESPACE = 'http://www.w3.org/1999/XSL/Transform';
 const STYLESHEET_SOURCE_NAME = '<stylesheet>';
+const SUPPORTED_XSLT_INSTRUCTION_NAMES = ['apply-templates', 'text', 'value-of'] as const;
 
 type NodeListLike = {
   readonly length: number;
@@ -159,6 +160,14 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
       throw createXsltStaticError(
         'xsl:value-of requires a select attribute.',
         getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+        {
+          suggestions: [{
+            kind: 'fix',
+            label: 'add a select="..." attribute to xsl:value-of',
+            replacement: 'select="..."',
+            confidence: 1,
+          }],
+        },
       );
     }
 
@@ -183,9 +192,11 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
   }
 
   if (element.namespaceURI === XSLT_NAMESPACE) {
+    const suggestion = createInstructionSuggestion(element);
     throw createXsltStaticError(
       `Unsupported XSLT instruction ${element.nodeName} in current MVP+3 slice.`,
       getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      suggestion === undefined ? undefined : { suggestions: [suggestion] },
     );
   }
 
@@ -269,6 +280,49 @@ function isSupportedTemplateStep(step: StepExpression): boolean {
     || (step.nodeTest.kind === 'kindTest' && step.nodeTest.name === 'text');
 }
 
-function createXsltStaticError(message: string, location?: TemplateRule['location']): XsltError {
-  return new XsltError(XTSE0010, message, location);
+function createInstructionSuggestion(element: Element): ErrorSuggestion | undefined {
+  const localName = element.localName ?? element.nodeName;
+  const nearest = SUPPORTED_XSLT_INSTRUCTION_NAMES
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(localName, candidate),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean xsl:${nearest.candidate}?`,
+    replacement: `xsl:${nearest.candidate}`,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / nearest.candidate.length),
+  };
+}
+
+function computeLevenshteinDistance(left: string, right: string): number {
+  const previousRow = Array.from({ length: right.length + 1 }, (_, index) => index);
+
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    let previousDiagonal = previousRow[0] ?? 0;
+    previousRow[0] = leftIndex;
+
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const temp = previousRow[rightIndex] ?? 0;
+      const substitutionCost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+      previousRow[rightIndex] = Math.min(
+        (previousRow[rightIndex] ?? 0) + 1,
+        (previousRow[rightIndex - 1] ?? 0) + 1,
+        previousDiagonal + substitutionCost,
+      );
+      previousDiagonal = temp;
+    }
+  }
+
+  return previousRow[right.length] ?? right.length;
+}
+
+function createXsltStaticError(message: string, location?: TemplateRule['location'], context?: ErrorContext): XsltError {
+  return new XsltError(XTSE0010, message, location, undefined, context);
 }

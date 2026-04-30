@@ -3,7 +3,7 @@ import type { DiagnosticReport } from './report.js';
 export function formatDiagnostic(report: DiagnosticReport, sourceText?: string): string {
   const header = `${report.severity}[${report.code}]: ${report.message}`;
   if (report.primary === undefined || sourceText === undefined) {
-    return [header, ...formatFrames(report), ...formatRelated(report), ...formatDetails(report)].join('\n');
+    return [header, ...formatFrames(report), ...formatRelated(report), ...formatDetails(report), ...formatSuggestions(report)].join('\n');
   }
 
   const lines = sourceText.split(/\r?\n/);
@@ -27,6 +27,7 @@ export function formatDiagnostic(report: DiagnosticReport, sourceText?: string):
     ...formatFrames(report),
     ...formatRelated(report),
     ...formatDetails(report),
+    ...formatSuggestions(report),
   ].join('\n');
 }
 
@@ -53,4 +54,11 @@ function formatRelated(report: DiagnosticReport): string[] {
 
 function formatDetails(report: DiagnosticReport): string[] {
   return report.details.map((detail) => `  = ${detail.key}: ${String(detail.value)}`);
+}
+
+function formatSuggestions(report: DiagnosticReport): string[] {
+  return report.suggestions.map((suggestion) => {
+    const prefix = suggestion.kind === 'fix' ? 'help' : suggestion.kind;
+    return `  ${prefix}: ${suggestion.label}`;
+  });
 }
