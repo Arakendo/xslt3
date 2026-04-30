@@ -1,4 +1,6 @@
 import type { TransformOptions, TransformResult } from './types.js';
+import { XTSE0010 } from '../errors/codes.js';
+import { XsltError } from '../errors/index.js';
 import { compileStylesheet } from '../xslt/compile/compiler.js';
 import { runTransform } from '../xslt/eval/transform.js';
 
@@ -23,7 +25,19 @@ export class XsltProcessor {
    */
   transform(_sourceXml: string, _options: TransformOptions = {}): TransformResult {
     if (this.stylesheetSource.length === 0) {
-      throw new Error('Stylesheet source is empty.');
+      throw new XsltError(
+        XTSE0010,
+        'Stylesheet source is empty.',
+        undefined,
+        undefined,
+        {
+          suggestions: [{
+            kind: 'fix',
+            label: 'provide an xsl:stylesheet or xsl:transform document before running the transform',
+            confidence: 1,
+          }],
+        },
+      );
     }
 
     const ir = compileStylesheet(this.stylesheetSource);

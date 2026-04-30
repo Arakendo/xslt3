@@ -7,7 +7,7 @@
 
 import type { Attr, Element, Node } from '@xmldom/xmldom';
 
-import { XTSE0010 } from '../../errors/codes.js';
+import { XTSE0010, XTSE0500 } from '../../errors/codes.js';
 import { XsltError, type ErrorContext, type ErrorSuggestion } from '../../errors/index.js';
 import type { PathExpression, StepExpression, XPathAst } from '../../xpath/parse/ast.js';
 import { parseXPath } from '../../xpath/parse/parser.js';
@@ -35,6 +35,31 @@ export function compileStylesheet(stylesheetXml: string): StylesheetIR {
     throw createXsltStaticError(
       'Stylesheet document element must be xsl:stylesheet or xsl:transform.',
       getNodeSourceLocation(stylesheetXml, root, STYLESHEET_SOURCE_NAME),
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'wrap the stylesheet in an xsl:stylesheet or xsl:transform document element',
+          confidence: 1,
+        }],
+      },
+    );
+  }
+
+  const version = root.getAttribute('version');
+  if (version === null || version.length === 0) {
+    throw createXsltStaticError(
+      'Stylesheet module must declare a version attribute.',
+      getAttributeValueSourceLocation(stylesheetXml, root, 'version', STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, root, STYLESHEET_SOURCE_NAME),
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'add version="3.0" to the stylesheet document element',
+          replacement: 'version="3.0"',
+          confidence: 1,
+        }],
+      },
+      XTSE0500,
     );
   }
 
@@ -46,6 +71,13 @@ export function compileStylesheet(stylesheetXml: string): StylesheetIR {
     throw createXsltStaticError(
       'Stylesheet must declare at least one xsl:template.',
       getNodeSourceLocation(stylesheetXml, root, STYLESHEET_SOURCE_NAME),
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'add at least one xsl:template to the stylesheet',
+          confidence: 1,
+        }],
+      },
     );
   }
 
@@ -65,6 +97,13 @@ function compileTemplateRule(templateElement: Element, stylesheetXml: string): T
     throw createXsltStaticError(
       'xsl:template must declare either match or name.',
       getNodeSourceLocation(stylesheetXml, templateElement, STYLESHEET_SOURCE_NAME),
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'add match="..." or name="..." to xsl:template',
+          confidence: 1,
+        }],
+      },
     );
   }
 
@@ -74,6 +113,13 @@ function compileTemplateRule(templateElement: Element, stylesheetXml: string): T
       `Unsupported template match pattern ${JSON.stringify(matchText)} in current MVP+3 slice.`,
       getAttributeValueSourceLocation(stylesheetXml, templateElement, 'match', STYLESHEET_SOURCE_NAME)
         ?? getNodeSourceLocation(stylesheetXml, templateElement, STYLESHEET_SOURCE_NAME),
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'use one of the currently supported match patterns: /, name, *, node(), or text()',
+          confidence: 1,
+        }],
+      },
     );
   }
 
@@ -143,6 +189,14 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
         'xsl:apply-templates mode is not yet implemented in the current MVP+3 slice.',
         getAttributeValueSourceLocation(stylesheetXml, element, 'mode', STYLESHEET_SOURCE_NAME)
           ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+        {
+          suggestions: [{
+            kind: 'fix',
+            label: 'remove mode="..." and use the default mode in the current MVP+3 slice',
+            replacement: 'mode',
+            confidence: 1,
+          }],
+        },
       );
     }
 
@@ -323,6 +377,11 @@ function computeLevenshteinDistance(left: string, right: string): number {
   return previousRow[right.length] ?? right.length;
 }
 
-function createXsltStaticError(message: string, location?: TemplateRule['location'], context?: ErrorContext): XsltError {
-  return new XsltError(XTSE0010, message, location, undefined, context);
+function createXsltStaticError(
+  message: string,
+  location?: TemplateRule['location'],
+  context?: ErrorContext,
+  code = XTSE0010,
+): XsltError {
+  return new XsltError(code, message, location, undefined, context);
 }

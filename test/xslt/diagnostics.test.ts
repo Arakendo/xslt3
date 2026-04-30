@@ -13,6 +13,233 @@ function captureError(action: () => void): unknown {
 }
 
 describe('XSLT diagnostics', () => {
+  it('uses the version attribute span when the stylesheet version is empty', () => {
+    const stylesheet = '<xsl:stylesheet version="" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"></xsl:stylesheet>';
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report).toMatchObject({
+      code: 'XTSE0500',
+      primary: {
+        lineStart: 1,
+        columnStart: 26,
+        lineEnd: 1,
+        columnEnd: 26,
+      },
+    });
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0500]: Stylesheet module must declare a version attribute.',
+      '--> <stylesheet>:1:26',
+      '1 | <xsl:stylesheet version="" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"></xsl:stylesheet>',
+      '  |                          ^',
+      '  help: add version="3.0" to the stylesheet document element',
+    ].join('\n'));
+  });
+
+  it('converts a missing stylesheet version into XTSE0500', () => {
+    const stylesheet = '<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"></xsl:stylesheet>';
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report).toMatchObject({
+      code: 'XTSE0500',
+      phase: 'compile',
+      category: 'analysis',
+      message: 'Stylesheet module must declare a version attribute.',
+      suggestions: [{
+        kind: 'fix',
+        label: 'add version="3.0" to the stylesheet document element',
+        replacement: 'version="3.0"',
+        confidence: 1,
+      }],
+    });
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0500]: Stylesheet module must declare a version attribute.',
+      '--> <stylesheet>:1:1',
+      '1 | <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"></xsl:stylesheet>',
+      '  | ^',
+      '  help: add version="3.0" to the stylesheet document element',
+    ].join('\n'));
+  });
+
+  it('converts an empty stylesheet source into a static diagnostic', () => {
+    const stylesheet = '';
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report).toMatchObject({
+      code: 'XTSE0010',
+      phase: 'compile',
+      category: 'analysis',
+      message: 'Stylesheet source is empty.',
+      suggestions: [{
+        kind: 'fix',
+        label: 'provide an xsl:stylesheet or xsl:transform document before running the transform',
+        confidence: 1,
+      }],
+    });
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0010]: Stylesheet source is empty.',
+      '  help: provide an xsl:stylesheet or xsl:transform document before running the transform',
+    ].join('\n'));
+  });
+
+  it('adds a suggestion when the stylesheet root is not xsl:stylesheet', () => {
+    const stylesheet = '<out/>';
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report.suggestions).toEqual([
+      {
+        kind: 'fix',
+        label: 'wrap the stylesheet in an xsl:stylesheet or xsl:transform document element',
+        confidence: 1,
+      },
+    ]);
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0010]: Stylesheet document element must be xsl:stylesheet or xsl:transform.',
+      '--> <stylesheet>:1:1',
+      '1 | <out/>',
+      '  | ^',
+      '  help: wrap the stylesheet in an xsl:stylesheet or xsl:transform document element',
+    ].join('\n'));
+  });
+
+  it('adds a suggestion when a stylesheet has no templates', () => {
+    const stylesheet = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"></xsl:stylesheet>';
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report.suggestions).toEqual([
+      {
+        kind: 'fix',
+        label: 'add at least one xsl:template to the stylesheet',
+        confidence: 1,
+      },
+    ]);
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0010]: Stylesheet must declare at least one xsl:template.',
+      '--> <stylesheet>:1:1',
+      '1 | <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"></xsl:stylesheet>',
+      '  | ^',
+      '  help: add at least one xsl:template to the stylesheet',
+    ].join('\n'));
+  });
+
+  it('adds a suggestion for unsupported template match patterns', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:template match="item[@id]">',
+      '    <out/>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root><item id="1"/></root>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report.suggestions).toEqual([
+      {
+        kind: 'fix',
+        label: 'use one of the currently supported match patterns: /, name, *, node(), or text()',
+        confidence: 1,
+      },
+    ]);
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0010]: Unsupported template match pattern "item[@id]" in current MVP+3 slice.',
+      '--> <stylesheet>:2:24',
+      '2 |   <xsl:template match="item[@id]">',
+      '  |                        ^^^^^^^^^',
+      '  help: use one of the currently supported match patterns: /, name, *, node(), or text()',
+    ].join('\n'));
+  });
+
+  it('adds a suggestion when xsl:template is missing match and name', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:template>',
+      '    <out/>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report.suggestions).toEqual([
+      {
+        kind: 'fix',
+        label: 'add match="..." or name="..." to xsl:template',
+        confidence: 1,
+      },
+    ]);
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0010]: xsl:template must declare either match or name.',
+      '--> <stylesheet>:2:3',
+      '2 |   <xsl:template>',
+      '  |   ^',
+      '  help: add match="..." or name="..." to xsl:template',
+    ].join('\n'));
+  });
+
+  it('adds a suggestion when xsl:apply-templates uses mode', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:template match="/">',
+      '    <out><xsl:apply-templates select="/root/item" mode="special"/></out>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root><item>apple</item></root>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report.suggestions).toEqual([
+      {
+        kind: 'fix',
+        label: 'remove mode="..." and use the default mode in the current MVP+3 slice',
+        replacement: 'mode',
+        confidence: 1,
+      },
+    ]);
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0010]: xsl:apply-templates mode is not yet implemented in the current MVP+3 slice.',
+      '--> <stylesheet>:3:57',
+      '3 |     <out><xsl:apply-templates select="/root/item" mode="special"/></out>',
+      '  |                                                         ^^^^^^^',
+      '  help: remove mode="..." and use the default mode in the current MVP+3 slice',
+    ].join('\n'));
+  });
+
   it('adds a suggestion when xsl:value-of is missing select', () => {
     const stylesheet = [
       '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
