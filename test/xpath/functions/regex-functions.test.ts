@@ -99,6 +99,9 @@ describe('XPath regex functions', () => {
     expect([...evaluate(parseXPath('matches("bfxyz", "^[^cde-[ag]]+$")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: true },
     ]);
+    expect([...evaluate(parseXPath('matches("a", "^[^cde-[ag]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
     expect([...evaluate(parseXPath('matches("d", "^[^cde-[ag]]+$")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: false },
     ]);
@@ -139,16 +142,16 @@ describe('XPath regex functions', () => {
       { type: 'xs:boolean', value: false },
     ]);
     expect([...evaluate(parseXPath('matches("_:alpha", "^[^\\c-[\\i\\C]]+$")'), context)]).toMatchObject([
-      { type: 'xs:boolean', value: true },
+      { type: 'xs:boolean', value: false },
     ]);
     expect([...evaluate(parseXPath('matches("1.-", "^[^\\c-[\\i\\C]]+$")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: false },
     ]);
     expect([...evaluate(parseXPath('matches("_:alpha", "^[^\\i-[\\c\\I]]+$")'), context)]).toMatchObject([
-      { type: 'xs:boolean', value: true },
+      { type: 'xs:boolean', value: false },
     ]);
     expect([...evaluate(parseXPath('matches("1.-", "^[^\\i-[\\c\\I]]+$")'), context)]).toMatchObject([
-      { type: 'xs:boolean', value: true },
+      { type: 'xs:boolean', value: false },
     ]);
     expect([...evaluate(parseXPath('matches("b", "^[\\p{Ll}-[ae-z]]+$")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: true },
@@ -168,10 +171,13 @@ describe('XPath regex functions', () => {
     expect([...evaluate(parseXPath('matches("a", "^[\\P{Lu}-[ae-z]]+$")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: false },
     ]);
-    expect([...evaluate(parseXPath('matches("AZ09_", "^[\\w-[\\p{Ll}]]+$")'), context)]).toMatchObject([
+    expect([...evaluate(parseXPath('matches("AZ09`", "^[\\w-[\\p{Ll}]]+$")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: true },
     ]);
-    expect([...evaluate(parseXPath('matches("aZ09_", "^[\\w-[\\p{Ll}]]+$")'), context)]).toMatchObject([
+    expect([...evaluate(parseXPath('matches("AZ09_", "^[\\w-[\\p{Ll}]]+$")'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: false },
+    ]);
+    expect([...evaluate(parseXPath('matches("aZ09`", "^[\\w-[\\p{Ll}]]+$")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: false },
     ]);
     expect([...evaluate(parseXPath('matches("Az09", "^\\p{IsBasicLatin}+$")'), context)]).toMatchObject([

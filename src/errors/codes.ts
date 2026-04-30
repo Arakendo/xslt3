@@ -24,6 +24,7 @@ export const XPTY0020 = 'XPTY0020'; // axis step context item is not a node
 
 // Functions & Operators
 export const FORG0001 = 'FORG0001'; // invalid value for cast
+export const FORG0005 = 'FORG0005'; // wrong number of items for exactly-one/one-or-more/zero-or-one
 export const FORG0006 = 'FORG0006'; // invalid argument type to fn:min/max/etc
 export const FORX0001 = 'FORX0001'; // invalid regular expression flags
 export const FORX0002 = 'FORX0002'; // invalid regular expression pattern
@@ -32,7 +33,9 @@ export const FORX0004 = 'FORX0004'; // invalid replacement string
 export const FOAR0001 = 'FOAR0001'; // division by zero
 export const FOCA0002 = 'FOCA0002'; // invalid lexical value
 export const FOCH0001 = 'FOCH0001'; // invalid XML character codepoint
+export const FOCH0002 = 'FOCH0002'; // unsupported collation
 export const FOER0000 = 'FOER0000'; // fn:error with no args
+export const FOTY0014 = 'FOTY0014'; // string value not defined for function/map/array
 
 // Static XSLT errors
 export const XTSE0010 = 'XTSE0010'; // unknown XSLT element

@@ -36,6 +36,9 @@ describe('XPath expression coverage', () => {
     expect([...evaluate(parseXPath('7 idiv 2'), context)]).toMatchObject([
       { type: 'xs:double', value: 3 },
     ]);
+    expect([...evaluate(parseXPath('1!data()'), context)]).toMatchObject([
+      { type: 'xs:double', value: 1 },
+    ]);
   });
 
   it('raises a type error for non-integer range operands in the initial range slice', () => {
@@ -61,7 +64,7 @@ describe('XPath expression coverage', () => {
       { type: 'xs:double', value: 3 },
     ]);
     expect([...evaluate(parseXPath('count((1, 2, 3))'), context)]).toMatchObject([
-      { type: 'xs:double', value: 3 },
+      { type: 'xs:integer', value: 3 },
     ]);
     expect([...evaluate(parseXPath('((1 to 6)[. mod 2 eq 0])'), context)]).toMatchObject([
       { type: 'xs:double', value: 2 },
@@ -114,6 +117,13 @@ describe('XPath expression coverage', () => {
       { type: 'xs:double', value: 12 },
       { type: 'xs:double', value: 22 },
     ]);
+
+    const nestedContext = createContext('<root><Folder><File>A</File><Folder><File>B</File></Folder><File>C</File></Folder></root>');
+    expect([...evaluate(parseXPath('for $file in //Folder/File return string($file)'), nestedContext)]).toMatchObject([
+      { type: 'xs:string', value: 'A' },
+      { type: 'xs:string', value: 'B' },
+      { type: 'xs:string', value: 'C' },
+    ]);
   });
 
   it('evaluates the initial some/every satisfies slice', () => {
@@ -131,6 +141,22 @@ describe('XPath expression coverage', () => {
     expect([...evaluate(parseXPath('every $x in () satisfies $x eq 1'), context)]).toMatchObject([
       { type: 'xs:boolean', value: true },
     ]);
+    expect([...evaluate(parseXPath('some $x in (1, 2) satisfies $x eq 2, 0'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+      { type: 'xs:double', value: 0 },
+    ]);
+    expect(() => [...evaluate(parseXPath('some $a in (1, 2), $b in (1, 2), $c in (1, 2) satisfies 1, $a'), context)]).toThrowError(
+      expect.objectContaining({ code: 'XPST0008' }),
+    );
+    expect(() => [...evaluate(parseXPath('$PREFIXNOTEXIST:NOTEXIST'), context)]).toThrowError(
+      expect.objectContaining({ code: 'XPST0081' } satisfies Partial<XPathError>),
+    );
+    expect(() => [...evaluate(parseXPath('$xs:NOTEXIST'), context)]).toThrowError(
+      expect.objectContaining({ code: 'XPST0008' } satisfies Partial<XPathError>),
+    );
+    expect(() => [...evaluate(parseXPath('(1 to 10)/count()'), context)]).toThrowError(
+      expect.objectContaining({ code: 'XPST0017' } satisfies Partial<XPathError>),
+    );
   });
 
   it('uses position() and last() inside predicates', () => {
@@ -167,6 +193,9 @@ describe('XPath expression coverage', () => {
     );
     expect(() => [...evaluate(parseXPath('last()'), context)]).toThrowError(
       expect.objectContaining({ code: 'XPDY0002' }),
+    );
+    expect(() => [...evaluate(parseXPath('last(1)'), context)]).toThrowError(
+      expect.objectContaining({ code: 'XPST0017' }),
     );
   });
 });

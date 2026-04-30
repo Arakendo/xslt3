@@ -30,7 +30,12 @@ describe('XPath regex translator fixtures', () => {
       { pattern: 'a.c', flags: 'q', expected: 'a\\.c' },
       { pattern: 'a b', flags: 'qx', expected: 'a b' },
       { pattern: 'a#b', flags: 'qx', expected: 'a#b' },
-      { pattern: '^$', flags: 'm', expected: '(?:^|(?<=\\n)(?!$))(?:$|(?=\\n))' },
+      { pattern: '^$', flags: 'm', expected: '(?:(?:^|(?<=\\n)(?!$)))(?:(?:$|(?=\\n)))' },
+      { pattern: '\\d+', flags: '', expected: '\\p{Nd}+' },
+      { pattern: '\\D+', flags: '', expected: '\\P{Nd}+' },
+      { pattern: '\\-\\d\\d', flags: '', expected: '-\\p{Nd}\\p{Nd}' },
+      { pattern: '\\w+', flags: '', expected: '[\\p{L}\\p{M}\\p{N}\\p{S}]+' },
+      { pattern: '\\W+', flags: '', expected: '[\\p{P}\\p{Z}\\p{C}]+' },
       { pattern: '\\i\\c*', flags: '', expected: `[${XML_NAME_START_CHAR_CLASS}][${XML_NAME_CHAR_CLASS}]*` },
       { pattern: '\\I+', flags: '', expected: `[^${XML_NAME_START_CHAR_CLASS}]+` },
       { pattern: '[\\s\\i]*', flags: '', expected: `[\\s${XML_NAME_START_CHAR_CLASS}]*` },
@@ -40,10 +45,10 @@ describe('XPath regex translator fixtures', () => {
       { pattern: '[^\\I]+', flags: '', expected: `(?:(?!(?:[^${XML_NAME_START_CHAR_CLASS}]))[\\s\\S])+` },
       { pattern: '[^\\C\\?a-c\\?]+', flags: '', expected: `(?:(?!(?:[^${XML_NAME_CHAR_CLASS}]|[\\?]|[a-c]|[\\?]))[\\s\\S])+` },
       { pattern: '[a-d-[b-c]]+', flags: '', expected: `(?:(?!(?:[b-c]))[a-d])+` },
-      { pattern: '[\\d-[357]]+', flags: '', expected: `(?:(?!(?:[357]))[\\d])+` },
+      { pattern: '[\\d-[357]]+', flags: '', expected: `(?:(?!(?:[357]))[\\p{Nd}])+` },
       { pattern: '[a-c-[^a-c]]+', flags: '', expected: `(?:(?!(?:(?!(?:[a-c]))[\\s\\S]))[a-c])+` },
-      { pattern: '[\\w-[^aeiou]]+', flags: '', expected: `(?:(?!(?:(?!(?:[aeiou]))[\\s\\S]))[\\w])+` },
-      { pattern: '[^cde-[ag]]+', flags: '', expected: `(?:(?!(?:(?!(?:[ag]))[cde]))[\\s\\S])+` },
+      { pattern: '[\\w-[^aeiou]]+', flags: '', expected: `(?:(?!(?:(?!(?:[aeiou]))[\\s\\S]))[\\p{L}\\p{M}\\p{N}\\p{S}])+` },
+      { pattern: '[^cde-[ag]]+', flags: '', expected: `(?:(?!(?:[ag]))(?:(?!(?:[cde]))[\\s\\S]))+` },
       {
         pattern: '[\\c-[^\\i]]+',
         flags: '',
@@ -77,17 +82,17 @@ describe('XPath regex translator fixtures', () => {
       {
         pattern: '[^\\c-[\\i\\C]]+',
         flags: '',
-        expected: `(?:(?!(?:(?!(?:[${XML_NAME_START_CHAR_CLASS}]|[^${XML_NAME_CHAR_CLASS}]))[${XML_NAME_CHAR_CLASS}]))[\\s\\S])+`,
+        expected: `(?:(?!(?:[${XML_NAME_START_CHAR_CLASS}]|[^${XML_NAME_CHAR_CLASS}]))(?:(?!(?:[${XML_NAME_CHAR_CLASS}]))[\\s\\S]))+`,
       },
       {
         pattern: '[^\\i-[\\c\\I]]+',
         flags: '',
-        expected: `(?:(?!(?:(?!(?:[${XML_NAME_CHAR_CLASS}]|[^${XML_NAME_START_CHAR_CLASS}]))[${XML_NAME_START_CHAR_CLASS}]))[\\s\\S])+`,
+        expected: `(?:(?!(?:[${XML_NAME_CHAR_CLASS}]|[^${XML_NAME_START_CHAR_CLASS}]))(?:(?!(?:[${XML_NAME_START_CHAR_CLASS}]))[\\s\\S]))+`,
       },
       { pattern: '[\\p{Ll}-[ae-z]]+', flags: '', expected: `(?:(?!(?:[ae-z]))[\\p{Ll}])+` },
       { pattern: '[\\p{Nd}-[2468]]+', flags: '', expected: `(?:(?!(?:[2468]))[\\p{Nd}])+` },
       { pattern: '[\\P{Lu}-[ae-z]]+', flags: '', expected: `(?:(?!(?:[ae-z]))[\\P{Lu}])+` },
-      { pattern: '[\\w-[\\p{Ll}]]+', flags: '', expected: `(?:(?!(?:[\\p{Ll}]))[\\w])+` },
+      { pattern: '[\\w-[\\p{Ll}]]+', flags: '', expected: `(?:(?!(?:[\\p{Ll}]))[\\p{L}\\p{M}\\p{N}\\p{S}])+` },
       { pattern: '\\p{IsBasicLatin}+', flags: '', expected: `[\\x00-\\x7F]+` },
       { pattern: '\\P{IsBasicLatin}+', flags: '', expected: `[^\\x00-\\x7F]+` },
       { pattern: '[\\p{IsBasicLatin}]', flags: '', expected: `[\\x00-\\x7F]` },
@@ -414,7 +419,7 @@ describe('XPath regex translator fixtures', () => {
   });
 
   it('raises FORX0002 for invalid regex patterns', () => {
-    for (const pattern of ['?a', '[^a-d-b-c]', '[^[a-b]]']) {
+    for (const pattern of ['?a', '{5', '{5,', '{5,6', 'a{5', 'a{5,', 'a{5,6', '[^a-d-b-c]', '[^[a-b]]', '[\\u0100\\u0102\\u0104]+', '[\\p]', '[\\P]', '([\\pfoo])', '([\\Pfoo])', '[\\[\\]a-f-[[]]+', 'abc(?=XXX)\\w+', 'abc(?!XXX)\\w+', '[^0-9]+(?>[0-9]+)3', 'a]']) {
       try {
         compileRegex(pattern, '', TEST_SPAN);
         throw new Error(`Expected invalid regex pattern ${pattern} to fail.`);
@@ -477,18 +482,18 @@ describe('XPath regex translator fixtures', () => {
     expect(compileRegex('^[\\c-[\\i\\C]]+$', '', TEST_SPAN).test('_')).toBe(false);
     expect(compileRegex('^[\\i-[\\c\\I]]+$', '', TEST_SPAN).test('_')).toBe(false);
     expect(compileRegex('^[\\i-[\\c\\I]]+$', '', TEST_SPAN).test(':')).toBe(false);
-    expect(compileRegex('^[^\\c-[\\i\\C]]+$', '', TEST_SPAN).test('_:alpha')).toBe(true);
+    expect(compileRegex('^[^\\c-[\\i\\C]]+$', '', TEST_SPAN).test('_:alpha')).toBe(false);
     expect(compileRegex('^[^\\c-[\\i\\C]]+$', '', TEST_SPAN).test('1.-')).toBe(false);
-    expect(compileRegex('^[^\\i-[\\c\\I]]+$', '', TEST_SPAN).test('_:alpha')).toBe(true);
-    expect(compileRegex('^[^\\i-[\\c\\I]]+$', '', TEST_SPAN).test('1.-')).toBe(true);
+    expect(compileRegex('^[^\\i-[\\c\\I]]+$', '', TEST_SPAN).test('_:alpha')).toBe(false);
+    expect(compileRegex('^[^\\i-[\\c\\I]]+$', '', TEST_SPAN).test('1.-')).toBe(false);
     expect(compileRegex('^[\\p{Ll}-[ae-z]]+$', '', TEST_SPAN).test('b')).toBe(true);
     expect(compileRegex('^[\\p{Ll}-[ae-z]]+$', '', TEST_SPAN).test('a')).toBe(false);
     expect(compileRegex('^[\\p{Nd}-[2468]]+$', '', TEST_SPAN).test('13579')).toBe(true);
     expect(compileRegex('^[\\p{Nd}-[2468]]+$', '', TEST_SPAN).test('2468')).toBe(false);
     expect(compileRegex('^[\\P{Lu}-[ae-z]]+$', '', TEST_SPAN).test('1.-')).toBe(true);
     expect(compileRegex('^[\\P{Lu}-[ae-z]]+$', '', TEST_SPAN).test('a')).toBe(false);
-    expect(compileRegex('^[\\w-[\\p{Ll}]]+$', '', TEST_SPAN).test('AZ09_')).toBe(true);
-    expect(compileRegex('^[\\w-[\\p{Ll}]]+$', '', TEST_SPAN).test('aZ09_')).toBe(false);
+    expect(compileRegex('^[\\w-[\\p{Ll}]]+$', '', TEST_SPAN).test('AZ09`')).toBe(true);
+    expect(compileRegex('^[\\w-[\\p{Ll}]]+$', '', TEST_SPAN).test('AZ09_')).toBe(false);
     expect(compileRegex('^\\p{IsBasicLatin}+$', '', TEST_SPAN).test('Az09')).toBe(true);
     expect(compileRegex('^\\p{IsBasicLatin}+$', '', TEST_SPAN).test('Ā')).toBe(false);
     expect(compileRegex('^\\P{IsBasicLatin}+$', '', TEST_SPAN).test('Ā')).toBe(true);

@@ -165,6 +165,12 @@ export function translateReplacementString(replacement: string, span: RegexSpanL
         throw createRegexError(FORX0004, 'Invalid replacement string for fn:replace.', span);
       }
 
+      if (next === '0') {
+        result += '$&';
+        index += 1;
+        continue;
+      }
+
       result += '$';
       let digitIndex = index + 1;
       while (digitIndex < replacement.length && /[0-9]/.test(replacement[digitIndex]!)) {
@@ -207,7 +213,11 @@ export function toEcmaRegexFlags(flags: string, span: RegexSpanLike, global = fa
     );
   }
 
-  if (translatedPattern !== undefined && needsUnicodeRegexFlag(translatedPattern) && !result.includes('u')) {
+  if (
+    translatedPattern !== undefined
+    && (flags.includes('i') || needsUnicodeRegexFlag(translatedPattern))
+    && !result.includes('u')
+  ) {
     result += 'u';
   }
 
@@ -215,7 +225,10 @@ export function toEcmaRegexFlags(flags: string, span: RegexSpanLike, global = fa
 }
 
 function needsUnicodeRegexFlag(translatedPattern: string): boolean {
-  return translatedPattern.includes('\\u{') || translatedPattern.includes('\\p{') || translatedPattern.includes('\\P{');
+  return translatedPattern.includes('\\u{')
+    || translatedPattern.includes('\\p{')
+    || translatedPattern.includes('\\P{')
+    || [...translatedPattern].some((character) => character.codePointAt(0)! > 0xFFFF);
 }
 
 function validateXPathRegexPattern(pattern: string, flags: string, span: RegexSpanLike): void {
@@ -225,32 +238,66 @@ function validateXPathRegexPattern(pattern: string, flags: string, span: RegexSp
 
   let inCharacterClass = false;
   let escaped = false;
+  let canQuantify = false;
+  let nestedCharacterClassDepth = 0;
   let groupCount = 0;
-  const openGroups: number[] = [];
+  const openGroups: Array<number | undefined> = [];
 
   for (let index = 0; index < pattern.length; index += 1) {
     const char = pattern[index]!;
 
     if (escaped) {
+      const propertyEscape = parsePropertyEscape(pattern, index - 1);
+      if (propertyEscape !== undefined) {
+        index = propertyEscape.endIndex;
+        escaped = false;
+        if (!inCharacterClass) {
+          canQuantify = true;
+        }
+        continue;
+      }
+
+      if (char === 'p' || char === 'P') {
+        throw createRegexError(
+          FORX0002,
+          `Invalid Unicode property escape \\${char} in XPath regular expression syntax.`,
+          span,
+        );
+      }
+
+      if (inCharacterClass && /[0-9]/.test(char)) {
+        throw createRegexError(
+          FORX0002,
+          `Invalid back-reference \\${char} inside a character class.`,
+          span,
+        );
+      }
+
+      if (char === '0') {
+        throw createRegexError(
+          FORX0002,
+          'Invalid back-reference \\0 in XPath regular expression syntax.',
+          span,
+        );
+      }
+
       if (!inCharacterClass && /[1-9]/.test(char)) {
-        let endIndex = index + 1;
-        while (endIndex < pattern.length && /[0-9]/.test(pattern[endIndex]!)) {
-          endIndex += 1;
-        }
+        const backReference = resolveXPathNumericBackReference(pattern, index, groupCount, openGroups, span);
+        index = backReference.endIndex;
+      }
 
-        const reference = Number(pattern.slice(index, endIndex));
-        if (reference >= groupCount + 1 || openGroups.includes(reference)) {
-          throw createRegexError(
-            FORX0002,
-            `Invalid back-reference \\\\${reference} to a group that is not yet closed.`,
-            span,
-          );
-        }
-
-        index = endIndex - 1;
+      if (/[A-Za-z]/.test(char) && !isSupportedXPathRegexEscape(char)) {
+        throw createRegexError(
+          FORX0002,
+          `Unsupported XPath regular expression escape \\${char}.`,
+          span,
+        );
       }
 
       escaped = false;
+      if (!inCharacterClass) {
+        canQuantify = true;
+      }
       continue;
     }
 
@@ -260,31 +307,138 @@ function validateXPathRegexPattern(pattern: string, flags: string, span: RegexSp
     }
 
     if (inCharacterClass) {
+      if (char === '[') {
+        nestedCharacterClassDepth += 1;
+        continue;
+      }
+
       if (char === ']') {
-        inCharacterClass = false;
+        if (nestedCharacterClassDepth === 0) {
+          inCharacterClass = false;
+          canQuantify = true;
+        } else {
+          nestedCharacterClassDepth -= 1;
+        }
       }
       continue;
     }
 
     if (char === '[') {
       inCharacterClass = true;
+      nestedCharacterClassDepth = 0;
+      canQuantify = false;
       continue;
+    }
+
+    if (char === ']') {
+      throw createRegexError(FORX0002, 'Invalid character class range syntax for the current regex slice.', span);
     }
 
     if (char === '(') {
       if (pattern[index + 1] === '?') {
+        if (pattern[index + 2] !== ':') {
+          throw createRegexError(
+            FORX0002,
+            'Unsupported group construct in XPath regular expression syntax.',
+            span,
+          );
+        }
+
+        openGroups.push(undefined);
+        canQuantify = false;
+        index += 2;
         continue;
       }
 
       groupCount += 1;
       openGroups.push(groupCount);
+      canQuantify = false;
       continue;
     }
 
     if (char === ')' && openGroups.length > 0) {
       openGroups.pop();
+      canQuantify = true;
+      continue;
     }
+
+    if (char === '{') {
+      const quantifier = parseXPathQuantifier(pattern, index, canQuantify, span);
+      index = quantifier.endIndex;
+      canQuantify = false;
+      continue;
+    }
+
+    if (char === '?' || char === '*' || char === '+') {
+      if (!canQuantify) {
+        throw createRegexError(FORX0002, 'Invalid quantifier syntax in XPath regular expression.', span);
+      }
+
+      if (pattern[index + 1] === '?') {
+        index += 1;
+      }
+
+      canQuantify = false;
+      continue;
+    }
+
+    if (char === '|') {
+      canQuantify = false;
+      continue;
+    }
+
+    if (char === '^' || char === '$') {
+      canQuantify = true;
+      continue;
+    }
+
+    canQuantify = true;
   }
+}
+
+function resolveXPathNumericBackReference(
+  pattern: string,
+  startIndex: number,
+  groupCount: number,
+  openGroups: readonly (number | undefined)[],
+  span: RegexSpanLike,
+): { reference: number; suffix: string; endIndex: number } {
+  let endIndex = startIndex + 1;
+  while (endIndex < pattern.length && /[0-9]/.test(pattern[endIndex]!)) {
+    endIndex += 1;
+  }
+
+  const digits = pattern.slice(startIndex, endIndex);
+  for (let prefixLength = digits.length; prefixLength >= 1; prefixLength -= 1) {
+    const reference = Number(digits.slice(0, prefixLength));
+    if (reference === 0) {
+      continue;
+    }
+
+    if (reference > groupCount) {
+      continue;
+    }
+
+    if (openGroups.includes(reference)) {
+      throw createRegexError(
+        FORX0002,
+        `Invalid back-reference \\\\${reference} to a group that is not yet closed.`,
+        span,
+      );
+    }
+
+    return {
+      reference,
+      suffix: digits.slice(prefixLength),
+      endIndex: endIndex - 1,
+    };
+  }
+
+  throw createRegexError(
+    FORX0002,
+    `Invalid back-reference \\\\${digits} to a group that is not yet closed.`,
+    span,
+  );
 }
 
 function matchesZeroLength(regex: RegExp): boolean {
@@ -326,6 +480,11 @@ function rewriteMultilineAnchors(pattern: string): string {
 
   for (const char of pattern) {
     if (escaped) {
+      if (!inCharacterClass && /\s/.test(char)) {
+        escaped = false;
+        continue;
+      }
+
       result += char;
       escaped = false;
       continue;
@@ -384,6 +543,11 @@ function stripExpandedWhitespace(pattern: string): string {
     }
 
     if (escaped) {
+      if (!inCharacterClass && /\s/.test(char)) {
+        escaped = false;
+        continue;
+      }
+
       result += char;
       escaped = false;
       continue;
@@ -424,6 +588,9 @@ function stripExpandedWhitespace(pattern: string): string {
 
 function translateXmlNameEscapes(pattern: string, span: RegexSpanLike): string {
   let result = '';
+  let groupCount = 0;
+  const openGroups: number[] = [];
+
   for (let index = 0; index < pattern.length; index += 1) {
     const char = pattern[index]!;
 
@@ -448,12 +615,46 @@ function translateXmlNameEscapes(pattern: string, span: RegexSpanLike): string {
         continue;
       }
 
+      if (/[1-9]/.test(next)) {
+        const backReference = resolveXPathNumericBackReference(pattern, index + 1, groupCount, openGroups, span);
+        result += `\\${backReference.reference}`;
+        if (backReference.suffix.length > 0) {
+          result += `(?:${escapeRegexLiteral(backReference.suffix)})`;
+        }
+        index = backReference.endIndex;
+        continue;
+      }
+
       if (next === 'i' || next === 'I' || next === 'c' || next === 'C') {
         result += translateXmlNameEscape(next);
+      } else if (next === 'd' || next === 'D' || next === 'w' || next === 'W') {
+        result += translateXPathRegexEscape(next, false);
+      } else if (next === '-') {
+        result += '-';
       } else {
         result += `\\${next}`;
       }
       index += 1;
+      continue;
+    }
+
+    if (char === '(') {
+      if (pattern[index + 1] !== '?') {
+        groupCount += 1;
+        openGroups.push(groupCount);
+      }
+      result += char;
+      continue;
+    }
+
+    if (char === '^' || char === '$') {
+      result += `(?:${char})`;
+      continue;
+    }
+
+    if (char === ')' && openGroups.length > 0) {
+      openGroups.pop();
+      result += char;
       continue;
     }
 
@@ -502,10 +703,7 @@ function translateCharacterClass(pattern: string, startIndex: number, span: Rege
   }
 
   if (index >= pattern.length || pattern[index] !== ']') {
-    return {
-      source: pattern.slice(startIndex),
-      endIndex: pattern.length - 1,
-    };
+    throw createRegexError(FORX0002, 'Invalid character class range syntax for the current regex slice.', span);
   }
 
   const content = pattern.slice(startIndex + 1, index);
@@ -518,13 +716,17 @@ function translateCharacterClass(pattern: string, startIndex: number, span: Rege
 function translateCharacterClassContent(content: string, span: RegexSpanLike): string {
   const outerNegated = content.startsWith('^');
   const body = outerNegated ? content.slice(1) : content;
+  if (body.length === 0) {
+    throw createRegexError(FORX0002, 'Empty character classes are not valid in the current regex slice.', span);
+  }
   const subtraction = splitTopLevelCharacterClassSubtraction(body);
 
   if (subtraction !== undefined) {
-    const basePattern = translateCharacterClassContent(subtraction.base, span);
+    const basePattern = outerNegated
+      ? translateCharacterClassContent(`^${subtraction.base}`, span)
+      : translateCharacterClassContent(subtraction.base, span);
     const subtractPattern = translateCharacterClassContent(subtraction.subtract, span);
-    const subtractedPattern = subtractSingleCharacterPattern(basePattern, subtractPattern);
-    return outerNegated ? complementSingleCharacterPattern(subtractedPattern) : subtractedPattern;
+    return subtractSingleCharacterPattern(basePattern, subtractPattern);
   }
 
   return outerNegated
@@ -697,7 +899,12 @@ function tokenizeCharacterClassRawTokens(content: string): string[] {
     }
 
     if (char === '\\' && index + 1 < content.length) {
-      rawTokens.push(`\\${content[index + 1]!}`);
+      const escape = content[index + 1]!;
+      rawTokens.push(
+        escape === 'd' || escape === 'D' || escape === 'w' || escape === 'W'
+          ? translateXPathRegexEscape(escape, true)
+          : `\\${escape}`,
+      );
       index += 1;
       continue;
     }
@@ -752,7 +959,7 @@ function getCharacterClassRangeEndpointSource(token: string): string | undefined
   if (
     token.length === 2
     && token[0] === '\\'
-    && !/^[iIcCpPsSdDwW]$/.test(token[1]!)
+    && !/[0-9A-Za-z]/.test(token[1]!)
   ) {
     return token;
   }
@@ -836,6 +1043,21 @@ function translateXmlNameEscapeInCharacterClass(escape: 'i' | 'c'): string {
   }
 }
 
+function translateXPathRegexEscape(escape: 'd' | 'D' | 'w' | 'W', inCharacterClass: boolean): string {
+  switch (escape) {
+    case 'd':
+      return '\\p{Nd}';
+    case 'D':
+      return '\\P{Nd}';
+    case 'w':
+      return inCharacterClass ? '\\p{L}\\p{M}\\p{N}\\p{S}' : '[\\p{L}\\p{M}\\p{N}\\p{S}]';
+    case 'W':
+      return inCharacterClass
+        ? '\\p{P}\\p{Z}\\p{C}'
+        : '[\\p{P}\\p{Z}\\p{C}]';
+  }
+}
+
 function parsePropertyEscape(pattern: string, startIndex: number): PropertyEscape | undefined {
   if (pattern[startIndex] !== '\\') {
     return undefined;
@@ -883,4 +1105,55 @@ function createRegexError(code: string, message: string, span: RegexSpanLike): X
     endColumn: span.endColumn,
     endOffset: span.end,
   });
+}
+
+function isSupportedXPathRegexEscape(escape: string): boolean {
+  return ['C', 'D', 'I', 'P', 'S', 'W', 'c', 'd', 'i', 'n', 'p', 'r', 's', 't', 'w'].includes(escape);
+}
+
+function parseXPathQuantifier(
+  pattern: string,
+  startIndex: number,
+  canQuantify: boolean,
+  span: RegexSpanLike,
+): { endIndex: number } {
+  if (!canQuantify) {
+    throw createRegexError(FORX0002, 'Invalid quantifier syntax in XPath regular expression.', span);
+  }
+
+  let index = startIndex + 1;
+  let lowerBound = '';
+  while (index < pattern.length && /[0-9]/.test(pattern[index]!)) {
+    lowerBound += pattern[index]!;
+    index += 1;
+  }
+
+  if (lowerBound.length === 0) {
+    throw createRegexError(FORX0002, 'Invalid quantifier syntax in XPath regular expression.', span);
+  }
+
+  if (pattern[index] === '}') {
+    return { endIndex: pattern[index + 1] === '?' ? index + 1 : index };
+  }
+
+  if (pattern[index] !== ',') {
+    throw createRegexError(FORX0002, 'Invalid quantifier syntax in XPath regular expression.', span);
+  }
+
+  index += 1;
+  let upperBound = '';
+  while (index < pattern.length && /[0-9]/.test(pattern[index]!)) {
+    upperBound += pattern[index]!;
+    index += 1;
+  }
+
+  if (pattern[index] !== '}') {
+    throw createRegexError(FORX0002, 'Invalid quantifier syntax in XPath regular expression.', span);
+  }
+
+  if (upperBound.length > 0 && Number(upperBound) < Number(lowerBound)) {
+    throw createRegexError(FORX0002, 'Invalid quantifier syntax in XPath regular expression.', span);
+  }
+
+  return { endIndex: pattern[index + 1] === '?' ? index + 1 : index };
 }

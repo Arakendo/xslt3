@@ -7,16 +7,20 @@
 
 import type { Node } from '@xmldom/xmldom';
 
-import { FOAR0001, FOCH0001, XPDY0002, XPST0008, XPST0017, XPTY0004, XPTY0019 } from '../../errors/codes.js';
+import { FOAR0001, FOCH0001, FOCH0002, FOER0000, FORG0001, FORG0005, FORG0006, FOTY0014, XPDY0002, XPST0008, XPST0017, XPST0081, XPTY0004, XPTY0019 } from '../../errors/codes.js';
 import { XPathError } from '../../errors/XPathError.js';
 import type { ErrorDetails } from '../../errors/XdmError.js';
 import { createSequence, materialize } from '../../xdm/sequence.js';
 import {
+  createXdmArray,
   createXdmBoolean,
+  createXdmInteger,
+  createXdmMap,
   createXdmNode,
   createXdmNumber,
   createXdmQName,
   createXdmString,
+  type XdmArray,
   type XdmAtomicValue,
   type XdmItem,
   type XdmNode,
@@ -24,7 +28,7 @@ import {
 } from '../../xdm/types.js';
 import type { DynamicContext } from './context.js';
 import { compileRegex, compileRegexRejectingZeroLengthMatches, translateReplacementString } from './regex.js';
-import type { FilterExpression, FunctionCallExpression, PathExpression, PathSegment, StepExpression, XPathAst, XPathBinaryOperator } from '../parse/ast.js';
+import type { FilterExpression, PathExpression, PathSegment, StepExpression, XPathAst, XPathBinaryOperator } from '../parse/ast.js';
 
 type SpanLike = {
   readonly line: number;
@@ -35,12 +39,23 @@ type SpanLike = {
   readonly end: number;
 };
 
+const PREDEFINED_NAMESPACE_PREFIXES = new Map<string, string>([
+  ['array', 'http://www.w3.org/2005/xpath-functions/array'],
+  ['fn', 'http://www.w3.org/2005/xpath-functions'],
+  ['map', 'http://www.w3.org/2005/xpath-functions/map'],
+  ['math', 'http://www.w3.org/2005/xpath-functions/math'],
+  ['xml', 'http://www.w3.org/XML/1998/namespace'],
+  ['xs', 'http://www.w3.org/2001/XMLSchema'],
+]);
+
 export function evaluate(ast: XPathAst, context: DynamicContext): XdmSequence {
   return createSequence(evaluateExpression(ast, context));
 }
 
 function evaluateExpression(ast: XPathAst, context: DynamicContext): XdmItem[] {
   switch (ast.kind) {
+    case 'array':
+      return [createXdmArray(ast.members.map((member) => evaluateExpression(member, context)))];
     case 'binary':
       return evaluateBinaryExpression(ast.operator, ast.left, ast.right, context, ast.span);
     case 'contextItem':
@@ -64,14 +79,20 @@ function evaluateExpression(ast: XPathAst, context: DynamicContext): XdmItem[] {
     case 'let':
       return evaluateLetExpression(ast.bindings, ast.returnExpr, context);
     case 'number':
-      return [createXdmNumber(ast.value)];
+      return [createNumberLiteralValue(ast.value, ast.lexeme)];
     case 'string':
       return [createXdmString(ast.value)];
     case 'sequence':
       return ast.items.flatMap((item) => evaluateExpression(item, context));
     case 'unary': {
       const operand = requireSingleNumber(evaluateExpression(ast.operand, context), ast.operand.span);
-      return [createXdmNumber(-operand)];
+      if (ast.operand.kind === 'number' && isDecimalLiteralLexeme(ast.operand.lexeme)) {
+        return [createXdmNumber(
+          ast.operator === '-' ? -operand : operand,
+          normalizeSignedDecimalLiteralLexeme(ast.operator, ast.operand.lexeme),
+        )];
+      }
+      return [createXdmNumber(ast.operator === '-' ? -operand : operand)];
     }
     case 'variable':
       return resolveVariableReference(ast.name, context, ast.span);
@@ -92,20 +113,103 @@ function evaluateFunctionCall(
     case 'fn:position':
       requireArity(normalized, args, 0, span);
       requireContextItem(context, span);
-      return [createXdmNumber(context.contextPosition)];
+      return [createXdmInteger(context.contextPosition)];
     case 'fn:last':
       requireArity(normalized, args, 0, span);
       requireContextItem(context, span);
-      return [createXdmNumber(context.contextSize)];
+      return [createXdmInteger(context.contextSize)];
     case 'fn:count':
       requireArity(normalized, args, 1, span);
-      return [createXdmNumber(evaluateExpression(args[0]!, context).length)];
+      return [createXdmInteger(evaluateExpression(args[0]!, context).length)];
     case 'fn:exists':
       requireArity(normalized, args, 1, span);
       return [createXdmBoolean(evaluateExpression(args[0]!, context).length > 0)];
     case 'fn:empty':
       requireArity(normalized, args, 1, span);
       return [createXdmBoolean(evaluateExpression(args[0]!, context).length === 0)];
+    case 'fn:exactly-one': {
+      requireArity(normalized, args, 1, span);
+      const items = evaluateExpression(args[0]!, context);
+      if (items.length !== 1) {
+        throw createXPathError(FORG0005, 'Function fn:exactly-one requires exactly one item.', span, {
+          functionName: normalized,
+          expectedType: 'exactly one item()',
+          actualType: describeItemsType(items),
+        });
+      }
+      return [items[0]!];
+    }
+    case 'fn:one-or-more': {
+      requireArity(normalized, args, 1, span);
+      const items = evaluateExpression(args[0]!, context);
+      if (items.length === 0) {
+        throw createXPathError(FORG0005, 'Function fn:one-or-more requires at least one item.', span, {
+          functionName: normalized,
+          expectedType: 'one or more item()',
+          actualType: describeItemsType(items),
+        });
+      }
+      return items;
+    }
+    case 'fn:zero-or-one': {
+      requireArity(normalized, args, 1, span);
+      const items = evaluateExpression(args[0]!, context);
+      if (items.length > 1) {
+        throw createXPathError(FORG0005, 'Function fn:zero-or-one requires zero or one item.', span, {
+          functionName: normalized,
+          expectedType: 'zero or one item()',
+          actualType: describeItemsType(items),
+        });
+      }
+      return items;
+    }
+    case 'fn:deep-equal':
+      requireArity(normalized, args, 2, span);
+      return [createXdmBoolean(deepEqualSequences(
+        evaluateExpression(args[0]!, context),
+        evaluateExpression(args[1]!, context),
+      ))];
+    case 'fn:QName':
+      requireArity(normalized, args, 2, span);
+      evaluateSingletonStringishArg(args[0]!, context, span, normalized);
+      return [createXdmQName(itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized)))];
+    case 'map:entry': {
+      requireArity(normalized, args, 2, span);
+      const keyItems = evaluateExpression(args[0]!, context);
+      if (keyItems.length !== 1 || keyItems[0]?.xdmKind !== 'atomic') {
+        throw createXPathError(XPTY0004, `Function ${normalized} requires a singleton atomic key argument.`, span, {
+          functionName: normalized,
+          expectedType: 'singleton atomic key',
+          actualType: describeItemsType(keyItems),
+        });
+      }
+      return [createXdmMap([{ key: keyItems[0] as XdmAtomicValue, value: evaluateExpression(args[1]!, context) }])];
+    }
+    case 'fn:local-name-from-QName': {
+      requireArity(normalized, args, 1, span);
+      const item = evaluateOptionalSingletonItemArg(normalized, args, context, span);
+      if (item === undefined) {
+        return [];
+      }
+      const atomic = item.xdmKind === 'atomic' ? item as XdmAtomicValue : undefined;
+      if (atomic === undefined || atomic.type !== 'xs:QName') {
+        throw createXPathError(XPTY0004, `Function ${normalized} requires an xs:QName argument.`, span, {
+          functionName: normalized,
+          expectedType: 'xs:QName?',
+          actualType: describeItemType(item),
+        });
+      }
+      return [createXdmString(getLocalNameFromQName(atomic.value as string))];
+    }
+    case 'fn:error':
+      requireArity(normalized, args, 0, span);
+      throw createXPathError(FOER0000, 'fn:error() was invoked.', span, {
+        functionName: normalized,
+      });
+    case 'fn:trace':
+      requireArity(normalized, args, 2, span);
+      evaluateSingletonStringishArg(args[1]!, context, span, normalized);
+      return evaluateExpression(args[0]!, context);
     case 'fn:boolean':
       requireArity(normalized, args, 1, span);
       return [createXdmBoolean(effectiveBooleanValue(evaluateExpression(args[0]!, context), span))];
@@ -114,17 +218,17 @@ function evaluateFunctionCall(
       return [createXdmBoolean(!effectiveBooleanValue(evaluateExpression(args[0]!, context), span))];
     case 'fn:string': {
       const item = evaluateOptionalSingletonItemArg(normalized, args, context, span);
-      return [createXdmString(itemToStringValue(item))];
+      return [createXdmString(itemToStringValue(item, span))];
     }
     case 'fn:string-length': {
       const item = evaluateOptionalSingletonItemArg(normalized, args, context, span);
-      return [createXdmNumber(itemToStringValue(item).length)];
+      return [createXdmInteger(Array.from(itemToStringValue(item, span)).length)];
     }
     case 'fn:substring': {
       if (args.length !== 2 && args.length !== 3) {
         throwArityError(normalized, args.length, '2..3', span);
       }
-      const source = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized));
+      const source = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span);
       const start = xpathRound(requireSingleNumber(evaluateExpression(args[1]!, context), span));
       if (args.length === 2) {
         return [createXdmString(xpathSubstring(source, start))];
@@ -136,67 +240,130 @@ function evaluateFunctionCall(
       requireArity(normalized, args, 1, span);
       return [createXdmString(codepointsToString(evaluateExpression(args[0]!, context), span))];
     }
+    case 'fn:string-to-codepoints': {
+      requireArity(normalized, args, 1, span);
+      return stringToCodepoints(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span);
+    }
     case 'fn:concat': {
       if (args.length < 2) {
         throwArityError(normalized, args.length, '>=2', span);
       }
-      return [createXdmString(args.map((arg) => itemToStringValue(evaluateSingletonStringishArg(arg, context, span, normalized))).join(''))];
+      return [createXdmString(args.map((arg) => itemToStringValue(evaluateSingletonStringishArg(arg, context, span, normalized), span)).join(''))];
     }
     case 'fn:string-join': {
-      requireArity(normalized, args, 2, span);
+      if (args.length !== 1 && args.length !== 2) {
+        throwArityError(normalized, args.length, '1..2', span);
+      }
       const items = evaluateExpression(args[0]!, context);
-      const separator = itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized));
-      return [createXdmString(items.map(itemToStringValue).join(separator))];
+      let separator = '';
+      if (args.length === 2) {
+        const separatorItems = evaluateExpression(args[1]!, context);
+        if (separatorItems.length !== 1) {
+          throw createXPathError(XPTY0004, `Function ${normalized} requires a singleton separator argument.`, span, {
+            functionName: normalized,
+            expectedType: 'singleton item() as separator',
+            actualType: describeItemsType(separatorItems),
+          });
+        }
+        separator = itemToStringValue(separatorItems[0]!, span);
+      }
+      return [createXdmString(items.map((item) => itemToStringValue(item, span)).join(separator))];
     }
     case 'fn:matches': {
       if (args.length !== 2 && args.length !== 3) {
         throwArityError(normalized, args.length, '2..3', span);
       }
-      const input = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized));
-      const pattern = itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized));
-      const flags = args.length === 3
-        ? itemToStringValue(evaluateSingletonStringishArg(args[2]!, context, span, normalized))
-        : '';
+      const input = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span);
+      const patternItems = evaluateExpression(args[1]!, context);
+      if (patternItems.length !== 1) {
+        throw createXPathError(XPTY0004, `Function ${normalized} requires a singleton pattern argument.`, span, {
+          functionName: normalized,
+          expectedType: 'singleton item() as pattern',
+          actualType: describeItemsType(patternItems),
+        });
+      }
+      const pattern = itemToStringValue(patternItems[0]!, span);
+      let flags = '';
+      if (args.length === 3) {
+        const flagItems = evaluateExpression(args[2]!, context);
+        if (flagItems.length !== 1) {
+          throw createXPathError(XPTY0004, `Function ${normalized} requires a singleton flags argument.`, span, {
+            functionName: normalized,
+            expectedType: 'singleton item() as flags',
+            actualType: describeItemsType(flagItems),
+          });
+        }
+        flags = itemToStringValue(flagItems[0]!, span);
+      }
       return [createXdmBoolean(compileRegex(pattern, flags, span).test(input))];
     }
     case 'fn:replace': {
       if (args.length !== 3 && args.length !== 4) {
         throwArityError(normalized, args.length, '3..4', span);
       }
-      const input = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized));
-      const pattern = itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized));
-      const replacement = itemToStringValue(evaluateSingletonStringishArg(args[2]!, context, span, normalized));
+      const input = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span);
+      const patternItems = evaluateExpression(args[1]!, context);
+      if (patternItems.length !== 1) {
+        throw createXPathError(XPTY0004, `Function ${normalized} requires a singleton pattern argument.`, span, {
+          functionName: normalized,
+          expectedType: 'singleton item() as pattern',
+          actualType: describeItemsType(patternItems),
+        });
+      }
+      const pattern = itemToStringValue(patternItems[0]!, span);
       const flags = args.length === 4
-        ? itemToStringValue(evaluateSingletonStringishArg(args[3]!, context, span, normalized))
+        ? itemToStringValue(evaluateSingletonStringishArg(args[3]!, context, span, normalized), span)
         : '';
+      const replacementItems = evaluateExpression(args[2]!, context);
+      if (replacementItems.length !== 1) {
+        throw createXPathError(XPTY0004, `Function ${normalized} requires a singleton replacement argument.`, span, {
+          functionName: normalized,
+          expectedType: 'singleton item() as replacement',
+          actualType: describeItemsType(replacementItems),
+        });
+      }
+      const replacement = itemToStringValue(replacementItems[0]!, span);
       return [createXdmString(
         input.replace(
           compileRegexRejectingZeroLengthMatches(pattern, flags, span),
-          translateReplacementString(replacement, span),
+          flags.includes('q')
+            ? replacement.replace(/\$/g, '$$$$')
+            : translateReplacementString(replacement, span),
         ),
       )];
     }
     case 'fn:tokenize': {
-      if (args.length !== 2 && args.length !== 3) {
-        throwArityError(normalized, args.length, '2..3', span);
+      if (args.length !== 1 && args.length !== 2 && args.length !== 3) {
+        throwArityError(normalized, args.length, '1..3', span);
       }
-      const input = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized));
-      const pattern = itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized));
+      const input = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span);
+      if (args.length === 1) {
+        return xpathTokenizeOnWhitespace(input).map(createXdmString);
+      }
+      const patternItems = evaluateExpression(args[1]!, context);
+      if (patternItems.length !== 1) {
+        throw createXPathError(XPTY0004, `Function ${normalized} requires a singleton pattern argument.`, span, {
+          functionName: normalized,
+          expectedType: 'singleton item() as pattern',
+          actualType: describeItemsType(patternItems),
+        });
+      }
+      const pattern = itemToStringValue(patternItems[0]!, span);
       const flags = args.length === 3
-        ? itemToStringValue(evaluateSingletonStringishArg(args[2]!, context, span, normalized))
+        ? itemToStringValue(evaluateSingletonStringishArg(args[2]!, context, span, normalized), span)
         : '';
       return xpathTokenize(input, compileRegexRejectingZeroLengthMatches(pattern, flags, span)).map(createXdmString);
     }
     case 'fn:normalize-space': {
       const item = evaluateOptionalSingletonItemArg(normalized, args, context, span);
-      return [createXdmString(normalizeSpace(itemToStringValue(item)))];
+      return [createXdmString(normalizeSpace(itemToStringValue(item, span)))];
     }
     case 'fn:contains':
       requireArity(normalized, args, 2, span);
       return [
         createXdmBoolean(
-          itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized)).includes(
-            itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized)),
+          itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span).includes(
+            itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized), span),
           ),
         ),
       ];
@@ -204,8 +371,8 @@ function evaluateFunctionCall(
       requireArity(normalized, args, 2, span);
       return [
         createXdmBoolean(
-          itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized)).startsWith(
-            itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized)),
+          itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span).startsWith(
+            itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized), span),
           ),
         ),
       ];
@@ -213,37 +380,55 @@ function evaluateFunctionCall(
       requireArity(normalized, args, 2, span);
       return [
         createXdmBoolean(
-          itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized)).endsWith(
-            itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized)),
+          itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span).endsWith(
+            itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized), span),
           ),
         ),
       ];
     case 'fn:upper-case': {
       requireArity(normalized, args, 1, span);
-      return [createXdmString(itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized)).toUpperCase())];
+      return [createXdmString(itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span).toUpperCase())];
     }
     case 'fn:lower-case': {
       requireArity(normalized, args, 1, span);
-      return [createXdmString(itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized)).toLowerCase())];
+      return [createXdmString(itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span).toLowerCase())];
     }
     case 'fn:number': {
       const item = evaluateOptionalSingletonItemArg(normalized, args, context, span);
       return [createXdmNumber(itemToNumberValue(item))];
     }
     case 'fn:sum': {
-      requireArity(normalized, args, 1, span);
+      if (args.length !== 1 && args.length !== 2) {
+        throwArityError(normalized, args.length, '1..2', span);
+      }
       const values = atomizedNumericValues(evaluateExpression(args[0]!, context), span, normalized);
+      if (values.length === 0) {
+        if (args.length === 1) {
+          return [createXdmNumber(0)];
+        }
+        return evaluateExpression(args[1]!, context);
+      }
       return [createXdmNumber(values.reduce((total, value) => total + value, 0))];
     }
     case 'fn:min': {
-      requireArity(normalized, args, 1, span);
-      const values = atomizedNumericValues(evaluateExpression(args[0]!, context), span, normalized);
-      return values.length === 0 ? [] : [createXdmNumber(Math.min(...values))];
+      if (args.length !== 1 && args.length !== 2) {
+        throwArityError(normalized, args.length, '1..2', span);
+      }
+      validateSupportedCollationArg(normalized, args[1], context, span);
+      const values = atomizedComparableValues(evaluateExpression(args[0]!, context), span, normalized);
+      return values.length === 0 ? [] : [createAtomicValueFromAtomized(values.reduce((current, candidate) =>
+        compareComparableValues(candidate, current) < 0 ? candidate : current,
+      ))];
     }
     case 'fn:max': {
-      requireArity(normalized, args, 1, span);
-      const values = atomizedNumericValues(evaluateExpression(args[0]!, context), span, normalized);
-      return values.length === 0 ? [] : [createXdmNumber(Math.max(...values))];
+      if (args.length !== 1 && args.length !== 2) {
+        throwArityError(normalized, args.length, '1..2', span);
+      }
+      validateSupportedCollationArg(normalized, args[1], context, span);
+      const values = atomizedComparableValues(evaluateExpression(args[0]!, context), span, normalized);
+      return values.length === 0 ? [] : [createAtomicValueFromAtomized(values.reduce((current, candidate) =>
+        compareComparableValues(candidate, current) > 0 ? candidate : current,
+      ))];
     }
     case 'fn:avg': {
       requireArity(normalized, args, 1, span);
@@ -267,9 +452,14 @@ function evaluateFunctionCall(
       }
       return results;
     }
-    case 'fn:data':
+    case 'fn:data': {
+      if (args.length === 0) {
+        const item = requireContextItem(context, span);
+        return atomizeItems([item]).map(createAtomicValueFromAtomized);
+      }
       requireArity(normalized, args, 1, span);
       return atomizeItems(evaluateExpression(args[0]!, context)).map(createAtomicValueFromAtomized);
+    }
     case 'fn:root': {
       const item = evaluateOptionalSingletonNodeArg(normalized, args, context, span);
       if (item === undefined) {
@@ -290,18 +480,30 @@ function evaluateFunctionCall(
       const items = evaluateExpression(args[0]!, context);
       return items.slice(1);
     }
+    case 'fn:remove': {
+      requireArity(normalized, args, 2, span);
+      const items = evaluateExpression(args[0]!, context);
+      const position = Math.trunc(requireSingleNumber(evaluateExpression(args[1]!, context), span));
+      if (position < 1 || position > items.length) {
+        return items;
+      }
+      return items.filter((_, index) => index !== position - 1);
+    }
     case 'fn:subsequence': {
       if (args.length !== 2 && args.length !== 3) {
         throwArityError(normalized, args.length, '2..3', span);
       }
       const items = evaluateExpression(args[0]!, context);
-      const start = Math.trunc(requireSingleNumber(evaluateExpression(args[1]!, context), span));
-      const zeroBasedStart = Math.max(start - 1, 0);
+      const start = xpathRound(requireSingleNumber(evaluateExpression(args[1]!, context), span));
       if (args.length === 2) {
-        return items.slice(zeroBasedStart);
+        return items.filter((_, index) => index + 1 >= start);
       }
-      const length = Math.max(Math.trunc(requireSingleNumber(evaluateExpression(args[2]!, context), span)), 0);
-      return items.slice(zeroBasedStart, zeroBasedStart + length);
+      const length = xpathRound(requireSingleNumber(evaluateExpression(args[2]!, context), span));
+      const end = start + length;
+      return items.filter((_, index) => {
+        const position = index + 1;
+        return position >= start && position < end;
+      });
     }
     case 'fn:name': {
       const item = evaluateOptionalSingletonNodeArg(normalized, args, context, span);
@@ -322,18 +524,33 @@ function evaluateFunctionCall(
     case 'fn:false':
       requireArity(normalized, args, 0, span);
       return [createXdmBoolean(false)];
-    case 'fn:abs':
+    case 'fn:abs': {
       requireArity(normalized, args, 1, span);
-      return [createXdmNumber(Math.abs(requireSingleNumber(evaluateExpression(args[0]!, context), span)))];
-    case 'fn:floor':
+      const items = evaluateExpression(args[0]!, context);
+      return items.length === 0 ? [] : [createXdmNumber(Math.abs(requireSingleNumber(items, span)))];
+    }
+    case 'fn:floor': {
       requireArity(normalized, args, 1, span);
-      return [createXdmNumber(Math.floor(requireSingleNumber(evaluateExpression(args[0]!, context), span)))];
-    case 'fn:ceiling':
+      const items = evaluateExpression(args[0]!, context);
+      return items.length === 0 ? [] : [createXdmNumber(Math.floor(requireSingleNumber(items, span)))];
+    }
+    case 'fn:ceiling': {
       requireArity(normalized, args, 1, span);
-      return [createXdmNumber(Math.ceil(requireSingleNumber(evaluateExpression(args[0]!, context), span)))];
+      const items = evaluateExpression(args[0]!, context);
+      return items.length === 0 ? [] : [createXdmNumber(Math.ceil(requireSingleNumber(items, span)))];
+    }
     case 'fn:round':
-      requireArity(normalized, args, 1, span);
-      return [createXdmNumber(Math.round(requireSingleNumber(evaluateExpression(args[0]!, context), span)))];
+      if (args.length !== 1 && args.length !== 2) {
+        throwArityError(normalized, args.length, '1..2', span);
+      }
+      const roundedItems = evaluateExpression(args[0]!, context);
+      if (roundedItems.length === 0) {
+        return [];
+      }
+      return [createXdmNumber(roundToPrecision(
+        requireSingleNumber(roundedItems, span),
+        args.length === 2 ? requireSingleInteger(evaluateExpression(args[1]!, context), span, 'Round precision') : 0,
+      ))];
     default:
       throw createXPathError(XPST0017, `Unknown function ${callee} with arity ${args.length}.`, span, {
         functionName: callee,
@@ -349,6 +566,18 @@ function evaluateBinaryExpression(
   context: DynamicContext,
   span: SpanLike,
 ): XdmItem[] {
+  if (operator === '!') {
+    const leftItems = evaluateExpression(leftAst, context);
+    const size = leftItems.length;
+    return leftItems.flatMap((item, index) =>
+      evaluateExpression(rightAst, {
+        ...context,
+        contextItem: item,
+        contextPosition: index + 1,
+        contextSize: size,
+      }));
+  }
+
   if (operator === 'and') {
     const leftValue = effectiveBooleanValue(evaluateExpression(leftAst, context), leftAst.span);
     if (!leftValue) {
@@ -368,7 +597,7 @@ function evaluateBinaryExpression(
   if (operator === '+' || operator === '-' || operator === '*' || operator === 'div' || operator === 'idiv' || operator === 'mod') {
     const left = requireSingleNumber(evaluateExpression(leftAst, context), leftAst.span);
     const right = requireSingleNumber(evaluateExpression(rightAst, context), rightAst.span);
-    if ((operator === 'div' || operator === 'idiv' || operator === 'mod') && right === 0) {
+    if ((operator === 'idiv' || operator === 'mod') && right === 0) {
       throw createXPathError(FOAR0001, 'Division by zero.', span);
     }
 
@@ -390,6 +619,33 @@ function evaluateBinaryExpression(
 
   if (operator === 'to') {
     return evaluateRangeExpression(leftAst, rightAst, context);
+  }
+
+  if (operator === '||') {
+    return [createXdmString(
+      itemToStringValue(evaluateSingletonStringishArg(leftAst, context, span, 'operator ||'), span)
+      + itemToStringValue(evaluateSingletonStringishArg(rightAst, context, span, 'operator ||'), span),
+    )];
+  }
+
+  if (operator === '|') {
+    return normalizeNodeSequence([
+      ...requireNodeSequence(evaluateExpression(leftAst, context), leftAst.span),
+      ...requireNodeSequence(evaluateExpression(rightAst, context), rightAst.span),
+    ]);
+  }
+
+  if (operator === 'intersect') {
+    const left = requireNodeSequence(evaluateExpression(leftAst, context), leftAst.span);
+    const right = new Set(requireNodeSequence(evaluateExpression(rightAst, context), rightAst.span).map((item) => item.node));
+    return normalizeNodeSequence(left.filter((item) => right.has(item.node)));
+  }
+
+  if (operator === 'except') {
+    const right = new Set(requireNodeSequence(evaluateExpression(rightAst, context), rightAst.span).map((item) => item.node));
+    return normalizeNodeSequence(
+      requireNodeSequence(evaluateExpression(leftAst, context), leftAst.span).filter((item) => !right.has(item.node)),
+    );
   }
 
   if (operator === 'eq' || operator === 'ne' || operator === 'lt' || operator === 'le' || operator === 'gt' || operator === 'ge') {
@@ -610,11 +866,14 @@ function applyPathSegment(segment: PathSegment, input: readonly XdmItem[], conte
     return applyStep(segment, requireNodeSequence(input, segment.span), context);
   }
 
-  return applyFunctionPathSegment(segment, requireNodeSequence(input, segment.span), context);
+  if (segment.kind === 'functionCall') {
+    validateFunctionCallSignature(segment.callee.includes(':') ? segment.callee : `fn:${segment.callee}`, segment.arguments.length, segment.span);
+  }
+  return applyExpressionPathSegment(segment, requireNodeSequence(input, segment.span), context);
 }
 
-function applyFunctionPathSegment(
-  segment: FunctionCallExpression,
+function applyExpressionPathSegment(
+  segment: XPathAst,
   input: readonly XdmNode[],
   context: DynamicContext,
 ): XdmItem[] {
@@ -662,7 +921,7 @@ function applyStep(step: StepExpression, input: readonly XdmNode[], context: Dyn
     });
   }
 
-  return selected;
+  return normalizeNodeSequence(selected);
 }
 
 function selectAxis(step: StepExpression, node: Node): XdmNode[] {
@@ -683,6 +942,8 @@ function selectAxis(step: StepExpression, node: Node): XdmNode[] {
       return collectFollowingNodes(node).map(createXdmNode);
     case 'following-sibling':
       return collectFollowingSiblings(node).map(createXdmNode);
+    case 'namespace':
+      return collectNamespaceNodes(node).map(createXdmNode);
     case 'parent':
       return collectParent(node).map(createXdmNode);
     case 'preceding':
@@ -696,12 +957,51 @@ function selectAxis(step: StepExpression, node: Node): XdmNode[] {
 
 function matchesNodeTest(step: StepExpression, node: Node): boolean {
   if (step.nodeTest.kind === 'wildcardTest') {
-    return true;
+    if (step.axis === 'namespace') {
+      if (step.nodeTest.prefix !== undefined) {
+        return false;
+      }
+      return step.nodeTest.localName === undefined || getNamespaceNodePrefix(node) === step.nodeTest.localName;
+    }
+    if (!matchesPrincipalNodeKind(step, node)) {
+      return false;
+    }
+    if (step.nodeTest.prefix !== undefined) {
+      return getNodePrefix(node) === step.nodeTest.prefix;
+    }
+    return step.nodeTest.localName === undefined || getNodeLocalName(node) === step.nodeTest.localName;
   }
   if (step.nodeTest.kind === 'kindTest') {
-    return step.nodeTest.name === 'node' ? true : node.nodeType === 3;
+    if (step.nodeTest.name === 'node') {
+      return true;
+    }
+    if (step.nodeTest.name === 'comment') {
+      return node.nodeType === 8;
+    }
+    if (step.nodeTest.name === 'text') {
+      return node.nodeType === 3;
+    }
+    return node.nodeType === 7;
+  }
+  if (step.axis === 'namespace') {
+    return getNamespaceNodePrefix(node) === step.nodeTest.name;
+  }
+  if (!matchesPrincipalNodeKind(step, node)) {
+    return false;
   }
   return node.nodeName === step.nodeTest.name;
+}
+
+function matchesPrincipalNodeKind(step: StepExpression, node: Node): boolean {
+  if (step.axis === 'attribute') {
+    return node.nodeType === 2;
+  }
+
+  if (step.axis === 'namespace') {
+    return getNamespaceDeclarationPrefix(node) !== undefined;
+  }
+
+  return node.nodeType === 1;
 }
 
 function predicateMatches(result: readonly XdmItem[], position: number, span: SpanLike): boolean {
@@ -711,7 +1011,7 @@ function predicateMatches(result: readonly XdmItem[], position: number, span: Sp
 
   if (result.length === 1 && result[0]?.xdmKind === 'atomic') {
     const atomic = result[0] as XdmAtomicValue;
-    if (atomic.type === 'xs:double') {
+    if (atomic.type === 'xs:double' || atomic.type === 'xs:integer') {
       return atomic.value === position;
     }
     if (atomic.type === 'xs:boolean') {
@@ -727,10 +1027,10 @@ function requireSingleNumber(items: readonly XdmItem[], span: SpanLike): number 
   if (
     items.length !== 1 ||
     item?.xdmKind !== 'atomic' ||
-    (item as XdmAtomicValue).type !== 'xs:double'
+    ((item as XdmAtomicValue).type !== 'xs:double' && (item as XdmAtomicValue).type !== 'xs:integer')
   ) {
     throw createXPathError(XPTY0004, 'Expected a single numeric value.', span, {
-      expectedType: 'xs:double',
+      expectedType: 'xs:double or xs:integer',
       actualType: describeItemsType(items),
     });
   }
@@ -804,10 +1104,17 @@ function isXdmSequence(value: unknown): value is XdmSequence {
 
 function getRootNode(item: XdmNode): XdmNode {
   let current = item.node;
-  while (current.parentNode !== null) {
-    current = current.parentNode;
+  let parent = getParentNode(current);
+  while (parent !== null) {
+    current = parent;
+    parent = getParentNode(current);
   }
   return createXdmNode(current);
+}
+
+function getParentNode(node: Node): Node | null {
+  const ownerElement = (node as Node & { ownerElement?: Node | null }).ownerElement;
+  return node.parentNode ?? ownerElement ?? null;
 }
 
 function collectAttributes(node: Node): Node[] {
@@ -825,6 +1132,26 @@ function collectAttributes(node: Node): Node[] {
       items.push(attribute);
     }
   }
+  return items;
+}
+
+function collectNamespaceNodes(node: Node): Node[] {
+  const items: Node[] = [];
+  const seenPrefixes = new Set<string>();
+  let current: Node | null = node;
+
+  while (current !== null) {
+    for (const attribute of collectAttributes(current)) {
+      const prefix = getNamespaceDeclarationPrefix(attribute);
+      if (prefix === undefined || seenPrefixes.has(prefix)) {
+        continue;
+      }
+      seenPrefixes.add(prefix);
+      items.push(attribute);
+    }
+    current = current.parentNode;
+  }
+
   return items;
 }
 
@@ -854,7 +1181,8 @@ function collectDescendantsOrSelf(node: Node): Node[] {
 }
 
 function collectParent(node: Node): Node[] {
-  return node.parentNode === null ? [] : [node.parentNode];
+  const parent = getParentNode(node);
+  return parent === null ? [] : [parent];
 }
 
 function collectAncestors(node: Node, includeSelf: boolean): Node[] {
@@ -864,17 +1192,17 @@ function collectAncestors(node: Node, includeSelf: boolean): Node[] {
     items.push(node);
   }
 
-  let current = node.parentNode;
+  let current = getParentNode(node);
   while (current !== null) {
     items.push(current);
-    current = current.parentNode;
+    current = getParentNode(current);
   }
 
   return items;
 }
 
 function collectFollowingSiblings(node: Node): Node[] {
-  const parent = node.parentNode;
+  const parent = getParentNode(node);
   if (parent === null) {
     return [];
   }
@@ -900,7 +1228,7 @@ function collectFollowingSiblings(node: Node): Node[] {
 }
 
 function collectPrecedingSiblings(node: Node): Node[] {
-  const parent = node.parentNode;
+  const parent = getParentNode(node);
   if (parent === null) {
     return [];
   }
@@ -925,12 +1253,12 @@ function collectFollowingNodes(node: Node): Node[] {
   const items: Node[] = [];
   let current: Node | null = node;
 
-  while (current !== null && current.parentNode !== null) {
+  while (current !== null && getParentNode(current) !== null) {
     for (const sibling of collectFollowingSiblings(current)) {
       items.push(sibling);
       items.push(...collectDescendants(sibling));
     }
-    current = current.parentNode;
+    current = getParentNode(current);
   }
 
   return items;
@@ -940,11 +1268,11 @@ function collectPrecedingNodes(node: Node): Node[] {
   const items: Node[] = [];
   let current: Node | null = node;
 
-  while (current !== null && current.parentNode !== null) {
+  while (current !== null && getParentNode(current) !== null) {
     for (const sibling of collectPrecedingSiblings(current)) {
       items.push(...collectDescendantsOrSelfReverse(sibling));
     }
-    current = current.parentNode;
+    current = getParentNode(current);
   }
 
   return items;
@@ -960,11 +1288,34 @@ function collectDescendantsOrSelfReverse(node: Node): Node[] {
 }
 
 function resolveVariableReference(name: string, context: DynamicContext, span: SpanLike): XdmItem[] {
-  const value = context.variables.get(name) ?? context.variables.get(`{}${name}`);
+  const separator = name.indexOf(':');
+  const value = separator >= 0
+    ? resolvePrefixedVariableReference(name, separator, context, span)
+    : context.variables.get(name) ?? context.variables.get(`{}${name}`);
   if (value === undefined) {
     throw createXPathError(XPST0008, `Unknown variable $${name}.`, span);
   }
   return coerceValueToItems(value, span);
+}
+
+function resolvePrefixedVariableReference(
+  name: string,
+  separator: number,
+  context: DynamicContext,
+  span: SpanLike,
+): unknown {
+  const prefix = name.slice(0, separator);
+  const localName = name.slice(separator + 1);
+  const namespaceUri = context.staticContext.namespaces.get(prefix) ?? PREDEFINED_NAMESPACE_PREFIXES.get(prefix);
+
+  if (namespaceUri === undefined) {
+    throw createXPathError(XPST0081, `Unknown namespace prefix ${JSON.stringify(prefix)} in variable reference.`, span, {
+      namespacePrefix: prefix,
+      variableName: name,
+    });
+  }
+
+  return context.variables.get(`{${namespaceUri}}${localName}`) ?? context.variables.get(name);
 }
 
 function coerceValueToItems(value: unknown, span: SpanLike): XdmItem[] {
@@ -1007,13 +1358,13 @@ function effectiveBooleanValue(items: readonly XdmItem[], span: SpanLike): boole
     return false;
   }
 
-  if (items.every((item) => item.xdmKind === 'node')) {
+  if (items[0]?.xdmKind === 'node') {
     return true;
   }
 
   if (items.length !== 1 || items[0]?.xdmKind !== 'atomic') {
-    throw createXPathError(XPTY0004, 'Expected an effective boolean value.', span, {
-      expectedType: 'effective boolean value',
+    throw createXPathError(FORG0006, 'Effective boolean value is not defined for this sequence.', span, {
+      expectedType: 'node(), xs:boolean, xs:string, or xs:double',
       actualType: describeItemsType(items),
     });
   }
@@ -1022,10 +1373,17 @@ function effectiveBooleanValue(items: readonly XdmItem[], span: SpanLike): boole
   if (atomic.type === 'xs:boolean') {
     return atomic.value as boolean;
   }
-  if (atomic.type === 'xs:double') {
+  if (atomic.type === 'xs:double' || atomic.type === 'xs:integer') {
     return (atomic.value as number) !== 0 && !Number.isNaN(atomic.value as number);
   }
-  return (atomic.value as string).length > 0;
+  if (atomic.type === 'xs:string') {
+    return (atomic.value as string).length > 0;
+  }
+
+  throw createXPathError(FORG0006, 'Effective boolean value is not defined for this atomic type.', span, {
+    expectedType: 'node(), xs:boolean, xs:string, xs:double, or xs:integer',
+    actualType: atomic.type,
+  });
 }
 
 function evaluateOptionalSingletonItemArg(
@@ -1093,7 +1451,7 @@ function evaluateSingletonStringishArg(
   return items[0];
 }
 
-function itemToStringValue(item: XdmItem | undefined): string {
+function itemToStringValue(item: XdmItem | undefined, span?: SpanLike): string {
   if (item === undefined) {
     return '';
   }
@@ -1102,12 +1460,92 @@ function itemToStringValue(item: XdmItem | undefined): string {
     return (item as XdmNode).node.textContent ?? '';
   }
 
+  if (item.xdmKind !== 'atomic') {
+    throw createXPathError(FOTY0014, 'The string value is not defined for this item kind.', span ?? {
+      line: 1,
+      column: 1,
+      start: 0,
+      endLine: 1,
+      endColumn: 1,
+      end: 0,
+    }, {
+      expectedType: 'node() or atomic value',
+      actualType: describeItemType(item),
+    });
+  }
+
   const atomic = item as XdmAtomicValue;
   if (atomic.type === 'xs:boolean') {
     return atomic.value === true ? 'true' : 'false';
   }
 
+  if (atomic.type === 'xs:double') {
+    if (atomic.lexicalForm !== undefined) {
+      return atomic.lexicalForm;
+    }
+    return formatXPathDoubleString(atomic.value as number);
+  }
+
+  if (atomic.type === 'xs:integer') {
+    return String(atomic.value);
+  }
+
   return String(atomic.value);
+}
+
+function formatXPathDoubleString(value: number): string {
+  if (Number.isNaN(value)) {
+    return 'NaN';
+  }
+
+  if (value === Number.POSITIVE_INFINITY) {
+    return 'INF';
+  }
+
+  if (value === Number.NEGATIVE_INFINITY) {
+    return '-INF';
+  }
+
+  if (Object.is(value, -0) || value === 0) {
+    return '0';
+  }
+
+  const absolute = Math.abs(value);
+  if (absolute >= 1_000_000 || absolute < 0.000001) {
+    return value
+      .toExponential()
+      .replace('e', 'E')
+      .replace(/E\+/, 'E')
+      .replace(/(\.\d*?)0+E/, '$1E')
+      .replace(/\.E/, 'E')
+      .replace(/E(-?)0+(\d+)/, 'E$1$2');
+  }
+
+  return String(value);
+}
+
+function createNumberLiteralValue(value: number, lexeme: string): XdmAtomicValue {
+  if (isDecimalLiteralLexeme(lexeme)) {
+    return createXdmNumber(value, normalizeUnsignedDecimalLiteralLexeme(lexeme));
+  }
+
+  return createXdmNumber(value);
+}
+
+function isDecimalLiteralLexeme(lexeme: string): boolean {
+  return lexeme.includes('.') && !/[eE]/.test(lexeme);
+}
+
+function normalizeUnsignedDecimalLiteralLexeme(lexeme: string): string {
+  const normalized = lexeme.startsWith('.') ? `0${lexeme}` : lexeme;
+  return normalized
+    .replace(/(\.\d*?)0+$/, '$1')
+    .replace(/\.$/, '');
+}
+
+function normalizeSignedDecimalLiteralLexeme(operator: '+' | '-', lexeme: string): string {
+  const normalized = normalizeUnsignedDecimalLiteralLexeme(lexeme);
+  return operator === '-' ? `-${normalized}` : normalized;
 }
 
 function xpathTokenize(input: string, regex: RegExp): string[] {
@@ -1130,6 +1568,11 @@ function xpathTokenize(input: string, regex: RegExp): string[] {
   return tokens;
 }
 
+function xpathTokenizeOnWhitespace(input: string): string[] {
+  const normalized = normalizeSpace(input);
+  return normalized.length === 0 ? [] : normalized.split(' ');
+}
+
 function xpathSubstring(source: string, roundedStart: number, roundedLength?: number): string {
   if (Number.isNaN(roundedStart) || (roundedLength !== undefined && Number.isNaN(roundedLength))) {
     return '';
@@ -1147,11 +1590,44 @@ function xpathRound(value: number): number {
   return Math.round(value);
 }
 
+function roundToPrecision(value: number, precision: number): number {
+  if (!Number.isFinite(value) || Number.isNaN(value) || precision === 0) {
+    return xpathRound(value);
+  }
+
+  return Number(`${xpathRound(Number(`${value}e${precision}`))}e${-precision}`);
+}
+
+function validateSupportedCollationArg(
+  functionName: string,
+  arg: XPathAst | undefined,
+  context: DynamicContext,
+  span: SpanLike,
+): void {
+  if (arg === undefined) {
+    return;
+  }
+
+  const collation = itemToStringValue(evaluateSingletonStringishArg(arg, context, span, functionName), span);
+  if (
+    collation.length > 0
+    && collation !== 'http://www.w3.org/2005/xpath-functions/collation/codepoint'
+  ) {
+    throw createXPathError(FOCH0002, `Function ${functionName} received an unsupported collation.`, span, {
+      functionName,
+      collation,
+    });
+  }
+}
+
 function codepointsToString(items: readonly XdmItem[], span: SpanLike): string {
   let result = '';
 
   for (const item of items) {
-    if (item.xdmKind !== 'atomic' || (item as XdmAtomicValue).type !== 'xs:double') {
+    if (
+      item.xdmKind !== 'atomic'
+      || ((item as XdmAtomicValue).type !== 'xs:double' && (item as XdmAtomicValue).type !== 'xs:integer')
+    ) {
       throw createXPathError(XPTY0004, 'Function fn:codepoints-to-string requires numeric codepoint arguments.', span, {
         expectedType: 'xs:integer*',
         actualType: describeItemsType([item]),
@@ -1169,6 +1645,10 @@ function codepointsToString(items: readonly XdmItem[], span: SpanLike): string {
   }
 
   return result;
+}
+
+function stringToCodepoints(item: XdmItem | undefined, span: SpanLike): XdmAtomicValue[] {
+  return Array.from(itemToStringValue(item, span), (character) => createXdmInteger(character.codePointAt(0)!));
 }
 
 function isValidXmlCodepoint(codepoint: number): boolean {
@@ -1210,12 +1690,19 @@ function createAtomicValueFromAtomized(value: boolean | number | string): XdmAto
 }
 
 function normalizeSpace(value: string): string {
-  return value.trim().replace(/\s+/g, ' ');
+  return value
+    .replace(/^[\u0009\u000A\u000D\u0020]+|[\u0009\u000A\u000D\u0020]+$/g, '')
+    .replace(/[\u0009\u000A\u000D\u0020]+/g, ' ');
 }
 
 function getNodeNameValue(node: XdmNode | undefined): string {
   if (node === undefined) {
     return '';
+  }
+
+  const namespacePrefix = getNamespaceDeclarationPrefix(node.node);
+  if (namespacePrefix !== undefined) {
+    return namespacePrefix;
   }
 
   const rawName = node.node.nodeName;
@@ -1224,6 +1711,10 @@ function getNodeNameValue(node: XdmNode | undefined): string {
 
 function getLocalNameValue(node: XdmNode | undefined): string {
   const name = getNodeNameValue(node);
+  return getLocalNameFromQName(name);
+}
+
+function getLocalNameFromQName(name: string): string {
   if (name.length === 0) {
     return '';
   }
@@ -1232,39 +1723,56 @@ function getLocalNameValue(node: XdmNode | undefined): string {
   return separator >= 0 ? name.slice(separator + 1) : name;
 }
 
+function getNodeLocalName(node: Node): string {
+  const rawName = node.nodeName;
+  if (rawName.startsWith('#')) {
+    return '';
+  }
+
+  const separator = rawName.indexOf(':');
+  return separator >= 0 ? rawName.slice(separator + 1) : rawName;
+}
+
+function getNodePrefix(node: Node): string {
+  const rawName = node.nodeName;
+  if (rawName.startsWith('#')) {
+    return '';
+  }
+
+  const separator = rawName.indexOf(':');
+  return separator >= 0 ? rawName.slice(0, separator) : '';
+}
+
+function getNamespaceDeclarationPrefix(node: Node): string | undefined {
+  if (node.nodeName === 'xmlns') {
+    return '';
+  }
+  if (node.nodeName.startsWith('xmlns:')) {
+    return node.nodeName.slice('xmlns:'.length);
+  }
+  return undefined;
+}
+
+function getNamespaceNodePrefix(node: Node): string {
+  return getNamespaceDeclarationPrefix(node) ?? '';
+}
+
 function compareGeneral(
   operator: '=' | '!=' | '<' | '<=' | '>' | '>=',
   leftItems: readonly XdmItem[],
   rightItems: readonly XdmItem[],
   span: SpanLike,
 ): boolean {
+  leftItems = expandArrayItems(leftItems);
+  rightItems = expandArrayItems(rightItems);
+
   if (leftItems.length === 0 || rightItems.length === 0) {
     return false;
   }
 
-  const leftValues = atomizeItems(leftItems);
-  const rightValues = atomizeItems(rightItems);
-
-  if (leftValues.some((value) => typeof value === 'boolean') || rightValues.some((value) => typeof value === 'boolean')) {
-    const leftBoolean = effectiveBooleanValue(leftItems, span);
-    const rightBoolean = effectiveBooleanValue(rightItems, span);
-
-    switch (operator) {
-      case '=':
-        return leftBoolean === rightBoolean;
-      case '!=':
-        return leftBoolean !== rightBoolean;
-      default:
-        throw createXPathError(XPTY0004, 'Relational general comparison is not defined for booleans in this slice.', span, {
-          expectedType: 'non-boolean operands for relational general comparison',
-          actualType: `${describeAtomizedValuesType(leftValues)} vs ${describeAtomizedValuesType(rightValues)}`,
-        });
-    }
-  }
-
-  for (const left of leftValues) {
-    for (const right of rightValues) {
-      if (compareAtomicValues(operator, left, right, span)) {
+  for (const leftItem of leftItems) {
+    for (const rightItem of rightItems) {
+      if (compareGeneralItems(operator, leftItem, rightItem, span)) {
         return true;
       }
     }
@@ -1273,8 +1781,117 @@ function compareGeneral(
   return false;
 }
 
+function compareGeneralItems(
+  operator: '=' | '!=' | '<' | '<=' | '>' | '>=',
+  leftItem: XdmItem,
+  rightItem: XdmItem,
+  span: SpanLike,
+): boolean {
+  const left = atomizeGeneralComparisonOperand(leftItem);
+  const right = atomizeGeneralComparisonOperand(rightItem);
+
+  if (left.source === 'qname' || right.source === 'qname') {
+    throw createXPathError(XPTY0004, 'General comparison requires comparable type families.', span, {
+      expectedType: 'comparable general comparison operands',
+      actualType: `${left.source} vs ${right.source}`,
+    });
+  }
+
+  if (left.source === 'boolean' || right.source === 'boolean') {
+    if (left.source === 'boolean' && right.source === 'boolean') {
+      return compareScalars(operator, left.value, right.value);
+    }
+
+    if (left.source === 'boolean' && right.source === 'node') {
+      return compareScalars(operator, left.value, effectiveBooleanValue([rightItem], span));
+    }
+    if (left.source === 'node' && right.source === 'boolean') {
+      return compareScalars(operator, effectiveBooleanValue([leftItem], span), right.value);
+    }
+
+    throw createXPathError(XPTY0004, 'General comparison requires comparable type families.', span, {
+      expectedType: 'comparable general comparison operands',
+      actualType: `${left.source} vs ${right.source}`,
+    });
+  }
+
+  if (left.source === 'number' || right.source === 'number') {
+    const numericLeft = toGeneralComparisonNumber(left, span);
+    const numericRight = toGeneralComparisonNumber(right, span);
+    return compareScalars(operator, numericLeft, numericRight);
+  }
+
+  return compareScalars(operator, left.value as string, right.value as string);
+}
+
+function atomizeGeneralComparisonOperand(item: XdmItem): {
+  readonly value: boolean | number | string;
+  readonly source: 'boolean' | 'number' | 'string' | 'node' | 'qname';
+} {
+  if (isXdmNode(item)) {
+    return {
+      value: item.node.textContent ?? '',
+      source: 'node',
+    };
+  }
+
+  const atomic = item as XdmAtomicValue;
+  switch (atomic.type) {
+    case 'xs:boolean':
+      return { value: atomic.value as boolean, source: 'boolean' };
+    case 'xs:double':
+    case 'xs:integer':
+      return { value: atomic.value as number, source: 'number' };
+    case 'xs:QName':
+      return { value: atomic.value as string, source: 'qname' };
+    case 'xs:string':
+      return { value: atomic.value as string, source: 'string' };
+  }
+}
+
+function expandArrayItems(items: readonly XdmItem[]): XdmItem[] {
+  const expanded: XdmItem[] = [];
+
+  for (const item of items) {
+    if (item.xdmKind === 'array') {
+      for (const member of (item as XdmArray).members) {
+        expanded.push(...expandArrayItems(member));
+      }
+      continue;
+    }
+
+    expanded.push(item);
+  }
+
+  return expanded;
+}
+
+function toGeneralComparisonNumber(
+  operand: {
+    readonly value: boolean | number | string;
+    readonly source: 'boolean' | 'number' | 'string' | 'node' | 'qname';
+  },
+  span: SpanLike,
+): number {
+  if (operand.source === 'number') {
+    return operand.value as number;
+  }
+
+  if (operand.source === 'node') {
+    const coerced = coerceNumericValue(operand.value as string);
+    if (coerced !== undefined) {
+      return coerced;
+    }
+  }
+
+  throw createXPathError(XPTY0004, 'General comparison requires comparable type families.', span, {
+    expectedType: 'matching comparable operands',
+    actualType: operand.source,
+  });
+}
+
 function atomizeItems(items: readonly XdmItem[]): readonly (boolean | number | string)[] {
-  return items.map((item) => {
+  return expandArrayItems(items).map((item) => {
     if (item.xdmKind === 'node') {
       return (item as XdmNode).node.textContent ?? '';
     }
@@ -1284,68 +1901,252 @@ function atomizeItems(items: readonly XdmItem[]): readonly (boolean | number | s
 }
 
 function atomizedNumericValues(items: readonly XdmItem[], span: SpanLike, functionName: string): number[] {
-  return atomizeItems(items).map((value) => {
-    if (typeof value === 'boolean') {
-      throw createXPathError(XPTY0004, `Function ${functionName} requires numeric values after atomization.`, span, {
+  return expandArrayItems(items).map((item) => {
+    if (isXdmNode(item)) {
+      const numericValue = coerceNumericValue(item.node.textContent ?? '');
+      if (numericValue === undefined) {
+        throw createXPathError(FORG0001, `Function ${functionName} could not convert an atomized value to a number.`, span, {
+          functionName,
+          expectedType: 'numeric lexical value after atomization',
+          actualType: 'node()',
+        });
+      }
+
+      return numericValue;
+    }
+
+    const atomic = item as XdmAtomicValue;
+    if (atomic.type === 'xs:boolean') {
+      throw createXPathError(FORG0006, `Function ${functionName} requires comparable values after atomization.`, span, {
         functionName,
-        expectedType: 'numeric value after atomization',
+        expectedType: 'numeric or string value after atomization',
         actualType: 'xs:boolean',
       });
     }
 
-    const numericValue = coerceNumericValue(value);
-    if (numericValue === undefined) {
-      throw createXPathError(XPTY0004, `Function ${functionName} requires numeric values after atomization.`, span, {
-        functionName,
-        expectedType: 'numeric value after atomization',
-        actualType: 'xs:string',
-      });
+    if (atomic.type === 'xs:double' || atomic.type === 'xs:integer') {
+      return atomic.value as number;
     }
 
-    return numericValue;
+    throw createXPathError(FORG0006, `Function ${functionName} requires comparable values after atomization.`, span, {
+      functionName,
+      expectedType: 'numeric value after atomization',
+      actualType: atomic.type,
+    });
   });
 }
 
-function compareAtomicValues(
-  operator: '=' | '!=' | '<' | '<=' | '>' | '>=',
-  left: boolean | number | string,
-  right: boolean | number | string,
+function atomizedComparableValues(
+  items: readonly XdmItem[],
   span: SpanLike,
-): boolean {
-  if (typeof left === 'boolean' || typeof right === 'boolean') {
-    if (typeof left !== 'boolean' || typeof right !== 'boolean') {
-      throw createXPathError(XPTY0004, 'Boolean comparisons require boolean operands.', span, {
-        expectedType: 'boolean operands',
-        actualType: `${describeAtomizedValueType(left)} vs ${describeAtomizedValueType(right)}`,
-      });
-    }
+  functionName: string,
+) : readonly (boolean | number | string)[] {
+  const values = expandArrayItems(items).map((item) => atomizeComparableItem(item, span, functionName));
+  if (values.length <= 1) {
+    const numericValues = values.map((value) => typeof value === 'boolean' ? undefined : typeof value === 'number' ? value : coerceNumericValue(value));
+    return numericValues.every((value) => value !== undefined) ? numericValues as number[] : values;
+  }
 
-    switch (operator) {
-      case '=':
-        return left === right;
-      case '!=':
-        return left !== right;
-      default:
-        throw createXPathError(XPTY0004, 'Relational comparison is not defined for booleans in this slice.', span, {
-          expectedType: 'eq/ne boolean comparison',
-          actualType: 'xs:boolean',
-        });
+  const numericValues = values.map((value) => typeof value === 'boolean' ? undefined : typeof value === 'number' ? value : coerceNumericValue(value));
+  if (numericValues.every((value) => value !== undefined)) {
+    return numericValues as number[];
+  }
+
+  const sawBoolean = values.some((value) => typeof value === 'boolean');
+  if (sawBoolean) {
+    if (values.every((value) => typeof value === 'boolean')) {
+      return values;
+    }
+    throw createXPathError(FORG0006, `Function ${functionName} requires values from a comparable type family.`, span, {
+      functionName,
+      expectedType: 'all numeric, all string-like, or all boolean values',
+      actualType: values.map(describeAtomizedValueType).join(', '),
+    });
+  }
+
+  const sawNumber = values.some((value) => typeof value === 'number');
+  const sawString = values.some((value) => typeof value === 'string');
+  if (sawNumber && sawString) {
+    throw createXPathError(FORG0006, `Function ${functionName} requires values from a comparable type family.`, span, {
+      functionName,
+      expectedType: 'all numeric or all string-like values',
+      actualType: values.map(describeAtomizedValueType).join(', '),
+    });
+  }
+
+  return values;
+}
+
+function atomizeComparableItem(item: XdmItem, span: SpanLike, functionName: string): boolean | number | string {
+  if (isXdmNode(item)) {
+    return item.node.textContent ?? '';
+  }
+
+  const atomic = item as XdmAtomicValue;
+  if (atomic.type === 'xs:boolean') {
+    return atomic.value as boolean;
+  }
+  if (atomic.type === 'xs:double' || atomic.type === 'xs:integer') {
+    return atomic.value as number;
+  }
+  if (atomic.type === 'xs:string') {
+    return atomic.value as string;
+  }
+
+  throw createXPathError(FORG0006, `Function ${functionName} requires comparable values after atomization.`, span, {
+    functionName,
+    expectedType: 'numeric or string value after atomization',
+    actualType: atomic.type,
+  });
+}
+
+function compareComparableValues(left: boolean | number | string, right: boolean | number | string): number {
+  if (typeof left === 'boolean' && typeof right === 'boolean') {
+    return Number(left) - Number(right);
+  }
+  if (typeof left === 'number' && typeof right === 'number') {
+    if (Number.isNaN(left) || Number.isNaN(right)) {
+      return Number.isNaN(left) && Number.isNaN(right) ? 0 : Number.isNaN(left) ? 1 : -1;
+    }
+    return left === right ? 0 : left < right ? -1 : 1;
+  }
+
+  return left === right ? 0 : left < right ? -1 : 1;
+}
+
+function deepEqualSequences(leftItems: readonly XdmItem[], rightItems: readonly XdmItem[]): boolean {
+  if (leftItems.length !== rightItems.length) {
+    return false;
+  }
+
+  for (let index = 0; index < leftItems.length; index += 1) {
+    if (!deepEqualItems(leftItems[index]!, rightItems[index]!)) {
+      return false;
     }
   }
 
-  const numericLeft = coerceNumericValue(left);
-  const numericRight = coerceNumericValue(right);
-  if (numericLeft !== undefined && numericRight !== undefined) {
-    return compareScalars(operator, numericLeft, numericRight);
+  return true;
+}
+
+function deepEqualItems(left: XdmItem, right: XdmItem): boolean {
+  if (left.xdmKind !== right.xdmKind) {
+    return false;
   }
 
-  return compareScalars(operator, String(left), String(right));
+  if (isXdmNode(left) && isXdmNode(right)) {
+    return deepEqualNodes(left.node, right.node);
+  }
+
+  if (isXdmAtomicValue(left) && isXdmAtomicValue(right)) {
+    return deepEqualAtomicValues(left, right);
+  }
+
+  return left === right;
+}
+
+function deepEqualAtomicValues(left: XdmAtomicValue, right: XdmAtomicValue): boolean {
+  if (left.type !== right.type) {
+    return false;
+  }
+
+  if (left.type === 'xs:double' && right.type === 'xs:double') {
+    return (Number.isNaN(left.value as number) && Number.isNaN(right.value as number))
+      || left.value === right.value;
+  }
+
+  return left.value === right.value;
+}
+
+function deepEqualNodes(left: Node, right: Node): boolean {
+  if (left.nodeType !== right.nodeType) {
+    return false;
+  }
+
+  if ((left.namespaceURI ?? '') !== (right.namespaceURI ?? '')) {
+    return false;
+  }
+
+  if ((left.nodeName ?? '') !== (right.nodeName ?? '')) {
+    return false;
+  }
+
+  if ((left.nodeValue ?? '') !== (right.nodeValue ?? '')) {
+    return false;
+  }
+
+  if (!deepEqualAttributes(left, right)) {
+    return false;
+  }
+
+  const leftChildren = [...left.childNodes];
+  const rightChildren = [...right.childNodes];
+  if (leftChildren.length !== rightChildren.length) {
+    return false;
+  }
+
+  for (let index = 0; index < leftChildren.length; index += 1) {
+    if (!deepEqualNodes(leftChildren[index]!, rightChildren[index]!)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function deepEqualAttributes(left: Node, right: Node): boolean {
+  const leftAttributes = getNodeAttributes(left);
+  const rightAttributes = getNodeAttributes(right);
+  const leftCount = leftAttributes?.length ?? 0;
+  const rightCount = rightAttributes?.length ?? 0;
+  if (leftCount !== rightCount) {
+    return false;
+  }
+
+  for (let index = 0; index < leftCount; index += 1) {
+    const leftAttribute = leftAttributes?.item(index);
+    if (leftAttribute === null || leftAttribute === undefined) {
+      return false;
+    }
+
+    const rightAttribute = leftAttribute.namespaceURI
+      ? rightAttributes?.getNamedItemNS(leftAttribute.namespaceURI, leftAttribute.localName ?? leftAttribute.nodeName)
+      : rightAttributes?.getNamedItem(leftAttribute.nodeName);
+    if (rightAttribute === null || rightAttribute === undefined) {
+      return false;
+    }
+
+    if ((leftAttribute.value ?? '') !== (rightAttribute.value ?? '')) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function getNodeAttributes(node: Node): {
+  readonly length: number;
+  item(index: number): { readonly nodeName: string; readonly localName?: string | null; readonly namespaceURI?: string | null; readonly value?: string | null } | null;
+  getNamedItem(name: string): { readonly nodeName: string; readonly localName?: string | null; readonly namespaceURI?: string | null; readonly value?: string | null } | null;
+  getNamedItemNS(namespaceURI: string | null, localName: string): { readonly nodeName: string; readonly localName?: string | null; readonly namespaceURI?: string | null; readonly value?: string | null } | null;
+} | undefined {
+  const candidate = node as unknown as {
+    attributes?: {
+      readonly length: number;
+      item(index: number): { readonly nodeName: string; readonly localName?: string | null; readonly namespaceURI?: string | null; readonly value?: string | null } | null;
+      getNamedItem(name: string): { readonly nodeName: string; readonly localName?: string | null; readonly namespaceURI?: string | null; readonly value?: string | null } | null;
+      getNamedItemNS(namespaceURI: string | null, localName: string): { readonly nodeName: string; readonly localName?: string | null; readonly namespaceURI?: string | null; readonly value?: string | null } | null;
+    } | null;
+  };
+
+  return candidate.attributes ?? undefined;
 }
 
 function atomizeSingleton(
   items: readonly XdmItem[],
   span: SpanLike,
 ): boolean | number | string | undefined {
+  items = expandArrayItems(items);
+
   if (items.length === 0) {
     return undefined;
   }
@@ -1405,6 +2206,18 @@ function compareNodeOrder(left: Node, right: Node): number {
   return leftPath.length < rightPath.length ? -1 : 1;
 }
 
+function normalizeNodeSequence(items: readonly XdmNode[]): XdmNode[] {
+  const uniqueNodes = new Map<Node, XdmNode>();
+
+  for (const item of items) {
+    if (!uniqueNodes.has(item.node)) {
+      uniqueNodes.set(item.node, item);
+    }
+  }
+
+  return [...uniqueNodes.values()].sort((left, right) => compareNodeOrder(left.node, right.node));
+}
+
 function getDocumentOrderPath(node: Node): readonly number[] {
   const path: number[] = [];
   let current: Node | null = node;
@@ -1444,13 +2257,6 @@ function compareValueOperands(
       throw createXPathError(XPTY0004, 'Value comparisons require matching operand types.', span, {
         expectedType: 'matching operand types',
         actualType: `${describeAtomizedValueType(left)} vs ${describeAtomizedValueType(right)}`,
-      });
-    }
-
-    if (operator !== 'eq' && operator !== 'ne') {
-      throw createXPathError(XPTY0004, 'Relational value comparisons are not defined for booleans.', span, {
-        expectedType: 'eq/ne boolean value comparison',
-        actualType: 'xs:boolean',
       });
     }
 
@@ -1525,6 +2331,104 @@ function requireArity(name: string, args: readonly XPathAst[], expected: number,
   }
 }
 
+function validateFunctionCallSignature(name: string, actualArity: number, span: SpanLike): void {
+  switch (name) {
+    case 'fn:position':
+    case 'fn:last':
+    case 'fn:error':
+    case 'fn:true':
+    case 'fn:false':
+      if (actualArity !== 0) {
+        throwArityError(name, actualArity, '0', span);
+      }
+      return;
+    case 'fn:count':
+    case 'fn:exists':
+    case 'fn:empty':
+    case 'fn:exactly-one':
+    case 'fn:one-or-more':
+    case 'fn:zero-or-one':
+    case 'fn:boolean':
+    case 'fn:not':
+    case 'fn:codepoints-to-string':
+    case 'fn:upper-case':
+    case 'fn:lower-case':
+    case 'fn:min':
+    case 'fn:max':
+    case 'fn:avg':
+    case 'fn:distinct-values':
+    case 'fn:data':
+    case 'fn:reverse':
+    case 'fn:head':
+    case 'fn:tail':
+      if (actualArity !== 1) {
+        throwArityError(name, actualArity, '1', span);
+      }
+      return;
+    case 'fn:deep-equal':
+    case 'fn:QName':
+    case 'fn:trace':
+    case 'map:entry':
+    case 'fn:remove':
+    case 'fn:contains':
+    case 'fn:starts-with':
+    case 'fn:ends-with':
+      if (actualArity !== 2) {
+        throwArityError(name, actualArity, '2', span);
+      }
+      return;
+    case 'fn:concat':
+      if (actualArity < 2) {
+        throwArityError(name, actualArity, '>=2', span);
+      }
+      return;
+    case 'fn:string':
+    case 'fn:string-length':
+    case 'fn:normalize-space':
+    case 'fn:number':
+    case 'fn:name':
+    case 'fn:local-name':
+    case 'fn:node-name':
+    case 'fn:root':
+      if (actualArity !== 0 && actualArity !== 1) {
+        throwArityError(name, actualArity, '0..1', span);
+      }
+      return;
+    case 'fn:substring':
+    case 'fn:subsequence':
+      if (actualArity !== 2 && actualArity !== 3) {
+        throwArityError(name, actualArity, '2..3', span);
+      }
+      return;
+    case 'fn:string-join':
+    case 'fn:sum':
+      if (actualArity !== 1 && actualArity !== 2) {
+        throwArityError(name, actualArity, '1..2', span);
+      }
+      return;
+    case 'fn:matches':
+      if (actualArity !== 2 && actualArity !== 3) {
+        throwArityError(name, actualArity, '2..3', span);
+      }
+      return;
+    case 'fn:replace':
+      if (actualArity !== 3 && actualArity !== 4) {
+        throwArityError(name, actualArity, '3..4', span);
+      }
+      return;
+    case 'fn:tokenize':
+      if (actualArity !== 1 && actualArity !== 2 && actualArity !== 3) {
+        throwArityError(name, actualArity, '1..3', span);
+      }
+      return;
+    default:
+      throw createXPathError(XPST0017, `Unknown function ${name}.`, span, {
+        functionName: name,
+        actualArity,
+      });
+  }
+}
+
 function throwArityError(name: string, actualArity: number, arityRequirement: string, span: SpanLike): never {
   const requirementLabel = arityRequirement.includes('..')
     ? arityRequirement.replace('..', ' or ')
@@ -1556,6 +2460,14 @@ function describeItemType(item: XdmItem): string {
     return 'node()';
   }
 
+  if (item.xdmKind === 'map') {
+    return 'map(*)';
+  }
+
+  if (item.xdmKind === 'array') {
+    return 'array(*)';
+  }
+
   return (item as XdmAtomicValue).type;
 }
 
@@ -1569,19 +2481,6 @@ function describeAtomizedValueType(value: boolean | number | string): string {
   }
 
   return 'xs:string';
-}
-
-function describeAtomizedValuesType(values: readonly (boolean | number | string)[]): string {
-  if (values.length === 0) {
-    return 'empty-sequence()';
-  }
-
-  if (values.length === 1) {
-    return describeAtomizedValueType(values[0]!);
-  }
-
-  const uniqueTypes = [...new Set(values.map((value) => describeAtomizedValueType(value)))];
-  return `sequence(${values.length}) of ${uniqueTypes.join(' | ')}`;
 }
 
 function describeExternalValueType(value: unknown): string {

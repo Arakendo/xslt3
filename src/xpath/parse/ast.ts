@@ -1,6 +1,7 @@
 import type { SourceSpan } from '../lex/lexer.js';
 
 export type XPathAst =
+  | ArrayConstructor
   | BinaryExpression
   | ContextItemExpression
   | FilterExpression
@@ -25,17 +26,29 @@ export type XPathAxis =
   | 'descendant-or-self'
   | 'following'
   | 'following-sibling'
+  | 'namespace'
   | 'parent'
   | 'preceding'
   | 'preceding-sibling'
   | 'self';
 
+export interface ArrayConstructor {
+  readonly kind: 'array';
+  readonly members: readonly XPathAst[];
+  readonly span: SourceSpan;
+}
+
 export type XPathBinaryOperator =
+  | '!'
+  | '|'
+  | '||'
   | '+'
   | '-'
   | '*'
   | 'div'
+  | 'except'
   | 'idiv'
+  | 'intersect'
   | 'mod'
   | '='
   | '!='
@@ -83,7 +96,7 @@ export interface FunctionCallExpression {
   readonly span: SourceSpan;
 }
 
-export type PathSegment = StepExpression | FunctionCallExpression;
+export type PathSegment = StepExpression | XPathAst;
 
 export interface IfExpression {
   readonly kind: 'if';
@@ -129,7 +142,7 @@ export interface QuantifiedExpression {
 
 export interface KindTest {
   readonly kind: 'kindTest';
-  readonly name: 'node' | 'text';
+  readonly name: 'comment' | 'node' | 'processing-instruction' | 'text';
   readonly span: SourceSpan;
 }
 
@@ -155,7 +168,7 @@ export interface StringLiteral {
 
 export interface UnaryExpression {
   readonly kind: 'unary';
-  readonly operator: '-';
+  readonly operator: '+' | '-';
   readonly operand: XPathAst;
   readonly span: SourceSpan;
 }
@@ -168,6 +181,8 @@ export interface VariableReference {
 
 export interface WildcardTest {
   readonly kind: 'wildcardTest';
+  readonly prefix?: string;
+  readonly localName?: string;
   readonly span: SourceSpan;
 }
 

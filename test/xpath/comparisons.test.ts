@@ -24,12 +24,6 @@ describe('XPath comparison coverage', () => {
   it('evaluates general comparison operators across cross-type and sequence operands', () => {
     const context = createContext('<root><value>2</value><value>4</value><item/></root>');
     const fixtures = [
-      { expression: '2 = "2"', expected: true },
-      { expression: '2 != "3"', expected: true },
-      { expression: '2 < "3"', expected: true },
-      { expression: '2 <= "2"', expected: true },
-      { expression: '3 > "2"', expected: true },
-      { expression: '3 >= "3"', expected: true },
       { expression: '(1, 2, 3) = 3', expected: true },
       { expression: '(1, 2, 3) != 4', expected: true },
       { expression: '(1, 2, 3) < 4', expected: true },
@@ -42,9 +36,13 @@ describe('XPath comparison coverage', () => {
       { expression: '/root/value <= 2', expected: true },
       { expression: '/root/value > 3', expected: true },
       { expression: '/root/value >= 4', expected: true },
-      { expression: '1 = true()', expected: true },
-      { expression: '0 = false()', expected: true },
       { expression: '/root/item = true()', expected: true },
+      { expression: 'false() < false()', expected: false },
+      { expression: 'false() <= false()', expected: true },
+      { expression: 'false() > false()', expected: false },
+      { expression: 'false() >= false()', expected: true },
+      { expression: '[3, 4, 5] < 4', expected: true },
+      { expression: '[[3, 4], 5] < [4, [5, 6]]', expected: true },
       { expression: '() = false()', expected: false },
       { expression: '() != true()', expected: false },
     ] as const;
@@ -56,10 +54,14 @@ describe('XPath comparison coverage', () => {
     }
   });
 
-  it('raises a type error for relational general comparisons over booleans', () => {
-    const booleanRelationalExpressions = ['true() < false()', 'true() <= false()', 'true() > false()', 'true() >= false()'];
-
-    for (const expression of booleanRelationalExpressions) {
+  it('raises a type error for incompatible general-comparison operand types', () => {
+    for (const expression of [
+      'remove((6, "a string"), 1) = 6',
+      '"1" = 1',
+      '1 = "1"',
+      '1 = true()',
+      '0 = false()',
+    ]) {
       let thrown: unknown;
 
       try {
@@ -83,8 +85,12 @@ describe('XPath comparison coverage', () => {
       '4 gt 3',
       '4 ge 4',
       '/root/value[1] eq /root/value[1]',
+      '[3] eq 3',
+      '[3] le [3]',
+      'false() le false()',
+      'false() ge false()',
     ] as const;
-    const falseFixtures = ['2 eq 3', '2 ne 2', '2 lt 2', '3 le 2', '3 gt 3', '3 ge 4'] as const;
+    const falseFixtures = ['2 eq 3', '2 ne 2', '2 lt 2', '3 le 2', '3 gt 3', '3 ge 4', 'false() lt false()', 'false() gt false()'] as const;
     const emptyFixtures = [
       '/root/missing eq 1',
       '/root/missing ne 1',

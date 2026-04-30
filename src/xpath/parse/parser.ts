@@ -9,6 +9,7 @@ import { XPST0003 } from '../../errors/codes.js';
 import { XPathError } from '../../errors/XPathError.js';
 import { tokenize, type SourceSpan, type Token, type TokenKind } from '../lex/lexer.js';
 import type {
+  ArrayConstructor,
   ForExpression,
   FilterExpression,
   FunctionCallExpression,
@@ -47,6 +48,24 @@ class Parser {
   }
 
   parseExpression(): XPathAst {
+    const first = this.parseExprSingle();
+    if (this.match('comma') === undefined) {
+      return first;
+    }
+
+    const items: XPathAst[] = [first];
+    do {
+      items.push(this.parseExprSingle());
+    } while (this.match('comma') !== undefined);
+
+    return {
+      kind: 'sequence',
+      items,
+      span: mergeSpans(items[0]!.span, items[items.length - 1]!.span),
+    };
+  }
+
+  private parseExprSingle(): XPathAst {
     if (this.current().kind === 'some' || this.current().kind === 'every') {
       return this.parseQuantifiedExpression();
     }
@@ -106,7 +125,7 @@ class Parser {
   }
 
   private parseComparisonExpression(): XPathAst {
-    return this.parseBinaryChain(this.parseRangeExpression.bind(this), [
+    const comparisonKinds: readonly TokenKind[] = [
       'equals',
       'eq',
       'ge',
@@ -122,11 +141,34 @@ class Parser {
       'greaterThan',
       'greaterThanOrEqual',
       'ne',
-    ]);
+    ];
+
+    const left = this.parseStringConcatExpression();
+    const operatorToken = this.matchAny(comparisonKinds);
+    if (operatorToken === undefined) {
+      return left;
+    }
+
+    const right = this.parseStringConcatExpression();
+    if (comparisonKinds.includes(this.current().kind)) {
+      throw createParseError('Only one comparison operator is allowed per expression unless parenthesized.', this.current().span);
+    }
+
+    return {
+      kind: 'binary',
+      operator: tokenKindToBinaryOperator(operatorToken.kind),
+      left,
+      right,
+      span: mergeSpans(left.span, right.span),
+    };
   }
 
   private parseRangeExpression(): XPathAst {
     return this.parseBinaryChain(this.parseAdditiveExpression.bind(this), ['to']);
+  }
+
+  private parseStringConcatExpression(): XPathAst {
+    return this.parseBinaryChain(this.parseRangeExpression.bind(this), ['concat']);
   }
 
   private parseAdditiveExpression(): XPathAst {
@@ -135,6 +177,18 @@ class Parser {
 
   private parseMultiplicativeExpression(): XPathAst {
     return this.parseBinaryChain(this.parseUnaryExpression.bind(this), ['star', 'div', 'idiv', 'mod']);
+  }
+
+  private parseSimpleMapExpression(): XPathAst {
+    return this.parseBinaryChain(this.parseUnionExpression.bind(this), ['bang']);
+  }
+
+  private parseUnionExpression(): XPathAst {
+    return this.parseBinaryChain(this.parseIntersectExceptExpression.bind(this), ['pipe', 'union']);
+  }
+
+  private parseIntersectExceptExpression(): XPathAst {
+    return this.parseBinaryChain(this.parsePostfixExpression.bind(this), ['intersect', 'except']);
   }
 
   private parseBinaryChain(parseOperand: () => XPathAst, operatorKinds: readonly TokenKind[]): XPathAst {
@@ -158,17 +212,17 @@ class Parser {
   }
 
   private parseUnaryExpression(): XPathAst {
-    const minus = this.match('minus');
-    if (minus === undefined) {
-      return this.parsePostfixExpression();
+    const operatorToken = this.matchAny(['plus', 'minus']);
+    if (operatorToken === undefined) {
+      return this.parseSimpleMapExpression();
     }
 
     const operand = this.parseUnaryExpression();
     const expression: UnaryExpression = {
       kind: 'unary',
-      operator: '-',
+      operator: operatorToken.kind === 'plus' ? '+' : '-',
       operand,
-      span: mergeSpans(minus.span, operand.span),
+      span: mergeSpans(operatorToken.span, operand.span),
     };
     return expression;
   }
@@ -179,9 +233,9 @@ class Parser {
     const test = this.parseExpression();
     this.expect('rightParen', 'Expected ) after the if test expression.');
     this.expect('then', 'Expected then after the if test expression.');
-    const thenBranch = this.parseExpression();
+    const thenBranch = this.parseExprSingle();
     this.expect('else', 'Expected else after the then branch.');
-    const elseBranch = this.parseExpression();
+    const elseBranch = this.parseExprSingle();
     return {
       kind: 'if',
       test,
@@ -195,7 +249,7 @@ class Parser {
     const forToken = this.expect('for', 'Expected for to start the iteration expression.');
     const bindings = this.parseFlowBindings('for');
     this.expect('return', 'Expected return after the for input expression.');
-    const returnExpr = this.parseExpression();
+    const returnExpr = this.parseExprSingle();
     return {
       kind: 'for',
       bindings,
@@ -212,7 +266,7 @@ class Parser {
 
     const bindings = this.parseFlowBindings('quantified');
     this.expect('satisfies', 'Expected satisfies after the quantified input expression.');
-    const satisfiesExpr = this.parseExpression();
+    const satisfiesExpr = this.parseExprSingle();
     return {
       kind: 'quantified',
       quantifier: quantifierToken.kind === 'some' ? 'some' : 'every',
@@ -229,7 +283,7 @@ class Parser {
       this.expect('dollar', `Expected $ to start the ${kind} binding.`);
       const name = this.expect('name', `Expected a variable name in the ${kind} binding.`);
       this.expect('in', `Expected in after the ${kind} variable.`);
-      const value = this.parseExpression();
+      const value = this.parseExprSingle();
       bindings.push({
         name: name.value,
         value,
@@ -251,7 +305,7 @@ class Parser {
       this.expect('dollar', 'Expected $ to start a let binding.');
       const name = this.expect('name', 'Expected a variable name in the let binding.');
       this.expect('assign', 'Expected := in the let binding.');
-      const value = this.parseExpression();
+      const value = this.parseExprSingle();
       bindings.push({
         name: name.value,
         value,
@@ -263,7 +317,7 @@ class Parser {
     }
 
     this.expect('return', 'Expected return after the let bindings.');
-    const returnExpr = this.parseExpression();
+  const returnExpr = this.parseExprSingle();
     return {
       kind: 'let',
       bindings,
@@ -296,6 +350,8 @@ class Parser {
     const token = this.current();
 
     switch (token.kind) {
+      case 'leftBracket':
+        return this.parseArrayConstructor();
       case 'number':
         return this.parseNumberLiteral();
       case 'string':
@@ -303,7 +359,7 @@ class Parser {
       case 'dollar':
         return this.parseVariableReference();
       case 'name':
-        if (this.peek().kind === 'leftParen' && token.value !== 'node' && token.value !== 'text') {
+        if (this.peek().kind === 'leftParen' && !isKindTestName(token.value)) {
           return this.parseFunctionCallExpression();
         }
         return this.parsePathExpression();
@@ -354,7 +410,7 @@ class Parser {
     const args: XPathAst[] = [];
     if (this.current().kind !== 'rightParen') {
       while (true) {
-        args.push(this.parseExpression());
+        args.push(this.parseExprSingle());
         if (this.match('comma') === undefined) {
           break;
         }
@@ -376,7 +432,7 @@ class Parser {
 
     if (this.current().kind !== 'rightParen') {
       while (true) {
-        items.push(this.parseExpression());
+        items.push(this.parseExprSingle());
         if (this.match('comma') === undefined) {
           break;
         }
@@ -388,6 +444,27 @@ class Parser {
       kind: 'sequence',
       items,
       span: mergeSpans(leftParen.span, rightParen.span),
+    };
+  }
+
+  private parseArrayConstructor(): ArrayConstructor {
+    const leftBracket = this.expect('leftBracket', 'Expected [ to start the array constructor.');
+    const members: XPathAst[] = [];
+
+    if (this.current().kind !== 'rightBracket') {
+      while (true) {
+        members.push(this.parseExprSingle());
+        if (this.match('comma') === undefined) {
+          break;
+        }
+      }
+    }
+
+    const rightBracket = this.expect('rightBracket', 'Expected ] to close the array constructor.');
+    return {
+      kind: 'array',
+      members,
+      span: mergeSpans(leftBracket.span, rightBracket.span),
     };
   }
 
@@ -547,6 +624,16 @@ class Parser {
   private parseNodeTest(): KindTest | NameTest | WildcardTest {
     const wildcard = this.match('star');
     if (wildcard !== undefined) {
+      const colon = this.match('colon');
+      if (colon !== undefined) {
+        const localName = this.expect('name', 'Expected a local name after *:.');
+        return {
+          kind: 'wildcardTest',
+          localName: localName.value,
+          span: mergeSpans(wildcard.span, localName.span),
+        };
+      }
+
       return {
         kind: 'wildcardTest',
         span: wildcard.span,
@@ -554,6 +641,16 @@ class Parser {
     }
 
     const token = this.expect('name', 'Expected a node test.');
+    const colon = this.match('colon');
+    if (colon !== undefined) {
+      this.expect('star', 'Expected * after the node-test prefix and colon.');
+      return {
+        kind: 'wildcardTest',
+        prefix: token.value,
+        span: mergeSpans(token.span, colon.span),
+      };
+    }
+
     if (this.match('leftParen') === undefined) {
       return {
         kind: 'nameTest',
@@ -563,7 +660,7 @@ class Parser {
     }
 
     const rightParen = this.expect('rightParen', 'Expected ) to close the node test.');
-    if (token.value !== 'node' && token.value !== 'text') {
+    if (!isKindTestName(token.value)) {
       throw createParseError(`Unsupported kind test ${JSON.stringify(token.value)}.`, token.span);
     }
 
@@ -575,7 +672,11 @@ class Parser {
   }
 
   private parsePathSegment(): PathSegment {
-    if (this.current().kind === 'name' && this.peek().kind === 'leftParen' && this.current().value !== 'node' && this.current().value !== 'text') {
+    if (this.current().kind === 'leftParen') {
+      return this.parsePostfixExpression();
+    }
+
+    if (this.current().kind === 'name' && this.peek().kind === 'leftParen' && !isKindTestName(this.current().value)) {
       return this.parseFunctionCallExpression();
     }
 
@@ -602,6 +703,7 @@ function parseAxisName(token: Token): XPathAxis {
     token.value === 'descendant-or-self' ||
     token.value === 'following' ||
     token.value === 'following-sibling' ||
+    token.value === 'namespace' ||
     token.value === 'parent' ||
     token.value === 'preceding' ||
     token.value === 'preceding-sibling' ||
@@ -618,6 +720,15 @@ function parseAxisName(token: Token): XPathAxis {
 
 function tokenKindToBinaryOperator(kind: TokenKind): XPathBinaryOperator {
   switch (kind) {
+    case 'bang':
+      return '!';
+    case 'concat':
+      return '||';
+    case 'pipe':
+    case 'union':
+      return '|';
+    case 'except':
+      return 'except';
     case 'plus':
       return '+';
     case 'minus':
@@ -628,6 +739,8 @@ function tokenKindToBinaryOperator(kind: TokenKind): XPathBinaryOperator {
       return 'div';
     case 'idiv':
       return 'idiv';
+    case 'intersect':
+      return 'intersect';
     case 'mod':
       return 'mod';
     case 'equals':
@@ -677,12 +790,16 @@ function unescapeStringLiteral(lexeme: string): string {
   return body.split(`${quote}${quote}`).join(quote);
 }
 
+function isKindTestName(value: string): value is KindTest['name'] {
+  return value === 'comment' || value === 'node' || value === 'processing-instruction' || value === 'text';
+}
+
 function isStepStart(token: Token): boolean {
   return token.kind === 'dot' || token.kind === 'dotDot' || token.kind === 'at' || token.kind === 'name' || token.kind === 'star';
 }
 
 function isPathSegmentStart(token: Token, next: Token): boolean {
-  return isStepStart(token) || (token.kind === 'name' && next.kind === 'leftParen');
+  return token.kind === 'leftParen' || isStepStart(token) || (token.kind === 'name' && next.kind === 'leftParen');
 }
 
 function isInitialPathExpressionStart(token: Token, next: Token): boolean {

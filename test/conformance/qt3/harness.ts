@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, normalize } from 'node:path';
 
 import type { Element, Node } from '@xmldom/xmldom';
 
@@ -59,6 +59,7 @@ export type Qt3SliceCase = {
   readonly caseName: string;
   readonly expression: string;
   readonly assertion: Qt3Assertion;
+  readonly environment?: Qt3Environment;
   readonly environmentRef?: string;
   readonly dependencies: readonly Qt3Dependency[];
   readonly hasUnsupportedEnvironment: boolean;
@@ -90,7 +91,7 @@ export type Qt3SliceRunReport = {
 };
 
 const documentCache = new Map<string, Document>();
-const globalEnvironmentIndex = loadEnvironmentIndex(requireDocumentElement(readXml('catalog.xml'), 'catalog.xml'));
+const globalEnvironmentIndex = loadEnvironmentIndex(requireDocumentElement(readXml('catalog.xml'), 'catalog.xml'), '.');
 
 export function loadQt3SliceCases(setFiles: readonly string[]): Qt3SliceCase[] {
   const cases: Qt3SliceCase[] = [];
@@ -99,7 +100,7 @@ export function loadQt3SliceCases(setFiles: readonly string[]): Qt3SliceCase[] {
     const setDoc = readXml(setFile);
     const root = requireDocumentElement(setDoc, setFile);
     const setName = root.getAttribute('name') ?? setFile;
-    const localEnvironments = loadEnvironmentIndex(root);
+    const localEnvironments = loadEnvironmentIndex(root, dirname(setFile));
 
     for (const testCaseElement of directChildElements(root, 'test-case')) {
       const expression = directChildElements(testCaseElement, 'test')[0]?.textContent?.trim();
@@ -112,8 +113,13 @@ export function loadQt3SliceCases(setFiles: readonly string[]): Qt3SliceCase[] {
         continue;
       }
 
-      const environmentRef = directChildElements(testCaseElement, 'environment')[0]?.getAttribute('ref') ?? undefined;
-      const environment = resolveEnvironment(environmentRef, localEnvironments);
+      const environmentElement = directChildElements(testCaseElement, 'environment')[0];
+      const environmentRef = environmentElement?.getAttribute('ref') ?? undefined;
+      const environment = environmentRef !== undefined
+        ? resolveEnvironment(environmentRef, localEnvironments)
+        : environmentElement === undefined
+          ? undefined
+          : parseEnvironmentElement(environmentElement, dirname(setFile), `${setName}:${testCaseElement.getAttribute('name') ?? '<unnamed>'}`);
       const dependencies = directChildElements(testCaseElement, 'dependency').map((dependency) => ({
         type: dependency.getAttribute('type') ?? '',
         value: dependency.getAttribute('value') ?? '',
@@ -127,6 +133,7 @@ export function loadQt3SliceCases(setFiles: readonly string[]): Qt3SliceCase[] {
         assertion,
         dependencies,
         hasUnsupportedEnvironment: environment?.hasUnsupportedConfig ?? false,
+        ...(environment === undefined ? {} : { environment }),
         ...(environmentRef === undefined ? {} : { environmentRef }),
       });
     }
@@ -170,11 +177,15 @@ export function isPotentiallySupportedXPathCase(testCase: Qt3SliceCase): boolean
   }
 
   for (const dependency of testCase.dependencies) {
-    if (dependency.type === 'spec' && /^XQ/i.test(dependency.value)) {
+    if (dependency.type === 'spec' && !supportsXPath31SpecDependency(dependency.value)) {
       return false;
     }
 
     if (dependency.type === 'xsd-version' && dependency.value !== '1.0') {
+      return false;
+    }
+
+    if (dependency.type === 'xml-version' && dependency.value !== '1.0') {
       return false;
     }
 
@@ -189,6 +200,29 @@ export function isPotentiallySupportedXPathCase(testCase: Qt3SliceCase): boolean
 
   return testCase.assertion.kind !== 'assert-eq'
     || isPotentiallySupportedXPathExpression(testCase.assertion.expectedExpression);
+}
+
+function supportsXPath31SpecDependency(value: string): boolean {
+  const tokens = value.split(/\s+/).filter((token) => token.length > 0);
+  const xpathTokens = tokens.filter((token) => /^XP/i.test(token));
+
+  if (xpathTokens.length === 0) {
+    return !tokens.some((token) => /^XQ/i.test(token));
+  }
+
+  return xpathTokens.some((token) => {
+    const match = /^XP(\d+)(\+)?$/i.exec(token);
+    if (match === null) {
+      return false;
+    }
+
+    const version = Number(match[1]);
+    if (Number.isNaN(version)) {
+      return false;
+    }
+
+    return match[2] === '+' ? version <= 31 : version === 31;
+  });
 }
 
 function executeQt3Case(testCase: Qt3SliceCase): string | undefined {
@@ -244,7 +278,7 @@ function executeQt3Case(testCase: Qt3SliceCase): string | undefined {
 }
 
 function createContext(testCase: Qt3SliceCase): DynamicContext {
-  const environment = resolveEnvironment(testCase.environmentRef);
+  const environment = testCase.environment ?? resolveEnvironment(testCase.environmentRef);
   const variables = new Map<string, unknown>();
   let contextItem: unknown = null;
   let contextPosition = 0;
@@ -289,7 +323,45 @@ function itemToComparableString(item: XdmItem): string {
   }
 
   const atomic = item as XdmAtomicValue;
+  if (atomic.type === 'xs:double') {
+    if (atomic.lexicalForm !== undefined) {
+      return atomic.lexicalForm;
+    }
+    return formatComparableDouble(atomic.value as number);
+  }
+
   return String(atomic.value);
+}
+
+function formatComparableDouble(value: number): string {
+  if (Number.isNaN(value)) {
+    return 'NaN';
+  }
+
+  if (value === Number.POSITIVE_INFINITY) {
+    return 'INF';
+  }
+
+  if (value === Number.NEGATIVE_INFINITY) {
+    return '-INF';
+  }
+
+  if (Object.is(value, -0) || value === 0) {
+    return '0';
+  }
+
+  const absolute = Math.abs(value);
+  if (absolute >= 1_000_000 || absolute < 0.000001) {
+    return value
+      .toExponential()
+      .replace('e', 'E')
+      .replace(/E\+/, 'E')
+      .replace(/(\.\d*?)0+E/, '$1E')
+      .replace(/\.E/, 'E')
+      .replace(/E(-?)0+(\d+)/, 'E$1$2');
+  }
+
+  return String(value);
 }
 
 function parseAssertion(resultElement: Element | undefined): Qt3Assertion | undefined {
@@ -361,7 +433,7 @@ function resolveEnvironment(
   return localEnvironments?.get(environmentRef) ?? globalEnvironmentIndex.get(environmentRef);
 }
 
-function loadEnvironmentIndex(root: Element): ReadonlyMap<string, Qt3Environment> {
+function loadEnvironmentIndex(root: Element, baseDirectory: string): ReadonlyMap<string, Qt3Environment> {
   const environments = new Map<string, Qt3Environment>();
 
   for (const environmentElement of directChildElements(root, 'environment')) {
@@ -370,56 +442,60 @@ function loadEnvironmentIndex(root: Element): ReadonlyMap<string, Qt3Environment
       continue;
     }
 
-    const namespaces = new Map<string, string>();
-    let defaultElementNamespace = '';
-    const sources: Qt3EnvironmentSource[] = [];
-    let hasUnsupportedConfig = false;
-
-    for (const child of directChildElements(environmentElement)) {
-      switch (localNameOf(child)) {
-        case 'namespace': {
-          const prefix = child.getAttribute('prefix') ?? '';
-          const uri = child.getAttribute('uri') ?? '';
-          namespaces.set(prefix, uri);
-          if (prefix.length === 0) {
-            defaultElementNamespace = uri;
-          }
-          break;
-        }
-        case 'source': {
-          const role = child.getAttribute('role') ?? '';
-          const file = child.getAttribute('file') ?? '';
-          const validation = child.getAttribute('validation');
-          if (role.length === 0 || file.length === 0) {
-            hasUnsupportedConfig = true;
-            break;
-          }
-          if (validation !== null && validation !== 'skip') {
-            hasUnsupportedConfig = true;
-          }
-          sources.push({ role, file, validation });
-          break;
-        }
-        case 'description':
-        case 'created':
-        case 'modified':
-          break;
-        default:
-          hasUnsupportedConfig = true;
-          break;
-      }
-    }
-
-    environments.set(name, {
-      name,
-      namespaces,
-      defaultElementNamespace,
-      sources,
-      hasUnsupportedConfig,
-    });
+    environments.set(name, parseEnvironmentElement(environmentElement, baseDirectory, name));
   }
 
   return environments;
+}
+
+function parseEnvironmentElement(environmentElement: Element, baseDirectory: string, name: string): Qt3Environment {
+  const namespaces = new Map<string, string>();
+  let defaultElementNamespace = '';
+  const sources: Qt3EnvironmentSource[] = [];
+  let hasUnsupportedConfig = false;
+
+  for (const child of directChildElements(environmentElement)) {
+    switch (localNameOf(child)) {
+      case 'namespace': {
+        const prefix = child.getAttribute('prefix') ?? '';
+        const uri = child.getAttribute('uri') ?? '';
+        namespaces.set(prefix, uri);
+        if (prefix.length === 0) {
+          defaultElementNamespace = uri;
+        }
+        break;
+      }
+      case 'source': {
+        const role = child.getAttribute('role') ?? '';
+        const file = child.getAttribute('file') ?? '';
+        const validation = child.getAttribute('validation');
+        if (role.length === 0 || file.length === 0) {
+          hasUnsupportedConfig = true;
+          break;
+        }
+        if (validation !== null && validation !== 'skip') {
+          hasUnsupportedConfig = true;
+        }
+        sources.push({ role, file: normalize(join(baseDirectory, file)), validation });
+        break;
+      }
+      case 'description':
+      case 'created':
+      case 'modified':
+        break;
+      default:
+        hasUnsupportedConfig = true;
+        break;
+    }
+  }
+
+  return {
+    name,
+    namespaces,
+    defaultElementNamespace,
+    sources,
+    hasUnsupportedConfig,
+  };
 }
 
 function summarizeFailureClusters(

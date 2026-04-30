@@ -44,7 +44,7 @@ describe('XPath navigation coverage', () => {
     expect(ancestors[0]?.node.nodeName).toBe('group');
     expect(ancestorsOrSelf).toHaveLength(1);
     expect(ancestorsOrSelf[0]?.node.nodeName).toBe('leaf');
-    expect(fullChain.map((item) => item.node.nodeName)).toEqual(['leaf', 'item', 'group', 'root', '#document']);
+    expect(fullChain.map((item) => item.node.nodeName)).toEqual(['#document', 'root', 'group', 'item', 'leaf']);
   });
 
   it('supports node comparisons for identity and document order', () => {
@@ -74,11 +74,89 @@ describe('XPath navigation coverage', () => {
     expect(following[0]?.node.textContent).toBe('C');
     expect(preceding).toHaveLength(1);
     expect(preceding[0]?.node.textContent).toBe('A');
-    expect(precedingOrder.map((item) => item.node.textContent)).toEqual(['B', 'A']);
+    expect(precedingOrder.map((item) => item.node.textContent)).toEqual(['A', 'B']);
     expect(followingAxis).toHaveLength(1);
     expect(followingAxis[0]?.node.textContent).toBe('C');
     expect(precedingAxis).toHaveLength(1);
     expect(precedingAxis[0]?.node.textContent).toBe('A');
+  });
+
+  it('supports namespace-wildcard local-name tests', () => {
+    const context = createContext('<root xmlns:a="urn:test"><a:Open>first</a:Open><a:Closed>skip</a:Closed><a:Open>second</a:Open></root>');
+
+    const openNodes = [...evaluate(parseXPath('//*:Open'), context)] as XdmNode[];
+
+    expect(openNodes.map((item) => item.node.textContent)).toEqual(['first', 'second']);
+  });
+
+  it('supports prefix-wildcard attribute tests', () => {
+    const context = createContext('<root xml:lang="en" xmlns:xml="http://www.w3.org/XML/1998/namespace" other="x"/>');
+
+    const xmlAttributes = [...evaluate(parseXPath('//@xml:*'), context)] as XdmNode[];
+
+    expect(xmlAttributes.map((item) => item.node.nodeName)).toEqual(['xml:lang']);
+  });
+
+  it('supports the namespace axis over in-scope namespace declarations', () => {
+    const context = createContext('<root xmlns:xlink="http://www.w3.org/1999/xlink"><child/></root>');
+
+    const namespaceNodes = [...evaluate(parseXPath('//namespace::*[. = "http://www.w3.org/1999/xlink"]'), context)] as XdmNode[];
+
+    expect(namespaceNodes).toHaveLength(1);
+    expect(namespaceNodes[0]?.node.nodeName).toBe('xmlns:xlink');
+    expect(namespaceNodes[0]?.node.textContent).toBe('http://www.w3.org/1999/xlink');
+  });
+
+  it('supports processing-instruction() kind tests', () => {
+    const context = createContext('<?xml version="1.0"?><?xml-stylesheet type="text/xsl" href="style.xsl"?><root/>');
+
+    expect([...evaluate(parseXPath('name((//processing-instruction())[1])'), context)]).toMatchObject([
+      { type: 'xs:string', value: 'xml-stylesheet' },
+    ]);
+    expect([...evaluate(parseXPath('local-name((//processing-instruction())[1])'), context)]).toMatchObject([
+      { type: 'xs:string', value: 'xml-stylesheet' },
+    ]);
+  });
+
+  it('supports comment() kind tests', () => {
+    const context = createContext('<root><!--note--><child/></root>');
+
+    expect([...evaluate(parseXPath('name((//comment())[1]) = ""'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
+  });
+
+  it('supports zero-argument normalize-space() inside predicates', () => {
+    const context = createContext('<doc><a>Hello,&#10;  How        are&#10;&#9;you?</a></doc>');
+
+    expect([...evaluate(parseXPath('//a[normalize-space() = "Hello, How are you?"]'), context)]).toHaveLength(1);
+    expect([...evaluate(parseXPath('//doc/normalize-space(zero-or-one(a[normalize-space() = "Hello, How are you?"]))'), context)]).toMatchObject([
+      { type: 'xs:string', value: 'Hello, How are you?' },
+    ]);
+  });
+
+  it('supports parenthesized union operands inside paths', () => {
+    const context = createContext('<works><employee><status><day>Monday</day></status><overtime><day>Tuesday</day></overtime></employee></works>');
+
+    expect([...evaluate(parseXPath('/works/employee/(status|overtime)/day/string()'), context)]).toMatchObject([
+      { type: 'xs:string', value: 'Monday' },
+      { type: 'xs:string', value: 'Tuesday' },
+    ]);
+    expect([...evaluate(parseXPath('/works/employee/(status union overtime)/day/string()'), context)]).toMatchObject([
+      { type: 'xs:string', value: 'Monday' },
+      { type: 'xs:string', value: 'Tuesday' },
+    ]);
+  });
+
+  it('supports intersect and except over node sequences', () => {
+    const context = createContext('<works><employee name="John Doe 12"><overtime><day>Tuesday</day></overtime></employee></works>');
+
+    expect([...evaluate(parseXPath('string(((/works/employee/overtime/day/ancestor-or-self::employee) intersect (/works/employee/overtime/day/ancestor-or-self::employee))/@name)'), context)]).toMatchObject([
+      { type: 'xs:string', value: 'John Doe 12' },
+    ]);
+    expect([...evaluate(parseXPath('count((/works/employee/overtime/day[ancestor::overtime]) except (/works/employee/overtime/day[ancestor::overtime]))'), context)]).toMatchObject([
+      { type: 'xs:integer', value: 0 },
+    ]);
   });
 
   it('raises a type error when node comparisons do not receive singleton nodes', () => {

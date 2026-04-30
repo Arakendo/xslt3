@@ -23,6 +23,7 @@ export type TokenKind =
   | 'dotDot'
   | 'comma'
   | 'at'
+  | 'bang'
   | 'dollar'
   | 'plus'
   | 'minus'
@@ -34,17 +35,21 @@ export type TokenKind =
   | 'greaterThan'
   | 'greaterThanOrEqual'
   | 'doubleColon'
+  | 'colon'
   | 'assign'
   | 'pipe'
+  | 'concat'
   | 'and'
   | 'eq'
   | 'else'
+  | 'except'
   | 'every'
   | 'for'
   | 'ge'
   | 'gt'
   | 'if'
   | 'in'
+  | 'intersect'
   | 'is'
   | 'let'
   | 'le'
@@ -58,6 +63,7 @@ export type TokenKind =
   | 'some'
   | 'then'
   | 'to'
+  | 'union'
   | 'div'
   | 'idiv'
   | 'mod';
@@ -82,6 +88,7 @@ const KEYWORD_KINDS = {
   div: 'div',
   eq: 'eq',
   else: 'else',
+  except: 'except',
   every: 'every',
   for: 'for',
   ge: 'ge',
@@ -89,6 +96,7 @@ const KEYWORD_KINDS = {
   if: 'if',
   idiv: 'idiv',
   in: 'in',
+  intersect: 'intersect',
   is: 'is',
   let: 'let',
   le: 'le',
@@ -101,6 +109,7 @@ const KEYWORD_KINDS = {
   some: 'some',
   then: 'then',
   to: 'to',
+  union: 'union',
 } as const satisfies Record<string, TokenKind>;
 
 export function tokenize(expression: string): readonly Token[] {
@@ -226,7 +235,8 @@ export function tokenize(expression: string): readonly Token[] {
       case '!': {
         advanceChar(state);
         if (peekChar(state) !== '=') {
-          throw unexpectedCharacter(start, current);
+          tokens.push(makeToken(state, start, 'bang'));
+          break;
         }
         advanceChar(state);
         tokens.push(makeToken(state, start, 'notEquals'));
@@ -265,16 +275,22 @@ export function tokenize(expression: string): readonly Token[] {
           tokens.push(makeToken(state, start, 'assign'));
           break;
         }
-        if (peekChar(state) !== ':') {
-          throw unexpectedCharacter(start, current);
+        if (peekChar(state) === ':') {
+          advanceChar(state);
+          tokens.push(makeToken(state, start, 'doubleColon'));
+          break;
         }
-        advanceChar(state);
-        tokens.push(makeToken(state, start, 'doubleColon'));
+        tokens.push(makeToken(state, start, 'colon'));
         break;
       }
       case '|': {
         advanceChar(state);
-        tokens.push(makeToken(state, start, 'pipe'));
+        if (peekChar(state) === '|') {
+          advanceChar(state);
+          tokens.push(makeToken(state, start, 'concat'));
+        } else {
+          tokens.push(makeToken(state, start, 'pipe'));
+        }
         break;
       }
       default:
