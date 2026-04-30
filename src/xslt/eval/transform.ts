@@ -167,6 +167,10 @@ function templateMatchesNode(template: TemplateRule, node: Node): boolean {
     return node.nodeType === node.DOCUMENT_NODE;
   }
 
+  if (node.nodeType === node.DOCUMENT_NODE) {
+    return false;
+  }
+
   const match = template.match as PathExpression;
   if (match.absolute || match.base !== undefined || match.steps.length !== 1) {
     return false;

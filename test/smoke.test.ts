@@ -71,4 +71,20 @@ describe('@arakendo/xslt scaffold', () => {
       output: '<out><second>apple</second></out>',
     });
   });
+
+  it('uses the built-in root rule before applying node() or wildcard templates', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="doc">
+          <out><xsl:apply-templates select="foo"/></out>
+        </xsl:template>
+        <xsl:template match="node()"><xsl:text>Match-of-node-type</xsl:text></xsl:template>
+        <xsl:template match="*"><xsl:text>Match-of-wildcard</xsl:text></xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<doc><foo test="true"/></doc>')).toEqual({
+      output: '<out>Match-of-wildcard</out>',
+    });
+  });
 });

@@ -6,7 +6,7 @@ conformance and dynamic features.
 
 <sub>repo: `xslt3` · internal codename: *Weaver*</sub>
 
-> Status: **scaffold** — project structure is in place, engine is not yet implemented.
+> Status: **interpreter MVP in progress** — the XPath core is in place, the MVP+3 XSLT interpreter slice runs real transforms, and the curated XSLT 3.0 conformance slice is now online.
 
 > **Open source, closed contributions.** This project is MIT licensed — fork
 > and use it however you like. External pull requests and issues are not
@@ -33,6 +33,28 @@ things this project aims to be clearly best at. See
 ```bash
 npm install
 npm test
+```
+
+## Hello world
+
+```ts
+import { XsltProcessor } from '@arakendo/xslt';
+
+const stylesheet = `
+  <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+    <xsl:template match="/">
+      <hello>
+        <xsl:value-of select="/root/name"/>
+      </hello>
+    </xsl:template>
+  </xsl:stylesheet>
+`;
+
+const processor = new XsltProcessor(stylesheet);
+const result = processor.transform('<root><name>world</name></root>');
+
+console.log(result.output);
+// <hello>world</hello>
 ```
 
 ## Scripts
@@ -100,9 +122,9 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the full MVP / MVP+N execution
 plan with scope and exit criteria per increment. High-level milestones:
 
 - [x] M0 — Project scaffold + W3C test suites cataloged (14.6k XSLT, 31.8k QT3)
-- [ ] M1 — XPath vertical slice + diagnostic bones
-- [ ] M2 — XPath core on interpreter (~20% of QT3)
-- [ ] M3 — XSLT MVP on interpreter (first golden test green)
+- [x] M1 — XPath vertical slice + diagnostic bones
+- [x] M2 — XPath core on interpreter (~20% of QT3)
+- [ ] M3 — XSLT MVP on interpreter (interpreter slice active; remaining exit criteria still in progress)
 - [ ] M4 — **Codegen backend v1** (IR → readable TypeScript)
 - [ ] M5 — Typed params, typed extension functions, CLI compile
 - [ ] M6 — Watch mode, source maps, static-analysis diagnostics v2
