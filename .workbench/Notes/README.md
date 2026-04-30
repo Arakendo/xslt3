@@ -10,8 +10,8 @@ belongs under `docs/`.
   lives in `docs/COMPARE_HARNESS.md`.
 - `isoentities.md` — keep as source material; durable guidance now lives in
   `docs/ENTITY_RESOLUTION.md`.
-- `sugar.md` — keep as an idea backlog; the staged, roadmap-safe subset now
-  lives in `docs/EXTENSION_FUNCTIONS.md`.
+- `sugar.md` — keep as an idea backlog; the durable, narrowed
+  diagnostic-intrinsics boundary now lives in `docs/DIAGNOSTIC_INTRINSICS.md`.
 - `other tests.md` — keep as a discovery note until it names concrete test
   suite sources, repositories, and adoption criteria.
 - `C# Nuget package.md` — empty placeholder; no durable action yet.
