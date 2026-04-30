@@ -138,6 +138,9 @@ export function assertValidDiagnostic(report: DiagnosticReport): void {
 const REQUIRED_DETAIL_KEYS: Readonly<Record<string, readonly string[]>> = {
   XPST0017: ['functionName', 'actualArity'],
   XPTY0004: ['expectedType', 'actualType'],
+  XTDE0040: ['mode'],
+  XTSE0165: ['href'],
+  WEAVER_XSLT_UNSUPPORTED_INITIAL_TEMPLATE: ['initialTemplate'],
 };
 
 function classifyPhase(code: string): DiagnosticPhase {
@@ -149,6 +152,9 @@ function classifyPhase(code: string): DiagnosticPhase {
   }
   if (code.startsWith('WEAVER_CODEGEN')) {
     return 'codegen';
+  }
+  if (code.startsWith('WEAVER_XSLT_')) {
+    return 'runtime';
   }
   if (code.startsWith('XPDY') || code.startsWith('XPTY') || code.startsWith('XTDE') || code.startsWith('FO')) {
     return 'runtime';
@@ -171,6 +177,9 @@ function classifyCategory(code: string): DiagnosticCategory {
   }
   if (code.startsWith('SENR') || code.startsWith('SERE')) {
     return 'serialization';
+  }
+  if (code.startsWith('WEAVER_XSLT_')) {
+    return 'execution';
   }
   if (code.startsWith('XPDY') || code.startsWith('XTDE') || code.startsWith('FO')) {
     return 'execution';

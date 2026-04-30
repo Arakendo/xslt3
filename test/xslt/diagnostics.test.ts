@@ -13,6 +13,174 @@ function captureError(action: () => void): unknown {
 }
 
 describe('XSLT diagnostics', () => {
+  it('converts unsupported xsl:import declarations into XTSE0165 diagnostics', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:import href="base.xsl"/>',
+      '  <xsl:template match="/">',
+      '    <out/>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report).toMatchObject({
+      code: 'XTSE0165',
+      phase: 'compile',
+      category: 'analysis',
+      message: 'Stylesheet import declarations are not yet implemented in the current MVP+3 slice.',
+      details: [{
+        key: 'href',
+        value: 'base.xsl',
+      }],
+      primary: {
+        lineStart: 2,
+        columnStart: 21,
+        lineEnd: 2,
+        columnEnd: 29,
+      },
+      suggestions: [{
+        kind: 'fix',
+        label: 'inline or remove xsl:import in the current MVP+3 slice',
+        confidence: 1,
+      }],
+    });
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0165]: Stylesheet import declarations are not yet implemented in the current MVP+3 slice.',
+      '--> <stylesheet>:2:21',
+      '2 |   <xsl:import href="base.xsl"/>',
+      '  |                     ^^^^^^^^',
+      '  = href: base.xsl',
+      '  help: inline or remove xsl:import in the current MVP+3 slice',
+    ].join('\n'));
+  });
+
+  it('converts unsupported xsl:include declarations into XTSE0165 diagnostics', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:include href="common.xsl"/>',
+      '  <xsl:template match="/">',
+      '    <out/>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>');
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report).toMatchObject({
+      code: 'XTSE0165',
+      phase: 'compile',
+      category: 'analysis',
+      message: 'Stylesheet include declarations are not yet implemented in the current MVP+3 slice.',
+      details: [{
+        key: 'href',
+        value: 'common.xsl',
+      }],
+      primary: {
+        lineStart: 2,
+        columnStart: 22,
+        lineEnd: 2,
+        columnEnd: 32,
+      },
+      suggestions: [{
+        kind: 'fix',
+        label: 'inline or remove xsl:include in the current MVP+3 slice',
+        confidence: 1,
+      }],
+    });
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTSE0165]: Stylesheet include declarations are not yet implemented in the current MVP+3 slice.',
+      '--> <stylesheet>:2:22',
+      '2 |   <xsl:include href="common.xsl"/>',
+      '  |                      ^^^^^^^^^^',
+      '  = href: common.xsl',
+      '  help: inline or remove xsl:include in the current MVP+3 slice',
+    ].join('\n'));
+  });
+
+  it('converts unsupported initialTemplate options into runtime diagnostics', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:template match="/">',
+      '    <out/>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>', { initialTemplate: 'main' });
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report).toMatchObject({
+      code: 'WEAVER_XSLT_UNSUPPORTED_INITIAL_TEMPLATE',
+      phase: 'runtime',
+      category: 'execution',
+      message: 'Initial templates are not yet implemented in the current MVP+3 slice.',
+      details: [{
+        key: 'initialTemplate',
+        value: 'main',
+      }],
+      suggestions: [{
+        kind: 'fix',
+        label: 'omit initialTemplate and rely on match-based dispatch in the current MVP+3 slice',
+        confidence: 1,
+      }],
+    });
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[WEAVER_XSLT_UNSUPPORTED_INITIAL_TEMPLATE]: Initial templates are not yet implemented in the current MVP+3 slice.',
+      '  = initialTemplate: main',
+      '  help: omit initialTemplate and rely on match-based dispatch in the current MVP+3 slice',
+    ].join('\n'));
+  });
+
+  it('converts unsupported initialMode options into runtime diagnostics', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:template match="/">',
+      '    <out/>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>', { initialMode: 'special' });
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report).toMatchObject({
+      code: 'XTDE0040',
+      phase: 'runtime',
+      category: 'execution',
+      message: 'Initial modes are not yet implemented in the current MVP+3 slice.',
+      details: [{
+        key: 'mode',
+        value: 'special',
+      }],
+      suggestions: [{
+        kind: 'fix',
+        label: 'omit initialMode and use the default mode in the current MVP+3 slice',
+        confidence: 1,
+      }],
+    });
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTDE0040]: Initial modes are not yet implemented in the current MVP+3 slice.',
+      '  = mode: special',
+      '  help: omit initialMode and use the default mode in the current MVP+3 slice',
+    ].join('\n'));
+  });
+
   it('converts named-only templates into static diagnostics', () => {
     const stylesheet = [
       '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
@@ -68,6 +236,10 @@ describe('XSLT diagnostics', () => {
       phase: 'compile',
       category: 'analysis',
       message: 'Unsupported top-level stylesheet element out in current MVP+3 slice.',
+      details: [{
+        key: 'elementName',
+        value: 'out',
+      }],
       suggestions: [{
         kind: 'fix',
         label: 'move result elements inside xsl:template bodies in the current MVP+3 slice',
@@ -77,9 +249,10 @@ describe('XSLT diagnostics', () => {
 
     expect(formatDiagnostic(report, stylesheet)).toBe([
       'error[XTSE0010]: Unsupported top-level stylesheet element out in current MVP+3 slice.',
-      '--> <stylesheet>:2:3',
+      '--> <stylesheet>:2:4',
       '2 |   <out/>',
-      '  |   ^',
+      '  |    ^^^',
+      '  = elementName: out',
       '  help: move result elements inside xsl:template bodies in the current MVP+3 slice',
     ].join('\n'));
   });
@@ -104,6 +277,10 @@ describe('XSLT diagnostics', () => {
       phase: 'compile',
       category: 'analysis',
       message: 'Unsupported top-level XSLT declaration xsl:output in current MVP+3 slice.',
+      details: [{
+        key: 'declarationName',
+        value: 'xsl:output',
+      }],
       suggestions: [{
         kind: 'fix',
         label: 'remove unsupported top-level declaration xsl:output in the current MVP+3 slice',
@@ -113,9 +290,10 @@ describe('XSLT diagnostics', () => {
 
     expect(formatDiagnostic(report, stylesheet)).toBe([
       'error[XTSE0010]: Unsupported top-level XSLT declaration xsl:output in current MVP+3 slice.',
-      '--> <stylesheet>:2:3',
+      '--> <stylesheet>:2:4',
       '2 |   <xsl:output method="xml"/>',
-      '  |   ^',
+      '  |    ^^^^^^^^^^',
+      '  = declarationName: xsl:output',
       '  help: remove unsupported top-level declaration xsl:output in the current MVP+3 slice',
     ].join('\n'));
   });
@@ -401,12 +579,19 @@ describe('XSLT diagnostics', () => {
         confidence: expect.any(Number),
       },
     ]);
+    expect(report.details).toEqual([
+      {
+        key: 'instructionName',
+        value: 'xsl:vale-of',
+      },
+    ]);
 
     expect(formatDiagnostic(report, stylesheet)).toBe([
       'error[XTSE0010]: Unsupported XSLT instruction xsl:vale-of in current MVP+3 slice.',
-      '--> <stylesheet>:3:10',
+      '--> <stylesheet>:3:11',
       '3 |     <out><xsl:vale-of select="/root/item"/></out>',
-      '  |          ^',
+      '  |           ^^^^^^^^^^^',
+      '  = instructionName: xsl:vale-of',
       '  help: did you mean xsl:value-of?',
     ].join('\n'));
   });
@@ -430,17 +615,22 @@ describe('XSLT diagnostics', () => {
         "category": "analysis",
         "causes": [],
         "code": "XTSE0010",
-        "details": [],
+        "details": [
+          {
+            "key": "instructionName",
+            "value": "xsl:copy-of",
+          },
+        ],
         "frames": [],
         "message": "Unsupported XSLT instruction xsl:copy-of in current MVP+3 slice.",
         "phase": "compile",
         "primary": {
-          "columnEnd": 11,
-          "columnStart": 10,
+          "columnEnd": 22,
+          "columnStart": 11,
           "lineEnd": 3,
           "lineStart": 3,
-          "offsetEnd": 117,
-          "offsetStart": 116,
+          "offsetEnd": 128,
+          "offsetStart": 117,
           "uri": "<stylesheet>",
         },
         "related": [],
@@ -451,9 +641,10 @@ describe('XSLT diagnostics', () => {
 
     expect(formatDiagnostic(report, stylesheet)).toBe([
       'error[XTSE0010]: Unsupported XSLT instruction xsl:copy-of in current MVP+3 slice.',
-      '--> <stylesheet>:3:10',
+      '--> <stylesheet>:3:11',
       '3 |     <out><xsl:copy-of select="/root/item"/></out>',
-      '  |          ^',
+      '  |           ^^^^^^^^^^^',
+      '  = instructionName: xsl:copy-of',
     ].join('\n'));
   });
 

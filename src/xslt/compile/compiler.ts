@@ -7,11 +7,11 @@
 
 import type { Attr, Element, Node } from '@xmldom/xmldom';
 
-import { XTSE0010, XTSE0500 } from '../../errors/codes.js';
+import { XTSE0010, XTSE0165, XTSE0500 } from '../../errors/codes.js';
 import { XsltError, type ErrorContext, type ErrorSuggestion } from '../../errors/index.js';
 import type { PathExpression, StepExpression, XPathAst } from '../../xpath/parse/ast.js';
 import { parseXPath } from '../../xpath/parse/parser.js';
-import { getAttributeValueSourceLocation, getNodeSourceLocation, parseXml } from '../../xml/parse.js';
+import { getAttributeValueSourceLocation, getElementNameSourceLocation, getNodeSourceLocation, parseXml } from '../../xml/parse.js';
 import type { AttributeInstruction, Instruction, StylesheetIR, TemplateRule } from './ir.js';
 
 const XSLT_NAMESPACE = 'http://www.w3.org/1999/XSL/Transform';
@@ -92,10 +92,34 @@ function compileTopLevelDeclaration(element: Element, stylesheetXml: string): Te
     return compileTemplateRule(element, stylesheetXml);
   }
 
+  if (isXsltElement(element, 'include') || isXsltElement(element, 'import')) {
+    const href = element.getAttribute('href') ?? '';
+    throw createXsltStaticError(
+      `Stylesheet ${element.localName ?? element.nodeName} declarations are not yet implemented in the current MVP+3 slice.`,
+      getAttributeValueSourceLocation(stylesheetXml, element, 'href', STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      {
+        href,
+      },
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: `inline or remove xsl:${element.localName ?? element.nodeName} in the current MVP+3 slice`,
+          confidence: 1,
+        }],
+      },
+      XTSE0165,
+    );
+  }
+
   if (element.namespaceURI === XSLT_NAMESPACE) {
     throw createXsltStaticError(
       `Unsupported top-level XSLT declaration ${element.nodeName} in current MVP+3 slice.`,
-      getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      getElementNameSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      {
+        declarationName: element.nodeName,
+      },
       {
         suggestions: [{
           kind: 'fix',
@@ -108,7 +132,11 @@ function compileTopLevelDeclaration(element: Element, stylesheetXml: string): Te
 
   throw createXsltStaticError(
     `Unsupported top-level stylesheet element ${element.nodeName} in current MVP+3 slice.`,
-    getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+    getElementNameSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME)
+      ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+    {
+      elementName: element.nodeName,
+    },
     {
       suggestions: [{
         kind: 'fix',
@@ -296,7 +324,11 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
     const suggestion = createInstructionSuggestion(element);
     throw createXsltStaticError(
       `Unsupported XSLT instruction ${element.nodeName} in current MVP+3 slice.`,
-      getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      getElementNameSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      {
+        instructionName: element.nodeName,
+      },
       suggestion === undefined ? undefined : { suggestions: [suggestion] },
     );
   }
@@ -427,8 +459,28 @@ function computeLevenshteinDistance(left: string, right: string): number {
 function createXsltStaticError(
   message: string,
   location?: TemplateRule['location'],
-  context?: ErrorContext,
-  code = XTSE0010,
+  detailsOrContext?: Readonly<Record<string, string | number | boolean>> | ErrorContext,
+  contextOrCode?: ErrorContext | string,
+  maybeCode?: string,
 ): XsltError {
-  return new XsltError(code, message, location, undefined, context);
+  const details = isErrorContext(detailsOrContext) ? undefined : detailsOrContext;
+  const context = isErrorContext(detailsOrContext)
+    ? detailsOrContext
+    : isErrorContext(contextOrCode)
+      ? contextOrCode
+      : undefined;
+  const code = typeof contextOrCode === 'string'
+    ? contextOrCode
+    : maybeCode ?? XTSE0010;
+
+  return new XsltError(code, message, location, details, context);
+}
+
+function isErrorContext(value: unknown): value is ErrorContext {
+  return typeof value === 'object' && value !== null && (
+    'related' in value
+    || 'frames' in value
+    || 'suggestions' in value
+    || 'causes' in value
+  );
 }

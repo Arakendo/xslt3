@@ -95,6 +95,40 @@ export function getAttributeValueSourceLocation(
   };
 }
 
+export function getElementNameSourceLocation(
+  source: string,
+  element: Element,
+  sourceName = '<xml>',
+): SourceLocation | undefined {
+  const locatedNode = element as LocatedNode;
+  const line = normalizeLineNumber(locatedNode.lineNumber);
+  const column = locatedNode.columnNumber;
+  if (line === undefined || column === undefined) {
+    return undefined;
+  }
+
+  const lineStartOffsets = computeLineStartOffsets(source);
+  const lineStartOffset = lineStartOffsets[line - 1];
+  if (lineStartOffset === undefined) {
+    return undefined;
+  }
+
+  const startColumn = column + 1;
+  const startOffset = lineStartOffset + Math.max(0, startColumn - 1);
+  const endColumn = startColumn + element.nodeName.length;
+  const endOffset = startOffset + element.nodeName.length;
+
+  return {
+    source: sourceName,
+    line,
+    column: startColumn,
+    offset: startOffset,
+    endLine: line,
+    endColumn,
+    endOffset,
+  };
+}
+
 function stripXmlDeclarationProcessingInstruction(document: Document): void {
   const toRemove: Node[] = [];
 

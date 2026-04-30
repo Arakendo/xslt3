@@ -7,7 +7,7 @@
 
 import type { Node } from '@xmldom/xmldom';
 
-import { XPTY0004 } from '../../errors/codes.js';
+import { WEAVER_XSLT_UNSUPPORTED_INITIAL_TEMPLATE, XTDE0040, XPTY0004 } from '../../errors/codes.js';
 import { XdmError, XsltError, type ErrorFrame, type RelatedLocation } from '../../errors/index.js';
 import type { PathExpression, StepExpression } from '../../xpath/parse/ast.js';
 import type { TransformOptions, TransformResult } from '../../processor/types.js';
@@ -22,8 +22,36 @@ export function runTransform(
   sourceXml: string,
   options: TransformOptions,
 ): TransformResult {
-  if (options.initialTemplate !== undefined || options.initialMode !== undefined) {
-    throw new Error('Initial template and mode are not yet implemented in the current MVP+3 slice.');
+  if (options.initialMode !== undefined) {
+    throw new XsltError(
+      XTDE0040,
+      'Initial modes are not yet implemented in the current MVP+3 slice.',
+      undefined,
+      { mode: options.initialMode },
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'omit initialMode and use the default mode in the current MVP+3 slice',
+          confidence: 1,
+        }],
+      },
+    );
+  }
+
+  if (options.initialTemplate !== undefined) {
+    throw new XsltError(
+      WEAVER_XSLT_UNSUPPORTED_INITIAL_TEMPLATE,
+      'Initial templates are not yet implemented in the current MVP+3 slice.',
+      undefined,
+      { initialTemplate: options.initialTemplate },
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'omit initialTemplate and rely on match-based dispatch in the current MVP+3 slice',
+          confidence: 1,
+        }],
+      },
+    );
   }
 
   const sourceDocument = parseXml(sourceXml);
