@@ -1,10 +1,10 @@
-import { XdmError, type ErrorDetails, type SourceLocation } from './XdmError.js';
+import { XdmError, type ErrorContext, type ErrorDetails, type SourceLocation } from './XdmError.js';
 import type { ErrorCode } from './codes.js';
 
 /** Errors raised by the XPath lexer, parser, or evaluator. */
 export class XPathError extends XdmError {
-  constructor(code: ErrorCode, message: string, location?: SourceLocation, details?: ErrorDetails) {
-    super(code, message, location, details);
+  constructor(code: ErrorCode, message: string, location?: SourceLocation, details?: ErrorDetails, context?: ErrorContext) {
+    super(code, message, location, details, context);
     this.name = 'XPathError';
   }
 }

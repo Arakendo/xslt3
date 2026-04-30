@@ -75,7 +75,7 @@ describe('XPath diagnostics', () => {
         "details": [
           {
             "key": "expectedType",
-            "value": "xs:double",
+            "value": "xs:double or xs:integer",
           },
           {
             "key": "actualType",
@@ -170,7 +170,7 @@ describe('XPath diagnostics', () => {
       '--> <xpath>:1:1',
       '1 | "tea" + 1',
       '  | ^^^^^',
-      '  = expectedType: xs:double',
+      '  = expectedType: xs:double or xs:integer',
       '  = actualType: xs:string',
     ].join('\n'));
   });

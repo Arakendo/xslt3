@@ -8,15 +8,25 @@
  */
 
 import type { XPathAst } from '../../xpath/parse/ast.js';
+import type { SourceLocation } from '../../errors/index.js';
 
 export interface StylesheetIR {
   readonly version: '3.0';
   readonly templates: readonly TemplateRule[];
 }
 
+export interface AttributeInstruction {
+  readonly name: string;
+  readonly value: string;
+}
+
 export interface TemplateRule {
   /** Match pattern, pre-parsed. Undefined for named-only templates. */
   readonly match?: XPathAst;
+  /** Original match pattern text for diagnostics. */
+  readonly matchText?: string;
+  /** Source location for the template declaration. */
+  readonly location?: SourceLocation;
   /** Template name in Clark notation, if any. */
   readonly name?: string;
   /** Mode set; empty = default (unnamed) mode. */
@@ -28,4 +38,26 @@ export interface TemplateRule {
 }
 
 export type Instruction =
-  | { readonly kind: 'placeholder' };
+  | {
+      readonly kind: 'literalElement';
+      readonly name: string;
+      readonly attributes: readonly AttributeInstruction[];
+      readonly body: readonly Instruction[];
+    }
+  | {
+      readonly kind: 'literalText';
+      readonly text: string;
+    }
+  | {
+      readonly kind: 'valueOf';
+      readonly select: XPathAst;
+      readonly selectText: string;
+      readonly location?: SourceLocation;
+      readonly separator?: string;
+    }
+  | {
+      readonly kind: 'applyTemplates';
+      readonly selectText?: string;
+      readonly select?: XPathAst;
+      readonly location?: SourceLocation;
+    };

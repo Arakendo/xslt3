@@ -256,6 +256,13 @@ first moment `@arakendo/xslt` does what it says on the tin.
   the formatted text
 - [ ] README has a working "hello world" copy-paste example
 
+**Testing strategy note:**
+- MVP+3 XSLT validation should stage in this order: focused smoke/unit tests,
+  byte-exact goldens, then a curated `xslt30-test` slice filtered to the
+  supported feature set. Do not treat the whole `xslt30-test` catalog as the
+  denominator until template dispatch, built-in rules, and the minimal XML
+  serializer are stable enough to make the failures interpretable.
+
 **This is the MVP.** Everything after this is increments.
 
 ---

@@ -4,6 +4,31 @@ export type ErrorDetailValue = string | number | boolean;
 
 export type ErrorDetails = Readonly<Record<string, ErrorDetailValue>>;
 
+export interface RelatedLocation {
+  readonly label: string;
+  readonly location: SourceLocation;
+}
+
+export interface ErrorFrame {
+  readonly kind: 'template' | 'instruction' | 'xpath' | 'function' | 'mode';
+  readonly label: string;
+  readonly location?: SourceLocation;
+}
+
+export interface ErrorSuggestion {
+  readonly kind: 'fix' | 'hint' | 'alternative';
+  readonly label: string;
+  readonly replacement?: string;
+  readonly confidence?: number;
+}
+
+export interface ErrorContext {
+  readonly related?: readonly RelatedLocation[];
+  readonly frames?: readonly ErrorFrame[];
+  readonly suggestions?: readonly ErrorSuggestion[];
+  readonly causes?: readonly unknown[];
+}
+
 /** Optional source location for an error (stylesheet or XPath expression). */
 export interface SourceLocation {
   /** e.g. 'stylesheet.xsl' or '<xpath>'. */
@@ -31,8 +56,12 @@ export class XdmError extends Error {
   readonly detailMessage: string;
   readonly location?: SourceLocation;
   readonly details?: ErrorDetails;
+  readonly related: readonly RelatedLocation[];
+  readonly frames: readonly ErrorFrame[];
+  readonly suggestions: readonly ErrorSuggestion[];
+  readonly causes: readonly unknown[];
 
-  constructor(code: ErrorCode, message: string, location?: SourceLocation, details?: ErrorDetails) {
+  constructor(code: ErrorCode, message: string, location?: SourceLocation, details?: ErrorDetails, context: ErrorContext = {}) {
     super(`[${code}] ${message}`);
     this.name = 'XdmError';
     this.code = code;
@@ -43,5 +72,9 @@ export class XdmError extends Error {
     if (details !== undefined) {
       this.details = details;
     }
+    this.related = context.related ?? [];
+    this.frames = context.frames ?? [];
+    this.suggestions = context.suggestions ?? [];
+    this.causes = context.causes ?? [];
   }
 }

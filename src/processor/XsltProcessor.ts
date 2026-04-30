@@ -1,4 +1,6 @@
 import type { TransformOptions, TransformResult } from './types.js';
+import { compileStylesheet } from '../xslt/compile/compiler.js';
+import { runTransform } from '../xslt/eval/transform.js';
 
 /**
  * Top-level XSLT 3.0 processor.
@@ -23,7 +25,8 @@ export class XsltProcessor {
     if (this.stylesheetSource.length === 0) {
       throw new Error('Stylesheet source is empty.');
     }
-    // TODO: parse stylesheet -> compile -> evaluate against source
-    throw new Error('XsltProcessor.transform is not yet implemented.');
+
+    const ir = compileStylesheet(this.stylesheetSource);
+    return runTransform(ir, _sourceXml, _options);
   }
 }

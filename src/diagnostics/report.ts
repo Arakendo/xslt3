@@ -1,4 +1,4 @@
-import { XdmError, type SourceLocation } from '../errors/XdmError.js';
+import { XdmError, type ErrorSuggestion, type RelatedLocation, type SourceLocation } from '../errors/XdmError.js';
 
 export type DiagnosticPhase = 'compile' | 'runtime' | 'serialization' | 'codegen' | 'internal';
 
@@ -84,11 +84,11 @@ export function diagnosticReportFromError(error: unknown): DiagnosticReport {
     severity: 'error',
     category: classifyCategory(error.code),
     message: error.detailMessage,
-    related: [],
-    frames: [],
+    related: toRelatedSpans(error.related),
+    frames: error.frames.map((frame) => toDiagnosticFrame(frame)),
     details: toDiagnosticDetails(error.details),
-    suggestions: [],
-    causes: [],
+    suggestions: toDiagnosticSuggestions(error.suggestions),
+    causes: error.causes.map((cause) => diagnosticReportFromError(cause)),
   };
 
   if (primary !== undefined) {
@@ -122,6 +122,16 @@ export function assertValidDiagnostic(report: DiagnosticReport): void {
 
   for (const related of report.related) {
     assertValidSpan(related.span);
+  }
+
+  for (const frame of report.frames) {
+    if (frame.span !== undefined) {
+      assertValidSpan(frame.span);
+    }
+  }
+
+  for (const cause of report.causes) {
+    assertValidDiagnostic(cause);
   }
 }
 
@@ -190,6 +200,36 @@ function toDiagnosticDetails(details: XdmError['details']): readonly DiagnosticD
   }
 
   return Object.entries(details).map(([key, value]) => ({ key, value }));
+}
+
+function toRelatedSpans(related: readonly RelatedLocation[]): readonly RelatedSpan[] {
+  return related.flatMap((entry) => {
+    const span = toSourceSpan(entry.location);
+    return span === undefined ? [] : [{ label: entry.label, span }];
+  });
+}
+
+function toDiagnosticSuggestions(suggestions: readonly ErrorSuggestion[]): readonly DiagnosticSuggestion[] {
+  return suggestions.map((suggestion) => ({
+    kind: suggestion.kind,
+    label: suggestion.label,
+    ...(suggestion.replacement === undefined ? {} : { replacement: suggestion.replacement }),
+    ...(suggestion.confidence === undefined ? {} : { confidence: suggestion.confidence }),
+  }));
+}
+
+function toDiagnosticFrame(frame: XdmError['frames'][number]): DiagnosticFrame {
+  const span = toSourceSpan(frame.location);
+  return span === undefined
+    ? {
+        kind: frame.kind,
+        label: frame.label,
+      }
+    : {
+        kind: frame.kind,
+        label: frame.label,
+        span,
+      };
 }
 
 function assertRequiredDetails(report: DiagnosticReport, detailKeys: ReadonlySet<string>): void {

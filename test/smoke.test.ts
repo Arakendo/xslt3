@@ -11,8 +11,64 @@ describe('@arakendo/xslt scaffold', () => {
     expect(proc).toBeInstanceOf(XsltProcessor);
   });
 
-  it('throws until transform is implemented', () => {
-    const proc = new XsltProcessor('<xsl:stylesheet/>');
-    expect(() => proc.transform('<root/>')).toThrow(/not yet implemented/);
+  it('transforms a literal-result hello-world stylesheet', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/"><hello>world</hello></xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root/>')).toEqual({ output: '<hello>world</hello>' });
+  });
+
+  it('evaluates xsl:value-of against the source document', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/"><hello><xsl:value-of select="/root/name"/></hello></xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root><name>world</name></root>')).toEqual({ output: '<hello>world</hello>' });
+  });
+
+  it('applies templates through the built-in root and element rules', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template>
+        <xsl:template match="item"><item><xsl:value-of select="."/></item></xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<invoice><item>apple</item><item>pear</item></invoice>')).toEqual({
+      output: '<items><item>apple</item><item>pear</item></items>',
+    });
+  });
+
+  it('prefers a higher default-priority name test over a wildcard template', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/"><out><xsl:apply-templates select="/root/*"/></out></xsl:template>
+        <xsl:template match="*"><generic><xsl:value-of select="."/></generic></xsl:template>
+        <xsl:template match="item"><item><xsl:value-of select="."/></item></xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root><item>apple</item><other>pear</other></root>')).toEqual({
+      output: '<out><item>apple</item><generic>pear</generic></out>',
+    });
+  });
+
+  it('prefers the later template when priorities tie', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/"><out><xsl:apply-templates select="/root/item"/></out></xsl:template>
+        <xsl:template match="item"><first><xsl:value-of select="."/></first></xsl:template>
+        <xsl:template match="item"><second><xsl:value-of select="."/></second></xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root><item>apple</item></root>')).toEqual({
+      output: '<out><second>apple</second></out>',
+    });
   });
 });
