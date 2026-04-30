@@ -21,6 +21,56 @@ function createContext(xml: string): DynamicContext {
 }
 
 describe('XPath comparison coverage', () => {
+  it('covers the roadmap comparison closure matrix explicitly', () => {
+    const generalContext = createContext('<root><value>2</value><value>4</value><item/></root>');
+    const generalMatrix = [
+      { operator: '=', sequenceExpression: '(1, 2, 3) = 3', crossTypeExpression: '/root/value = 4' },
+      { operator: '!=', sequenceExpression: '(1, 2, 3) != 4', crossTypeExpression: '/root/value != 8' },
+      { operator: '<', sequenceExpression: '(1, 2, 3) < 4', crossTypeExpression: '/root/value < 3' },
+      { operator: '<=', sequenceExpression: '(1, 2, 3) <= 1', crossTypeExpression: '/root/value <= 2' },
+      { operator: '>', sequenceExpression: '(1, 2, 3) > 2', crossTypeExpression: '/root/value > 3' },
+      { operator: '>=', sequenceExpression: '(1, 2, 3) >= 3', crossTypeExpression: '/root/value >= 4' },
+    ] as const;
+    const valueContext = createContext('<root><value>2</value><value>4</value></root>');
+    const valueMatrix = [
+      { operator: 'eq', singletonExpression: '2 eq 2', emptySequenceExpression: '/root/missing eq 1' },
+      { operator: 'ne', singletonExpression: '2 ne 3', emptySequenceExpression: '/root/missing ne 1' },
+      { operator: 'lt', singletonExpression: '2 lt 3', emptySequenceExpression: '/root/missing lt 1' },
+      { operator: 'le', singletonExpression: '2 le 2', emptySequenceExpression: '/root/missing le 1' },
+      { operator: 'gt', singletonExpression: '4 gt 3', emptySequenceExpression: '/root/missing gt 1' },
+      { operator: 'ge', singletonExpression: '4 ge 4', emptySequenceExpression: '/root/missing ge 1' },
+    ] as const;
+    const nodeContext = createContext('<root><item id="a"/><item id="b"/><item id="c"/></root>');
+    const nodeMatrix = [
+      { operator: 'is', trueExpression: '/root/item[1] is /root/item[1]', emptySequenceExpression: '/root/missing is /root/item[1]' },
+      { operator: '<<', trueExpression: '/root/item[1] << /root/item[2]', emptySequenceExpression: '/root/missing << /root/item[1]' },
+      { operator: '>>', trueExpression: '/root/item[3] >> /root/item[2]', emptySequenceExpression: '/root/missing >> /root/item[1]' },
+    ] as const;
+
+    for (const fixture of generalMatrix) {
+      expect([...evaluate(parseXPath(fixture.sequenceExpression), generalContext)]).toMatchObject([
+        { type: 'xs:boolean', value: true },
+      ]);
+      expect([...evaluate(parseXPath(fixture.crossTypeExpression), generalContext)]).toMatchObject([
+        { type: 'xs:boolean', value: true },
+      ]);
+    }
+
+    for (const fixture of valueMatrix) {
+      expect([...evaluate(parseXPath(fixture.singletonExpression), valueContext)]).toMatchObject([
+        { type: 'xs:boolean', value: true },
+      ]);
+      expect([...evaluate(parseXPath(fixture.emptySequenceExpression), valueContext)]).toEqual([]);
+    }
+
+    for (const fixture of nodeMatrix) {
+      expect([...evaluate(parseXPath(fixture.trueExpression), nodeContext)]).toMatchObject([
+        { type: 'xs:boolean', value: true },
+      ]);
+      expect([...evaluate(parseXPath(fixture.emptySequenceExpression), nodeContext)]).toEqual([]);
+    }
+  });
+
   it('evaluates general comparison operators across cross-type and sequence operands', () => {
     const context = createContext('<root><value>2</value><value>4</value><item/></root>');
     const fixtures = [

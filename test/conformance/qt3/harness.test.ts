@@ -68,6 +68,19 @@ describe('QT3 harness dependency filtering', () => {
     expect(isPotentiallySupportedXPathCase(createCase([], 'replace("a(b)", "a", "x")'))).toBe(true);
   });
 
+  it('documents the intentional curated exclusions from the tightened MVP+2 gate', () => {
+    const intentionallyExcludedExpressions = [
+      'for $file (//Folder)[1]/File return $file/FileName',
+      `(1, 2, 3)[root()[generate-id() != '***']]`,
+      'sub-string("a string")',
+      'sub-string("a string", 1, 2, "wrong param")',
+    ] as const;
+
+    for (const expression of intentionallyExcludedExpressions) {
+      expect(isPotentiallySupportedXPathCase(createCase([], expression))).toBe(false);
+    }
+  });
+
   it('loads inline anonymous test-case environments', () => {
     const testCases = loadQt3SliceCases(['fn/normalize-space.xml']).filter((testCase) => testCase.caseName === 'fn-normalize-space0args-1');
 

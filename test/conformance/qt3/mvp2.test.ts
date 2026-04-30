@@ -107,11 +107,11 @@ describe('W3C conformance — QT3 MVP+2 slice', () => {
     const runnableCases = discoveredCases.filter(isPotentiallySupportedXPathCase);
     const report = runQt3Slice(runnableCases);
     const passRate = report.included === 0 ? 0 : (report.passed / report.included) * 100;
-    const discoveredSetFiles = new Set(discoveredCases.map((testCase) => testCase.setFile));
+    const includedSetFiles = new Set(runnableCases.map((testCase) => testCase.setFile));
 
     // eslint-disable-next-line no-console
     console.log(
-      `  QT3 MVP+2 broader baseline: ${report.passed}/${report.included} passed (${passRate.toFixed(1)}%) from ${discoveredCases.length} discovered supported-assertion cases across ${discoveredSetFiles.size} test sets`,
+      `  QT3 MVP+2 broader baseline: ${report.passed}/${report.included} passed (${passRate.toFixed(1)}%) from ${discoveredCases.length} discovered supported-assertion cases across ${includedSetFiles.size} included test sets`,
     );
 
     for (const cluster of report.clusters.slice(0, 10)) {
@@ -121,9 +121,10 @@ describe('W3C conformance — QT3 MVP+2 slice', () => {
       );
     }
 
-    expect(discoveredSetFiles.size).toBeGreaterThan(MVP2_QT3_SET_FILES.length);
+    expect(includedSetFiles.size).toBeGreaterThan(MVP2_QT3_SET_FILES.length);
     expect(report.included).toBeGreaterThan(0);
     expect(report.passed + report.failed).toBe(report.included);
     expect(report.passed).toBeGreaterThan(0);
+    expect(passRate).toBeGreaterThanOrEqual(20);
   });
 });

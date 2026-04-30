@@ -176,6 +176,20 @@ describe('XPath expression coverage', () => {
     ]);
   });
 
+  it('rebinds focus correctly for nested position() and last() path predicates', () => {
+    const context = createContext([
+      '<root>',
+      '  <a><b>A1</b><b>A2</b><b>A3</b></a>',
+      '  <a><b>B1</b><b>B2</b></a>',
+      '  <a><b>C1</b></a>',
+      '</root>',
+    ].join(''));
+
+    const result = [...evaluate(parseXPath('string(/root/a[b[position() = 2]][position() = last()]/b[last()])'), context)];
+
+    expect(result).toMatchObject([{ type: 'xs:string', value: 'B2' }]);
+  });
+
   it('raises XPDY0002 when position() or last() is called without a focus', () => {
     const context: DynamicContext = {
       staticContext: {
