@@ -160,6 +160,12 @@ describe('XPath built-in function coverage', () => {
     expect([...evaluate(parseXPath('namespace-uri(/root)'), context)]).toMatchObject([
       { type: 'xs:string', value: '' },
     ]);
+    expect([...evaluate(parseXPath('generate-id(/root/p:item)'), context)]).toMatchObject([
+      { type: 'xs:string', value: expect.stringMatching(/^d\d+$/) },
+    ]);
+    expect([...evaluate(parseXPath('generate-id(/root/p:item) = generate-id(/root/p:item)'), context)]).toMatchObject([
+      { type: 'xs:boolean', value: true },
+    ]);
     expect([...evaluate(parseXPath('node-name(/root/p:item)'), context)]).toMatchObject([
       { type: 'xs:QName', value: 'p:item' },
     ]);

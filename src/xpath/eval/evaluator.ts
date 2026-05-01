@@ -48,6 +48,9 @@ const PREDEFINED_NAMESPACE_PREFIXES = new Map<string, string>([
   ['xs', 'http://www.w3.org/2001/XMLSchema'],
 ]);
 
+const GENERATED_NODE_IDS = new WeakMap<Node, string>();
+let nextGeneratedNodeId = 1;
+
 export function evaluate(ast: XPathAst, context: DynamicContext): XdmSequence {
   return createSequence(evaluateExpression(ast, context));
 }
@@ -523,6 +526,10 @@ function evaluateFunctionCall(
     case 'fn:namespace-uri': {
       const item = evaluateOptionalSingletonNodeArg(normalized, args, context, span);
       return [createXdmString(getNamespaceUriValue(item))];
+    }
+    case 'fn:generate-id': {
+      const item = evaluateOptionalSingletonNodeArg(normalized, args, context, span);
+      return [createXdmString(getGeneratedNodeId(item))];
     }
     case 'fn:node-name': {
       const item = evaluateOptionalSingletonNodeArg(normalized, args, context, span);
@@ -1781,6 +1788,22 @@ function getNamespaceUriValue(node: XdmNode | undefined): string {
   return node.node.namespaceURI ?? '';
 }
 
+function getGeneratedNodeId(node: XdmNode | undefined): string {
+  if (node === undefined) {
+    return '';
+  }
+
+  const existing = GENERATED_NODE_IDS.get(node.node);
+  if (existing !== undefined) {
+    return existing;
+  }
+
+  const generated = `d${nextGeneratedNodeId}`;
+  nextGeneratedNodeId += 1;
+  GENERATED_NODE_IDS.set(node.node, generated);
+  return generated;
+}
+
 function getLocalNameFromQName(name: string): string {
   if (name.length === 0) {
     return '';
@@ -2456,6 +2479,7 @@ function validateFunctionCallSignature(name: string, actualArity: number, span: 
     case 'fn:name':
     case 'fn:local-name':
     case 'fn:namespace-uri':
+    case 'fn:generate-id':
     case 'fn:node-name':
     case 'fn:root':
       if (actualArity !== 0 && actualArity !== 1) {
