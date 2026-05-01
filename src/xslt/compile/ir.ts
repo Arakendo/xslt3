@@ -145,6 +145,7 @@ export type Instruction =
     }
   | {
       readonly kind: 'applyTemplates';
+      readonly withParams: readonly WithParam[];
       readonly selectText?: string;
       readonly select?: XPathAst;
       readonly location?: SourceLocation;

@@ -350,6 +350,57 @@ describe('@arakendo/xslt scaffold', () => {
     });
   });
 
+  it('treats valueless xsl:param and xsl:with-param bindings as zero-length strings', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out>
+            <xsl:call-template name="emit"/>
+            <xsl:call-template name="emit">
+              <xsl:with-param name="label"/>
+            </xsl:call-template>
+          </out>
+        </xsl:template>
+        <xsl:template name="emit">
+          <xsl:param name="label"/>
+          <entry><xsl:value-of select="$label = ''"/></entry>
+        </xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root/>')).toEqual({
+      output: '<out><entry>true</entry><entry>true</entry></out>',
+    });
+  });
+
+  it('passes xsl:with-param values through xsl:apply-templates into matched template params', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out>
+            <xsl:variable name="tree">
+              <label><xsl:value-of select="item"/></label>
+            </xsl:variable>
+            <xsl:apply-templates select="item">
+              <xsl:with-param name="tree" select="$tree"/>
+            </xsl:apply-templates>
+          </out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:param name="tree"/>
+          <xsl:param name="suffix">default</xsl:param>
+          <xsl:value-of select="$tree/label"/>
+          <xsl:text>, </xsl:text>
+          <xsl:value-of select="$suffix"/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root><item>test</item></root>')).toEqual({
+      output: '<out>test, default</out>',
+    });
+  });
+
   it('binds top-level xsl:variable values before template execution', () => {
     const proc = new XsltProcessor(`
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">

@@ -7,16 +7,55 @@
 
 import type { Attr, Element, Node } from '@xmldom/xmldom';
 
-import { XTSE0010, XTSE0165, XTSE0500 } from '../../errors/codes.js';
-import { XsltError, type ErrorContext, type ErrorSuggestion } from '../../errors/index.js';
+import { XPST0081, XTSE0010, XTSE0090, XTSE0165, XTSE0500, XTSE0580, XTSE0620, XTSE0630, XTSE0650, XTSE0660, XTSE0670, XTSE0680, XTSE0690 } from '../../errors/codes.js';
+import { XdmError, XsltError, type ErrorContext, type ErrorFrame, type ErrorSuggestion, type RelatedLocation } from '../../errors/index.js';
 import type { PathExpression, StepExpression, XPathAst } from '../../xpath/parse/ast.js';
 import { parseXPath } from '../../xpath/parse/parser.js';
 import { getAttributeValueSourceLocation, getElementNameSourceLocation, getNodeSourceLocation, parseXml } from '../../xml/parse.js';
 import type { AttributeInstruction, ChooseWhenBranch, GlobalBinding, GlobalParam, GlobalVariable, Instruction, StylesheetIR, TemplateParam, TemplateRule, WithParam } from './ir.js';
 
 const XSLT_NAMESPACE = 'http://www.w3.org/1999/XSL/Transform';
+const XMLNS_NAMESPACE = 'http://www.w3.org/2000/xmlns/';
 const STYLESHEET_SOURCE_NAME = '<stylesheet>';
 const SUPPORTED_XSLT_INSTRUCTION_NAMES = ['apply-templates', 'call-template', 'choose', 'comment', 'for-each', 'if', 'otherwise', 'text', 'value-of', 'variable', 'when'] as const;
+const SUPPORTED_XSLT_STYLESHEET_ATTRIBUTES = ['version'] as const;
+const KNOWN_LATER_XSLT_STYLESHEET_ATTRIBUTES = [
+  'default-collation',
+  'default-mode',
+  'default-validation',
+  'exclude-result-prefixes',
+  'expand-text',
+  'extension-element-prefixes',
+  'id',
+  'input-type-annotations',
+  'use-when',
+  'xpath-default-namespace',
+] as const;
+const SUPPORTED_XSLT_OUTPUT_ATTRIBUTES = ['method'] as const;
+const SUPPORTED_XSLT_OUTPUT_METHODS = ['xml'] as const;
+const KNOWN_LATER_XSLT_OUTPUT_METHODS = ['html', 'json', 'text'] as const;
+const KNOWN_LATER_XSLT_OUTPUT_ATTRIBUTES = [
+  'byte-order-mark',
+  'cdata-section-elements',
+  'doctype-public',
+  'doctype-system',
+  'encoding',
+  'escape-uri-attributes',
+  'html-version',
+  'include-content-type',
+  'indent',
+  'item-separator',
+  'media-type',
+  'name',
+  'normalization-form',
+  'omit-xml-declaration',
+  'parameter-document',
+  'standalone',
+  'suppress-indentation',
+  'undeclare-prefixes',
+  'use-character-maps',
+  'version',
+] as const;
 
 type NodeListLike = {
   readonly length: number;
@@ -45,6 +84,8 @@ export function compileStylesheet(stylesheetXml: string): StylesheetIR {
     );
   }
 
+  validateStylesheetRootAttributes(root, stylesheetXml);
+
   const version = root.getAttribute('version');
   if (version === null || version.length === 0) {
     throw createXsltStaticError(
@@ -62,6 +103,11 @@ export function compileStylesheet(stylesheetXml: string): StylesheetIR {
       XTSE0500,
     );
   }
+
+  assertNoDuplicateNamedTemplates(root, stylesheetXml);
+  assertNoDuplicateGlobalBindings(root, stylesheetXml);
+  assertNoUnknownCalledTemplates(root, stylesheetXml);
+  assertNoInvalidCallTemplateParams(root, stylesheetXml);
 
   const templates: TemplateRule[] = [];
   const globalBindings: GlobalBinding[] = [];
@@ -123,6 +169,297 @@ function collectStylesheetStaticContext(root: Element): Pick<StylesheetIR, 'name
   };
 }
 
+function assertNoDuplicateNamedTemplates(root: Element, stylesheetXml: string): void {
+  const namedTemplates = new Map<string, Element>();
+
+  for (const child of childElements(root)) {
+    if (!isXsltElement(child, 'template')) {
+      continue;
+    }
+
+    const rawName = child.getAttribute('name');
+    if (rawName === null || rawName.length === 0) {
+      continue;
+    }
+
+    const name = normalizeXsltQName(rawName, child, stylesheetXml, 'name', 'xsl:template');
+    if (!namedTemplates.has(name)) {
+      namedTemplates.set(name, child);
+      continue;
+    }
+
+    throw createXsltStaticError(
+      `Stylesheet cannot declare duplicate named xsl:template ${name}.`,
+      getAttributeValueSourceLocation(stylesheetXml, child, 'name', STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, child, STYLESHEET_SOURCE_NAME),
+      {
+        templateName: name,
+      },
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: `rename or remove one of the duplicate named templates for ${name}`,
+          confidence: 1,
+        }],
+      },
+      XTSE0660,
+    );
+  }
+}
+
+function assertNoDuplicateGlobalBindings(root: Element, stylesheetXml: string): void {
+  const globalBindings = new Map<string, Element>();
+
+  for (const child of childElements(root)) {
+    if (!isXsltElement(child, 'param') && !isXsltElement(child, 'variable')) {
+      continue;
+    }
+
+    const rawName = child.getAttribute('name');
+    if (rawName === null || rawName.length === 0) {
+      continue;
+    }
+
+    const name = normalizeXsltQName(rawName, child, stylesheetXml, 'name', child.localName === 'param' ? 'xsl:param' : 'xsl:variable');
+    if (!globalBindings.has(name)) {
+      globalBindings.set(name, child);
+      continue;
+    }
+
+    throw createXsltStaticError(
+      `Stylesheet cannot declare duplicate global binding ${name}.`,
+      getAttributeValueSourceLocation(stylesheetXml, child, 'name', STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, child, STYLESHEET_SOURCE_NAME),
+      {
+        bindingName: name,
+      },
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: `rename or remove one of the duplicate global bindings for ${name}`,
+          confidence: 1,
+        }],
+      },
+      XTSE0630,
+    );
+  }
+}
+
+function assertNoUnknownCalledTemplates(root: Element, stylesheetXml: string): void {
+  const namedTemplates = collectNamedTemplateDisplayNames(root, stylesheetXml);
+
+  for (const child of childElements(root)) {
+    if (!isXsltElement(child, 'template') && !isXsltElement(child, 'param') && !isXsltElement(child, 'variable')) {
+      continue;
+    }
+
+    for (const element of descendantElements(child)) {
+      if (!isXsltElement(element, 'call-template')) {
+        continue;
+      }
+
+      const rawName = element.getAttribute('name');
+      if (rawName === null || rawName.length === 0) {
+        continue;
+      }
+
+      const name = normalizeXsltQName(rawName, element, stylesheetXml, 'name', 'xsl:call-template');
+      if (namedTemplates.has(name)) {
+        continue;
+      }
+
+      const suggestion = createNamedTemplateReferenceSuggestion(rawName, namedTemplates);
+
+      throw createXsltStaticError(
+        `xsl:call-template cannot target undeclared template ${name}.`,
+        getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
+          ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+        {
+          templateName: name,
+        },
+        suggestion === undefined
+          ? {
+              suggestions: [{
+                kind: 'fix',
+                label: `declare xsl:template name="${rawName}" or update xsl:call-template`,
+                confidence: 1,
+              }],
+            }
+          : { suggestions: [suggestion] },
+        XTSE0650,
+      );
+    }
+  }
+}
+
+function assertNoInvalidCallTemplateParams(root: Element, stylesheetXml: string): void {
+  const namedTemplates = collectNamedTemplateSignatures(root, stylesheetXml);
+
+  for (const child of childElements(root)) {
+    if (!isXsltElement(child, 'template') && !isXsltElement(child, 'param') && !isXsltElement(child, 'variable')) {
+      continue;
+    }
+
+    for (const element of descendantElements(child)) {
+      if (!isXsltElement(element, 'call-template')) {
+        continue;
+      }
+
+      const rawName = element.getAttribute('name');
+      if (rawName === null || rawName.length === 0) {
+        continue;
+      }
+
+      if (!childElements(element).every((entry) => isXsltElement(entry, 'with-param'))) {
+        continue;
+      }
+
+      if (!childElements(element).every((entry) => canValidateCallTemplateWithParam(entry))) {
+        continue;
+      }
+
+      const targetName = normalizeXsltQName(rawName, element, stylesheetXml, 'name', 'xsl:call-template');
+      const signature = namedTemplates.get(targetName);
+      if (signature === undefined) {
+        continue;
+      }
+
+      const suppliedParams = new Set<string>();
+      for (const withParamElement of childElements(element)) {
+        const withParamName = withParamElement.getAttribute('name');
+        if (withParamName === null || withParamName.length === 0 || isTunnelParamElement(withParamElement)) {
+          continue;
+        }
+
+        const normalizedWithParamName = normalizeXsltQName(withParamName, withParamElement, stylesheetXml, 'name', 'xsl:with-param');
+        suppliedParams.add(normalizedWithParamName);
+        if (signature.nonTunnelParams.has(normalizedWithParamName)) {
+          continue;
+        }
+
+        const suggestion = createCallTemplateParamSuggestion(withParamName, signature.nonTunnelParamDisplayNames);
+
+        throw createXsltStaticError(
+          `xsl:call-template cannot pass undeclared parameter ${normalizedWithParamName} to template ${targetName}.`,
+          getAttributeValueSourceLocation(stylesheetXml, withParamElement, 'name', STYLESHEET_SOURCE_NAME)
+            ?? getNodeSourceLocation(stylesheetXml, withParamElement, STYLESHEET_SOURCE_NAME),
+          {
+            parameterName: normalizedWithParamName,
+            templateName: targetName,
+          },
+          suggestion === undefined
+            ? {
+                suggestions: [{
+                  kind: 'fix',
+                  label: `declare xsl:param name="${withParamName}" on template ${rawName} or remove the xsl:with-param`,
+                  confidence: 1,
+                }],
+              }
+            : { suggestions: [suggestion] },
+          XTSE0680,
+        );
+      }
+
+      for (const requiredParam of signature.requiredNonTunnelParams) {
+        if (suppliedParams.has(requiredParam.name)) {
+          continue;
+        }
+
+        throw createXsltStaticError(
+          `xsl:call-template must supply required parameter ${requiredParam.name} to template ${targetName}.`,
+          getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
+            ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+          {
+            parameterName: requiredParam.name,
+            templateName: targetName,
+          },
+          {
+            suggestions: [{
+              kind: 'fix',
+              label: `add xsl:with-param name="${stripClarkNotation(requiredParam.name)}" to xsl:call-template or make the parameter optional`,
+              confidence: 1,
+            }],
+          },
+          XTSE0690,
+        );
+      }
+    }
+  }
+}
+
+function collectNamedTemplateDisplayNames(root: Element, stylesheetXml: string): ReadonlyMap<string, string> {
+  const namedTemplates = new Map<string, string>();
+
+  for (const child of childElements(root)) {
+    if (!isXsltElement(child, 'template')) {
+      continue;
+    }
+
+    const rawName = child.getAttribute('name');
+    if (rawName === null || rawName.length === 0) {
+      continue;
+    }
+
+    namedTemplates.set(normalizeXsltQName(rawName, child, stylesheetXml, 'name', 'xsl:template'), rawName);
+  }
+
+  return namedTemplates;
+}
+
+function collectNamedTemplateSignatures(root: Element, stylesheetXml: string): ReadonlyMap<string, {
+  readonly nonTunnelParams: ReadonlySet<string>;
+  readonly nonTunnelParamDisplayNames: ReadonlyMap<string, string>;
+  readonly requiredNonTunnelParams: ReadonlyArray<{ readonly name: string }>;
+}> {
+  const signatures = new Map<string, {
+    readonly nonTunnelParams: ReadonlySet<string>;
+    readonly nonTunnelParamDisplayNames: ReadonlyMap<string, string>;
+    readonly requiredNonTunnelParams: ReadonlyArray<{ readonly name: string }>;
+  }>();
+
+  for (const child of childElements(root)) {
+    if (!isXsltElement(child, 'template')) {
+      continue;
+    }
+
+    const rawName = child.getAttribute('name');
+    if (rawName === null || rawName.length === 0) {
+      continue;
+    }
+
+    const normalizedName = normalizeXsltQName(rawName, child, stylesheetXml, 'name', 'xsl:template');
+    const nonTunnelParams = new Set<string>();
+    const nonTunnelParamDisplayNames = new Map<string, string>();
+    const requiredNonTunnelParams: Array<{ readonly name: string }> = [];
+
+    for (const paramElement of leadingTemplateParamElements(child)) {
+      if (isTunnelParamElement(paramElement)) {
+        continue;
+      }
+
+      const paramRawName = paramElement.getAttribute('name');
+      if (paramRawName === null || paramRawName.length === 0) {
+        continue;
+      }
+
+      const normalizedParamName = normalizeXsltQName(paramRawName, paramElement, stylesheetXml, 'name', 'xsl:param');
+      nonTunnelParams.add(normalizedParamName);
+      nonTunnelParamDisplayNames.set(normalizedParamName, paramRawName);
+      if (parseRequiredAttribute(paramElement)) {
+        requiredNonTunnelParams.push({ name: normalizedParamName });
+      }
+    }
+
+    signatures.set(normalizedName, {
+      nonTunnelParams,
+      nonTunnelParamDisplayNames,
+      requiredNonTunnelParams,
+    });
+  }
+
+  return signatures;
+}
+
 function compileTopLevelDeclaration(element: Element, stylesheetXml: string): TemplateRule | GlobalBinding | undefined {
   if (isXsltElement(element, 'template')) {
     return compileTemplateRule(element, stylesheetXml);
@@ -137,10 +474,12 @@ function compileTopLevelDeclaration(element: Element, stylesheetXml: string): Te
   }
 
   if (isXsltElement(element, 'strip-space')) {
+    assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:strip-space', ['elements']);
     return undefined;
   }
 
   if (isXsltElement(element, 'output')) {
+    validateOutputDeclaration(element, stylesheetXml);
     return undefined;
   }
 
@@ -199,7 +538,241 @@ function compileTopLevelDeclaration(element: Element, stylesheetXml: string): Te
   );
 }
 
+function validateStylesheetRootAttributes(root: Element, stylesheetXml: string): void {
+  const supported = new Set<string>(SUPPORTED_XSLT_STYLESHEET_ATTRIBUTES);
+  const knownLater = new Set<string>(KNOWN_LATER_XSLT_STYLESHEET_ATTRIBUTES);
+  const candidateAttributes = [
+    ...SUPPORTED_XSLT_STYLESHEET_ATTRIBUTES,
+    ...KNOWN_LATER_XSLT_STYLESHEET_ATTRIBUTES,
+  ];
+  const instructionName = root.nodeName;
+
+  for (let index = 0; index < root.attributes.length; index += 1) {
+    const attribute = root.attributes.item(index) as Attr | null;
+    if (attribute === null) {
+      continue;
+    }
+
+    if (attribute.prefix === 'xmlns' || attribute.nodeName === 'xmlns' || attribute.namespaceURI === XMLNS_NAMESPACE) {
+      continue;
+    }
+
+    const attributeName = attribute.nodeName;
+    const localName = attribute.localName ?? attributeName;
+    if (attribute.namespaceURI === XSLT_NAMESPACE) {
+      throw createXsltStaticError(
+        `${instructionName} cannot use an attribute in the XSLT namespace: ${attributeName}.`,
+        getAttributeValueSourceLocation(stylesheetXml, root, attributeName, STYLESHEET_SOURCE_NAME)
+          ?? getNodeSourceLocation(stylesheetXml, attribute, STYLESHEET_SOURCE_NAME),
+        {
+          attributeName,
+          instructionName,
+        },
+        {
+          suggestions: [{
+            kind: 'fix',
+            label: `remove ${attributeName} from ${instructionName}`,
+            confidence: 1,
+          }],
+        },
+        XTSE0090,
+      );
+    }
+
+    if (attribute.namespaceURI !== null && attribute.namespaceURI.length > 0) {
+      continue;
+    }
+
+    if (supported.has(localName)) {
+      continue;
+    }
+
+    if (knownLater.has(localName)) {
+      throw createXsltStaticError(
+        `${instructionName} attribute ${attributeName} is not yet implemented in the current MVP+3 slice.`,
+        getAttributeValueSourceLocation(stylesheetXml, root, attributeName, STYLESHEET_SOURCE_NAME)
+          ?? getNodeSourceLocation(stylesheetXml, attribute, STYLESHEET_SOURCE_NAME),
+        {
+          attributeName,
+          instructionName,
+        },
+        {
+          suggestions: [{
+            kind: 'fix',
+            label: `remove ${attributeName} from ${instructionName} in the current MVP+3 slice`,
+            confidence: 1,
+          }],
+        },
+        XTSE0090,
+      );
+    }
+
+    const suggestion = createAttributeSuggestion(localName, candidateAttributes);
+    throw createXsltStaticError(
+      `${instructionName} has an unsupported attribute ${attributeName}.`,
+      getAttributeValueSourceLocation(stylesheetXml, root, attributeName, STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, attribute, STYLESHEET_SOURCE_NAME),
+      {
+        attributeName,
+        instructionName,
+      },
+      suggestion === undefined
+        ? {
+            suggestions: [{
+              kind: 'fix',
+              label: `remove ${attributeName} from ${instructionName}`,
+              confidence: 1,
+            }],
+          }
+        : { suggestions: [suggestion] },
+      XTSE0090,
+    );
+  }
+}
+
+function validateOutputDeclaration(element: Element, stylesheetXml: string): void {
+  const supported = new Set<string>(SUPPORTED_XSLT_OUTPUT_ATTRIBUTES);
+  const knownLater = new Set<string>(KNOWN_LATER_XSLT_OUTPUT_ATTRIBUTES);
+  const candidateAttributes = [
+    ...SUPPORTED_XSLT_OUTPUT_ATTRIBUTES,
+    ...KNOWN_LATER_XSLT_OUTPUT_ATTRIBUTES,
+  ];
+
+  for (let index = 0; index < element.attributes.length; index += 1) {
+    const attribute = element.attributes.item(index) as Attr | null;
+    if (attribute === null) {
+      continue;
+    }
+
+    if (attribute.prefix === 'xmlns' || attribute.nodeName === 'xmlns' || attribute.namespaceURI === XMLNS_NAMESPACE) {
+      continue;
+    }
+
+    const attributeName = attribute.nodeName;
+    const localName = attribute.localName ?? attributeName;
+    if (attribute.namespaceURI === XSLT_NAMESPACE) {
+      throw createXsltStaticError(
+        `xsl:output cannot use an attribute in the XSLT namespace: ${attributeName}.`,
+        getAttributeValueSourceLocation(stylesheetXml, element, attributeName, STYLESHEET_SOURCE_NAME)
+          ?? getNodeSourceLocation(stylesheetXml, attribute, STYLESHEET_SOURCE_NAME),
+        {
+          attributeName,
+          instructionName: 'xsl:output',
+        },
+        {
+          suggestions: [{
+            kind: 'fix',
+            label: `remove ${attributeName} from xsl:output`,
+            confidence: 1,
+          }],
+        },
+        XTSE0090,
+      );
+    }
+
+    if (attribute.namespaceURI !== null && attribute.namespaceURI.length > 0) {
+      continue;
+    }
+
+    if (supported.has(localName)) {
+      continue;
+    }
+
+    if (knownLater.has(localName)) {
+      throw createXsltStaticError(
+        `xsl:output attribute ${attributeName} is not yet implemented in the current MVP+3 slice.`,
+        getAttributeValueSourceLocation(stylesheetXml, element, attributeName, STYLESHEET_SOURCE_NAME)
+          ?? getNodeSourceLocation(stylesheetXml, attribute, STYLESHEET_SOURCE_NAME),
+        {
+          attributeName,
+          instructionName: 'xsl:output',
+        },
+        {
+          suggestions: [{
+            kind: 'fix',
+            label: `remove ${attributeName} from xsl:output or omit xsl:output in the current MVP+3 slice`,
+            confidence: 1,
+          }],
+        },
+        XTSE0090,
+      );
+    }
+
+    const suggestion = createAttributeSuggestion(localName, candidateAttributes);
+    throw createXsltStaticError(
+      `xsl:output has an unsupported attribute ${attributeName}.`,
+      getAttributeValueSourceLocation(stylesheetXml, element, attributeName, STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, attribute, STYLESHEET_SOURCE_NAME),
+      {
+        attributeName,
+        instructionName: 'xsl:output',
+      },
+      suggestion === undefined
+        ? {
+            suggestions: [{
+              kind: 'fix',
+              label: `remove ${attributeName} from xsl:output`,
+              confidence: 1,
+            }],
+          }
+        : { suggestions: [suggestion] },
+      XTSE0090,
+    );
+  }
+
+  const method = element.getAttribute('method');
+  if (method === null) {
+    return;
+  }
+
+  if ((SUPPORTED_XSLT_OUTPUT_METHODS as readonly string[]).includes(method)) {
+    return;
+  }
+
+  if ((KNOWN_LATER_XSLT_OUTPUT_METHODS as readonly string[]).includes(method)) {
+    throw createXsltStaticError(
+      `xsl:output method ${JSON.stringify(method)} is not yet implemented in the current MVP+3 slice.`,
+      getAttributeValueSourceLocation(stylesheetXml, element, 'method', STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      {
+        method,
+        instructionName: 'xsl:output',
+      },
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'use method="xml" or omit xsl:output in the current MVP+3 slice',
+          confidence: 1,
+        }],
+      },
+      XTSE0090,
+    );
+  }
+
+  throw createXsltStaticError(
+    `xsl:output has an unsupported method ${JSON.stringify(method)}.`,
+    getAttributeValueSourceLocation(stylesheetXml, element, 'method', STYLESHEET_SOURCE_NAME)
+      ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+    {
+      method,
+      instructionName: 'xsl:output',
+    },
+    createOutputMethodSuggestion(method) === undefined
+      ? {
+          suggestions: [{
+            kind: 'fix',
+            label: 'use method="xml" or omit xsl:output in the current MVP+3 slice',
+            confidence: 1,
+          }],
+        }
+      : { suggestions: [createOutputMethodSuggestion(method)!] },
+    XTSE0090,
+  );
+}
+
 function compileTopLevelVariable(element: Element, stylesheetXml: string): GlobalVariable {
+  assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:variable', ['as', 'name', 'select']);
+
   const rawName = element.getAttribute('name');
   if (rawName === null || rawName.length === 0) {
     throw createXsltStaticError(
@@ -228,6 +801,10 @@ function compileTopLevelVariable(element: Element, stylesheetXml: string): Globa
   const body = select === undefined && hasMeaningfulTemplateContent(element)
     ? compileInstructions(element.childNodes, stylesheetXml)
     : undefined;
+  const selectLocation = select === undefined
+    ? undefined
+    : getAttributeValueSourceLocation(stylesheetXml, element, 'select', STYLESHEET_SOURCE_NAME)
+      ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME);
 
   const location = getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
     ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME);
@@ -236,7 +813,7 @@ function compileTopLevelVariable(element: Element, stylesheetXml: string): Globa
   return {
     kind: 'variable',
     name,
-    ...(select === undefined ? {} : { select: parseXPath(select) }),
+    ...(select === undefined ? {} : { select: parseXPathInContext(select, selectLocation, 'xsl:variable', 'select') }),
     ...(select === undefined ? {} : { selectText: select }),
     ...(body === undefined ? {} : { body }),
     ...(location === undefined ? {} : { location }),
@@ -252,6 +829,24 @@ function compileTopLevelParam(element: Element, stylesheetXml: string): GlobalPa
 }
 
 function compileTemplateRule(templateElement: Element, stylesheetXml: string): TemplateRule {
+  assertAllowedXsltAttributes(templateElement, stylesheetXml, 'xsl:template', ['match', 'mode', 'name', 'priority']);
+
+  const modeText = templateElement.getAttribute('mode');
+  if (modeText !== null) {
+    throw createXsltStaticError(
+      'xsl:template mode is not yet implemented in the current MVP+3 slice.',
+      getAttributeValueSourceLocation(stylesheetXml, templateElement, 'mode', STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, templateElement, STYLESHEET_SOURCE_NAME),
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'remove mode="..." and use the default mode in the current MVP+3 slice',
+          confidence: 1,
+        }],
+      },
+    );
+  }
+
   const matchText = templateElement.getAttribute('match') ?? undefined;
   const rawName = templateElement.getAttribute('name') ?? undefined;
   const priorityText = templateElement.getAttribute('priority');
@@ -271,12 +866,17 @@ function compileTemplateRule(templateElement: Element, stylesheetXml: string): T
     );
   }
 
-  const match = matchText === undefined ? undefined : parseXPath(matchText);
+  const matchLocation = matchText === undefined
+    ? undefined
+    : getAttributeValueSourceLocation(stylesheetXml, templateElement, 'match', STYLESHEET_SOURCE_NAME)
+      ?? getNodeSourceLocation(stylesheetXml, templateElement, STYLESHEET_SOURCE_NAME);
+  const match = matchText === undefined
+    ? undefined
+    : parseXPathInContext(matchText, matchLocation, 'xsl:template', 'match', 'template');
   if (match !== undefined && !isSupportedTemplateMatch(match)) {
     throw createXsltStaticError(
       `Unsupported template match pattern ${JSON.stringify(matchText)} in current MVP+3 slice.`,
-      getAttributeValueSourceLocation(stylesheetXml, templateElement, 'match', STYLESHEET_SOURCE_NAME)
-        ?? getNodeSourceLocation(stylesheetXml, templateElement, STYLESHEET_SOURCE_NAME),
+      matchLocation,
       {
         suggestions: [{
           kind: 'fix',
@@ -288,8 +888,7 @@ function compileTemplateRule(templateElement: Element, stylesheetXml: string): T
   }
 
   const location = matchText !== undefined
-    ? getAttributeValueSourceLocation(stylesheetXml, templateElement, 'match', STYLESHEET_SOURCE_NAME)
-      ?? getNodeSourceLocation(stylesheetXml, templateElement, STYLESHEET_SOURCE_NAME)
+    ? matchLocation
     : rawName !== undefined
       ? getAttributeValueSourceLocation(stylesheetXml, templateElement, 'name', STYLESHEET_SOURCE_NAME)
         ?? getNodeSourceLocation(stylesheetXml, templateElement, STYLESHEET_SOURCE_NAME)
@@ -336,7 +935,28 @@ function compileTemplateContent(templateElement: Element, stylesheetXml: string)
           );
         }
 
-        params.push(compileTemplateParam(element, stylesheetXml));
+        const param = compileTemplateParam(element, stylesheetXml);
+        if (params.some((existing) => existing.name === param.name)) {
+          throw createXsltStaticError(
+            `xsl:template cannot declare duplicate xsl:param name ${param.name}.`,
+            param.location
+              ?? getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
+              ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+            {
+              paramName: param.name,
+            },
+            {
+              suggestions: [{
+                kind: 'fix',
+                label: `rename or remove one of the duplicate xsl:param declarations for ${param.name}`,
+                confidence: 1,
+              }],
+            },
+            XTSE0580,
+          );
+        }
+
+        params.push(param);
         continue;
       }
     }
@@ -352,6 +972,8 @@ function compileTemplateContent(templateElement: Element, stylesheetXml: string)
 }
 
 function compileTemplateParam(element: Element, stylesheetXml: string): TemplateParam {
+  assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:param', ['as', 'name', 'required', 'select', 'tunnel']);
+
   const rawName = element.getAttribute('name');
   if (rawName === null || rawName.length === 0) {
     throw createXsltStaticError(
@@ -417,6 +1039,10 @@ function compileTemplateParam(element: Element, stylesheetXml: string): Template
   const body = select === undefined && hasMeaningfulTemplateContent(element)
     ? compileInstructions(element.childNodes, stylesheetXml)
     : undefined;
+  const selectLocation = select === undefined
+    ? undefined
+    : getAttributeValueSourceLocation(stylesheetXml, element, 'select', STYLESHEET_SOURCE_NAME)
+      ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME);
 
   const location = getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
     ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME);
@@ -425,7 +1051,7 @@ function compileTemplateParam(element: Element, stylesheetXml: string): Template
   return {
     name,
     ...(required ? { required: true } : {}),
-    ...(select === undefined ? {} : { select: parseXPath(select) }),
+    ...(select === undefined ? {} : { select: parseXPathInContext(select, selectLocation, 'xsl:param', 'select') }),
     ...(select === undefined ? {} : { selectText: select }),
     ...(body === undefined ? {} : { body }),
     ...(location === undefined ? {} : { location }),
@@ -433,6 +1059,8 @@ function compileTemplateParam(element: Element, stylesheetXml: string): Template
 }
 
 function compileWithParam(element: Element, stylesheetXml: string): WithParam {
+  assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:with-param', ['as', 'name', 'select', 'tunnel']);
+
   const rawName = element.getAttribute('name');
   if (rawName === null || rawName.length === 0) {
     throw createXsltStaticError(
@@ -461,6 +1089,10 @@ function compileWithParam(element: Element, stylesheetXml: string): WithParam {
   const body = select === undefined && hasMeaningfulTemplateContent(element)
     ? compileInstructions(element.childNodes, stylesheetXml)
     : undefined;
+  const selectLocation = select === undefined
+    ? undefined
+    : getAttributeValueSourceLocation(stylesheetXml, element, 'select', STYLESHEET_SOURCE_NAME)
+      ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME);
 
   const location = getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
     ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME);
@@ -468,7 +1100,7 @@ function compileWithParam(element: Element, stylesheetXml: string): WithParam {
 
   return {
     name,
-    ...(select === undefined ? {} : { select: parseXPath(select) }),
+    ...(select === undefined ? {} : { select: parseXPathInContext(select, selectLocation, 'xsl:with-param', 'select') }),
     ...(select === undefined ? {} : { selectText: select }),
     ...(body === undefined ? {} : { body }),
     ...(location === undefined ? {} : { location }),
@@ -510,8 +1142,11 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
 
   const element = node as Element;
   if (isXsltElement(element, 'apply-templates')) {
+    assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:apply-templates', ['mode', 'select']);
+
     const select = element.getAttribute('select') ?? undefined;
     const mode = element.getAttribute('mode');
+    const withParams: WithParam[] = [];
     const location = select === undefined
       ? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME)
       : getAttributeValueSourceLocation(stylesheetXml, element, 'select', STYLESHEET_SOURCE_NAME)
@@ -532,15 +1167,39 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
       );
     }
 
+    for (const child of childElements(element)) {
+      if (!isXsltElement(child, 'with-param')) {
+        throw createXsltStaticError(
+          `xsl:apply-templates only supports xsl:with-param children; found ${child.nodeName}.`,
+          getElementNameSourceLocation(stylesheetXml, child, STYLESHEET_SOURCE_NAME)
+            ?? getNodeSourceLocation(stylesheetXml, child, STYLESHEET_SOURCE_NAME),
+          {
+            suggestions: [{
+              kind: 'fix',
+              label: 'replace the child with xsl:with-param or remove it from xsl:apply-templates',
+              confidence: 1,
+            }],
+          },
+        );
+      }
+
+      const withParam = compileWithParam(child, stylesheetXml);
+      assertNoDuplicateWithParam(withParams, withParam, stylesheetXml, child, 'xsl:apply-templates');
+      withParams.push(withParam);
+    }
+
     return {
       kind: 'applyTemplates',
+      withParams,
       ...(location === undefined ? {} : { location }),
       ...(select === undefined ? {} : { selectText: select }),
-      ...(select === undefined ? {} : { select: parseXPath(select) }),
+      ...(select === undefined ? {} : { select: parseXPathInContext(select, location, 'xsl:apply-templates', 'select') }),
     };
   }
 
   if (isXsltElement(element, 'call-template')) {
+    assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:call-template', ['name']);
+
     const rawName = element.getAttribute('name');
     if (rawName === null || rawName.length === 0) {
       throw createXsltStaticError(
@@ -564,10 +1223,19 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
           `xsl:call-template only supports xsl:with-param children; found ${child.nodeName}.`,
           getElementNameSourceLocation(stylesheetXml, child, STYLESHEET_SOURCE_NAME)
             ?? getNodeSourceLocation(stylesheetXml, child, STYLESHEET_SOURCE_NAME),
+          {
+            suggestions: [{
+              kind: 'fix',
+              label: 'replace the child with xsl:with-param or remove it from xsl:call-template',
+              confidence: 1,
+            }],
+          },
         );
       }
 
-      withParams.push(compileWithParam(child, stylesheetXml));
+      const withParam = compileWithParam(child, stylesheetXml);
+      assertNoDuplicateWithParam(withParams, withParam, stylesheetXml, child, 'xsl:call-template');
+      withParams.push(withParam);
     }
 
     const location = getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
@@ -583,6 +1251,8 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
   }
 
   if (isXsltElement(element, 'variable')) {
+    assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:variable', ['as', 'name', 'select']);
+
     const rawName = element.getAttribute('name');
     if (rawName === null || rawName.length === 0) {
       throw createXsltStaticError(
@@ -611,6 +1281,10 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
     const body = select === undefined && hasMeaningfulTemplateContent(element)
       ? compileInstructions(element.childNodes, stylesheetXml)
       : undefined;
+    const selectLocation = select === undefined
+      ? undefined
+      : getAttributeValueSourceLocation(stylesheetXml, element, 'select', STYLESHEET_SOURCE_NAME)
+        ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME);
 
     const location = getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
       ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME);
@@ -619,7 +1293,7 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
     return {
       kind: 'variable',
       name,
-      ...(select === undefined ? {} : { select: parseXPath(select) }),
+      ...(select === undefined ? {} : { select: parseXPathInContext(select, selectLocation, 'xsl:variable', 'select') }),
       ...(select === undefined ? {} : { selectText: select }),
       ...(body === undefined ? {} : { body }),
       ...(location === undefined ? {} : { location }),
@@ -627,6 +1301,8 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
   }
 
   if (isXsltElement(element, 'if')) {
+    assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:if', ['test']);
+
     const test = element.getAttribute('test');
     if (test === null || test.length === 0) {
       throw createXsltStaticError(
@@ -648,7 +1324,7 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
 
     return {
       kind: 'if',
-      test: parseXPath(test),
+      test: parseXPathInContext(test, location, 'xsl:if', 'test'),
       testText: test,
       body: compileInstructions(element.childNodes, stylesheetXml),
       ...(location === undefined ? {} : { location }),
@@ -656,6 +1332,8 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
   }
 
   if (isXsltElement(element, 'comment')) {
+    assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:comment', []);
+
     return {
       kind: 'comment',
       body: compileInstructions(element.childNodes, stylesheetXml),
@@ -663,6 +1341,8 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
   }
 
   if (isXsltElement(element, 'choose')) {
+    assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:choose', []);
+
     const whenBranches: ChooseWhenBranch[] = [];
     let otherwiseBody: Instruction[] | undefined;
     let otherwiseLocation: TemplateRule['location'] | undefined;
@@ -670,6 +1350,8 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
 
     for (const child of childElements(element)) {
       if (isXsltElement(child, 'when')) {
+        assertAllowedXsltAttributes(child, stylesheetXml, 'xsl:when', ['test']);
+
         if (seenOtherwise) {
           throw createXsltStaticError(
             'xsl:when cannot appear after xsl:otherwise within xsl:choose.',
@@ -697,7 +1379,7 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
         const location = getAttributeValueSourceLocation(stylesheetXml, child, 'test', STYLESHEET_SOURCE_NAME)
           ?? getNodeSourceLocation(stylesheetXml, child, STYLESHEET_SOURCE_NAME);
         whenBranches.push({
-          test: parseXPath(test),
+          test: parseXPathInContext(test, location, 'xsl:when', 'test'),
           testText: test,
           body: compileInstructions(child.childNodes, stylesheetXml),
           ...(location === undefined ? {} : { location }),
@@ -706,6 +1388,8 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
       }
 
       if (isXsltElement(child, 'otherwise')) {
+        assertAllowedXsltAttributes(child, stylesheetXml, 'xsl:otherwise', []);
+
         if (seenOtherwise) {
           throw createXsltStaticError(
             'xsl:choose cannot contain more than one xsl:otherwise.',
@@ -743,6 +1427,8 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
   }
 
   if (isXsltElement(element, 'for-each')) {
+    assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:for-each', ['select']);
+
     const select = element.getAttribute('select');
     if (select === null || select.length === 0) {
       throw createXsltStaticError(
@@ -764,7 +1450,7 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
 
     return {
       kind: 'forEach',
-      select: parseXPath(select),
+      select: parseXPathInContext(select, location, 'xsl:for-each', 'select'),
       selectText: select,
       body: compileInstructions(element.childNodes, stylesheetXml),
       ...(location === undefined ? {} : { location }),
@@ -772,6 +1458,8 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
   }
 
   if (isXsltElement(element, 'value-of')) {
+    assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:value-of', ['select', 'separator']);
+
     const select = element.getAttribute('select');
     if (select === null || select.length === 0) {
       throw createXsltStaticError(
@@ -794,7 +1482,7 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
     const separator = element.getAttribute('separator') ?? undefined;
     return {
       kind: 'valueOf',
-      select: parseXPath(select),
+      select: parseXPathInContext(select, location, 'xsl:value-of', 'select'),
       selectText: select,
       ...(location === undefined ? {} : { location }),
       ...(separator === undefined ? {} : { separator }),
@@ -802,6 +1490,8 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
   }
 
   if (isXsltElement(element, 'text')) {
+    assertAllowedXsltAttributes(element, stylesheetXml, 'xsl:text', []);
+
     return {
       kind: 'literalText',
       text: element.textContent ?? '',
@@ -954,6 +1644,150 @@ function assertNoSelectAndContent(
         confidence: 1,
       }],
     },
+    XTSE0620,
+  );
+}
+
+
+function assertAllowedXsltAttributes(
+  element: Element,
+  stylesheetXml: string,
+  instructionName: string,
+  allowedAttributeNames: readonly string[],
+): void {
+  const allowed = new Set(allowedAttributeNames);
+
+  for (let index = 0; index < element.attributes.length; index += 1) {
+    const attribute = element.attributes.item(index) as Attr | null;
+    if (attribute === null) {
+      continue;
+    }
+
+    if (attribute.prefix === 'xmlns' || attribute.nodeName === 'xmlns' || attribute.namespaceURI === XMLNS_NAMESPACE) {
+      continue;
+    }
+
+    const attributeName = attribute.nodeName;
+    const localName = attribute.localName ?? attributeName;
+    if (attribute.namespaceURI === XSLT_NAMESPACE) {
+      throw createXsltStaticError(
+        `${instructionName} cannot use an attribute in the XSLT namespace: ${attributeName}.`,
+        getAttributeValueSourceLocation(stylesheetXml, element, attributeName, STYLESHEET_SOURCE_NAME)
+          ?? getNodeSourceLocation(stylesheetXml, attribute, STYLESHEET_SOURCE_NAME),
+        {
+          attributeName,
+          instructionName,
+        },
+        {
+          suggestions: [{
+            kind: 'fix',
+            label: `remove ${attributeName} from ${instructionName}`,
+            confidence: 1,
+          }],
+        },
+        XTSE0090,
+      );
+    }
+
+    if ((attribute.namespaceURI === null || attribute.namespaceURI.length === 0) && !allowed.has(localName)) {
+      const suggestion = createAttributeSuggestion(localName, allowedAttributeNames);
+      throw createXsltStaticError(
+        `${instructionName} has an unsupported attribute ${attributeName}.`,
+        getAttributeValueSourceLocation(stylesheetXml, element, attributeName, STYLESHEET_SOURCE_NAME)
+          ?? getNodeSourceLocation(stylesheetXml, attribute, STYLESHEET_SOURCE_NAME),
+        {
+          attributeName,
+          instructionName,
+        },
+        suggestion === undefined
+          ? {
+              suggestions: [{
+                kind: 'fix',
+                label: `remove ${attributeName} from ${instructionName}`,
+                confidence: 1,
+              }],
+            }
+          : { suggestions: [suggestion] },
+        XTSE0090,
+      );
+    }
+  }
+}
+
+function createAttributeSuggestion(
+  rawName: string,
+  allowedAttributeNames: readonly string[],
+): ErrorSuggestion | undefined {
+  const nearest = allowedAttributeNames
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(rawName, candidate),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean ${nearest.candidate}="..."?`,
+    replacement: nearest.candidate,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / nearest.candidate.length),
+  };
+}
+
+function createOutputMethodSuggestion(rawMethod: string): ErrorSuggestion | undefined {
+  const candidates = [
+    ...SUPPORTED_XSLT_OUTPUT_METHODS,
+    ...KNOWN_LATER_XSLT_OUTPUT_METHODS,
+  ];
+  const nearest = candidates
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(rawMethod, candidate),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean method="${nearest.candidate}"?`,
+    replacement: nearest.candidate,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / nearest.candidate.length),
+  };
+}
+
+function assertNoDuplicateWithParam(
+  existingParams: readonly WithParam[],
+  withParam: WithParam,
+  stylesheetXml: string,
+  element: Element,
+  parentInstructionName: 'xsl:apply-templates' | 'xsl:call-template',
+): void {
+  if (!existingParams.some((existing) => existing.name === withParam.name)) {
+    return;
+  }
+
+  throw createXsltStaticError(
+    `${parentInstructionName} cannot declare duplicate xsl:with-param name ${withParam.name}.`,
+    withParam.location
+      ?? getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
+      ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+    {
+      paramName: withParam.name,
+    },
+    {
+      suggestions: [{
+        kind: 'fix',
+        label: `rename or remove one of the duplicate xsl:with-param declarations for ${withParam.name}`,
+        confidence: 1,
+      }],
+    },
+    XTSE0670,
   );
 }
 
@@ -972,6 +1806,82 @@ function childElements(element: Element): Element[] {
   }
 
   return children;
+}
+
+function descendantElements(element: Element): Element[] {
+  const descendants: Element[] = [];
+
+  for (const child of childElements(element)) {
+    descendants.push(child);
+    descendants.push(...descendantElements(child));
+  }
+
+  return descendants;
+}
+
+function leadingTemplateParamElements(templateElement: Element): Element[] {
+  const params: Element[] = [];
+
+  for (let index = 0; index < templateElement.childNodes.length; index += 1) {
+    const node = templateElement.childNodes.item(index);
+    if (node === null) {
+      continue;
+    }
+
+    if (node.nodeType === node.TEXT_NODE || node.nodeType === node.CDATA_SECTION_NODE) {
+      if ((node.nodeValue ?? '').trim().length === 0) {
+        continue;
+      }
+
+      break;
+    }
+
+    if (node.nodeType !== node.ELEMENT_NODE) {
+      continue;
+    }
+
+    const element = node as Element;
+    if (!isXsltElement(element, 'param')) {
+      break;
+    }
+
+    params.push(element);
+  }
+
+  return params;
+}
+
+function isTunnelParamElement(element: Element): boolean {
+  const tunnel = element.getAttribute('tunnel');
+  if (tunnel === null) {
+    return false;
+  }
+
+  const normalized = tunnel.trim().toLowerCase();
+  return normalized === 'yes' || normalized === 'true' || normalized === '1';
+}
+
+function stripClarkNotation(name: string): string {
+  if (!name.startsWith('{')) {
+    return name;
+  }
+
+  const closingBrace = name.indexOf('}');
+  return closingBrace < 0 ? name : name.slice(closingBrace + 1);
+}
+
+function canValidateCallTemplateWithParam(element: Element): boolean {
+  if (!isXsltElement(element, 'with-param')) {
+    return false;
+  }
+
+  const name = element.getAttribute('name');
+  if (name === null || name.length === 0) {
+    return false;
+  }
+
+  const select = element.getAttribute('select') ?? undefined;
+  return select === undefined || !hasMeaningfulTemplateContent(element);
 }
 
 function parseRequiredAttribute(element: Element): boolean {
@@ -1013,6 +1923,7 @@ function normalizeXsltQName(
         namespacePrefix: prefix,
         qName: name,
       },
+      XPST0081,
     );
   }
 
@@ -1054,6 +1965,55 @@ function lookupNamespaceUri(element: Element, prefix: string): string | undefine
   }
 
   return undefined;
+}
+
+function parseXPathInContext(
+  expression: string,
+  location: TemplateRule['location'],
+  ownerName: string,
+  attributeName: string,
+  frameKind: ErrorFrame['kind'] = 'instruction',
+): XPathAst {
+  try {
+    return parseXPath(expression);
+  } catch (error) {
+    const frameLabel = frameKind === 'template'
+      ? `${attributeName}="${expression}"`
+      : `${ownerName} ${attributeName}="${expression}"`;
+    throw withPrependedCompileFrame(
+      error,
+      {
+        kind: frameKind,
+        label: frameLabel,
+        ...(location === undefined ? {} : { location }),
+      },
+      location === undefined
+        ? undefined
+        : {
+            label: frameKind === 'template' ? 'containing template' : 'containing instruction',
+            location,
+          },
+    );
+  }
+}
+
+function withPrependedCompileFrame(error: unknown, frame: ErrorFrame, related?: RelatedLocation): unknown {
+  if (!(error instanceof XdmError)) {
+    return error;
+  }
+
+  return new XsltError(
+    error.code,
+    error.detailMessage,
+    error.location,
+    error.details,
+    {
+      related: related === undefined ? error.related : [related, ...error.related],
+      frames: [frame, ...error.frames],
+      suggestions: error.suggestions,
+      causes: error.causes.length === 0 ? [error] : error.causes,
+    },
+  );
 }
 
 function isXsltElement(element: Element, localName: string): boolean {
@@ -1114,6 +2074,54 @@ function createInstructionSuggestion(element: Element): ErrorSuggestion | undefi
     kind: 'fix',
     label: `did you mean xsl:${nearest.candidate}?`,
     replacement: `xsl:${nearest.candidate}`,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / nearest.candidate.length),
+  };
+}
+
+function createNamedTemplateReferenceSuggestion(
+  rawName: string,
+  namedTemplates: ReadonlyMap<string, string>,
+): ErrorSuggestion | undefined {
+  const candidates = [...namedTemplates.values()];
+  const nearest = candidates
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(rawName, candidate),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean xsl:call-template name="${nearest.candidate}"?`,
+    replacement: nearest.candidate,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / nearest.candidate.length),
+  };
+}
+
+function createCallTemplateParamSuggestion(
+  rawName: string,
+  declaredParams: ReadonlyMap<string, string>,
+): ErrorSuggestion | undefined {
+  const candidates = [...declaredParams.values()];
+  const nearest = candidates
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(rawName, candidate),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean xsl:with-param name="${nearest.candidate}"?`,
+    replacement: nearest.candidate,
     confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / nearest.candidate.length),
   };
 }

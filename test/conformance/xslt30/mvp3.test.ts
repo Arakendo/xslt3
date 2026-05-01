@@ -19,9 +19,19 @@ type Xslt30SliceCase = {
 type LoadedXslt30Case = {
   readonly stylesheet: string;
   readonly source: string;
-  readonly expectedXml: string;
+  readonly expected: Xslt30ExpectedResult;
   readonly options?: TransformOptions;
 };
+
+type Xslt30ExpectedResult =
+  | {
+      readonly kind: 'xml';
+      readonly xml: string;
+    }
+  | {
+      readonly kind: 'error';
+      readonly code: string;
+    };
 
 const MVP3_XSLT30_CASES: readonly Xslt30SliceCase[] = [
   {
@@ -65,6 +75,110 @@ const MVP3_XSLT30_CASES: readonly Xslt30SliceCase[] = [
     caseName: 'call-template-0801',
   },
   {
+    setFile: 'tests/insn/call-template/_call-template-test-set.xml',
+    caseName: 'call-template-2101',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0670a',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0670d',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0660c',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0660d',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0630b',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0630c',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0620a',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0620b',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0650b',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0650c',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0680a',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0690a',
+  },
+  {
+    setFile: 'tests/misc/error/_error-test-set.xml',
+    caseName: 'error-0700a',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0102',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0103',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0105',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0106',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0107',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0109',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0111',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0112',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0113',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0114',
+  },
+  {
+    setFile: 'tests/decl/param/_param-test-set.xml',
+    caseName: 'param-0115',
+  },
+  {
+    setFile: 'tests/decl/variable/_variable-test-set.xml',
+    caseName: 'variable-0111',
+  },
+  {
     setFile: 'tests/decl/variable/_variable-test-set.xml',
     caseName: 'variable-1009',
   },
@@ -75,6 +189,26 @@ const MVP3_XSLT30_CASES: readonly Xslt30SliceCase[] = [
   {
     setFile: 'tests/decl/variable/_variable-test-set.xml',
     caseName: 'variable-0801',
+  },
+  {
+    setFile: 'tests/decl/variable/_variable-test-set.xml',
+    caseName: 'variable-0802',
+  },
+  {
+    setFile: 'tests/decl/variable/_variable-test-set.xml',
+    caseName: 'variable-1001',
+  },
+  {
+    setFile: 'tests/decl/variable/_variable-test-set.xml',
+    caseName: 'variable-1004',
+  },
+  {
+    setFile: 'tests/decl/variable/_variable-test-set.xml',
+    caseName: 'variable-1007',
+  },
+  {
+    setFile: 'tests/decl/variable/_variable-test-set.xml',
+    caseName: 'variable-1005',
   },
   {
     setFile: 'tests/decl/variable/_variable-test-set.xml',
@@ -205,14 +339,25 @@ describe('W3C conformance — XSLT 3.0 MVP+3 slice', () => {
 
     for (const testCase of MVP3_XSLT30_CASES) {
       const loaded = loadXslt30Case(testCase);
-      const proc = new XsltProcessor(loaded.stylesheet);
-      const { output } = proc.transform(loaded.source, loaded.options);
+      const execution = executeXslt30Case(loaded);
 
       try {
-        expect(normalizeXml(output)).toBe(normalizeXml(loaded.expectedXml));
+        if (loaded.expected.kind === 'xml') {
+          if (execution.kind !== 'success') {
+            throw new Error(`expected XML result ${JSON.stringify(loaded.expected.xml)} but got error ${execution.code}`);
+          }
+
+          expect(normalizeXml(execution.output)).toBe(normalizeXml(loaded.expected.xml));
+        } else {
+          if (execution.kind !== 'error') {
+            throw new Error(`expected error ${loaded.expected.code} but got output ${JSON.stringify(execution.output)}`);
+          }
+
+          expect(execution.code).toBe(loaded.expected.code);
+        }
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
-        throw new Error(`XSLT 3.0 case ${testCase.caseName} failed: ${detail}\nactual=${JSON.stringify(output)}\nexpected=${JSON.stringify(loaded.expectedXml)}`);
+        throw new Error(`XSLT 3.0 case ${testCase.caseName} failed: ${detail}\nactual=${JSON.stringify(execution)}\nexpected=${JSON.stringify(loaded.expected)}`);
       }
       passed += 1;
     }
@@ -240,16 +385,47 @@ function loadXslt30Case(testCase: Xslt30SliceCase): LoadedXslt30Case {
     throw new Error(`XSLT 3.0 case ${testCase.caseName} is missing a stylesheet file.`);
   }
 
-  const expectedXml = loadExpectedXml(testCaseElement, setDirectory);
+  const expected = loadExpectedResult(testCaseElement, setDirectory);
   const stylesheet = readFileSync(join(setDirectory, stylesheetFile), 'utf8');
   const options = loadTransformOptions(testCaseElement);
 
   return {
     stylesheet,
     source,
-    expectedXml,
+    expected,
     ...(options === undefined ? {} : { options }),
   };
+}
+
+function executeXslt30Case(loaded: LoadedXslt30Case):
+  | { readonly kind: 'success'; readonly output: string }
+  | { readonly kind: 'error'; readonly code: string; readonly detail: string } {
+  try {
+    const proc = new XsltProcessor(loaded.stylesheet);
+    const { output } = proc.transform(loaded.source, loaded.options);
+    return { kind: 'success', output };
+  } catch (error) {
+    return {
+      kind: 'error',
+      code: extractErrorCode(error),
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function extractErrorCode(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'code' in error && typeof (error as { code: unknown }).code === 'string') {
+    return (error as { code: string }).code;
+  }
+
+  if (error instanceof Error) {
+    const match = /^\[([^\]]+)\]/.exec(error.message);
+    if (match?.[1] !== undefined) {
+      return match[1];
+    }
+  }
+
+  return 'UNKNOWN';
 }
 
 function loadTransformOptions(testCaseElement: Element): TransformOptions | undefined {
@@ -355,23 +531,38 @@ function loadSourceXml(environment: Element | undefined, setDirectory: string): 
   return content.trim();
 }
 
-function loadExpectedXml(testCaseElement: Element, setDirectory: string): string {
+function loadExpectedResult(testCaseElement: Element, setDirectory: string): Xslt30ExpectedResult {
   const assertXml = testCaseElement.getElementsByTagName('assert-xml')[0];
-  if (assertXml === undefined) {
-    throw new Error('XSLT 3.0 case is missing an assert-xml result.');
+  if (assertXml !== undefined) {
+    const file = assertXml.getAttribute('file');
+    if (file !== undefined && file !== null && file.length > 0) {
+      return {
+        kind: 'xml',
+        xml: readFileSync(join(setDirectory, file), 'utf8'),
+      };
+    }
+
+    const text = assertXml.textContent;
+    if (text === null) {
+      throw new Error('XSLT 3.0 case assert-xml result is empty.');
+    }
+
+    return {
+      kind: 'xml',
+      xml: text.trim(),
+    };
   }
 
-  const file = assertXml.getAttribute('file');
-  if (file !== undefined && file !== null && file.length > 0) {
-    return readFileSync(join(setDirectory, file), 'utf8');
+  const errorElement = testCaseElement.getElementsByTagName('error')[0];
+  const errorCode = errorElement?.getAttribute('code');
+  if (errorCode !== undefined && errorCode !== null && errorCode.length > 0) {
+    return {
+      kind: 'error',
+      code: errorCode,
+    };
   }
 
-  const text = assertXml.textContent;
-  if (text === null) {
-    throw new Error('XSLT 3.0 case assert-xml result is empty.');
-  }
-
-  return text.trim();
+  throw new Error('XSLT 3.0 case is missing an assert-xml or error result.');
 }
 
 function normalizeXml(xml: string): string {

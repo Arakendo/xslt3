@@ -7,12 +7,12 @@
 
 import type { Node } from '@xmldom/xmldom';
 
-import { XTDE0040, XTDE0050, XTDE0640, XTDE0700, XTSE0010, XPTY0004 } from '../../errors/codes.js';
-import { XdmError, XsltError, type ErrorFrame, type RelatedLocation } from '../../errors/index.js';
+import { XTDE0040, XTDE0050, XTDE0640, XTDE0700, XTSE0010, XTSE0650, XPTY0004 } from '../../errors/codes.js';
+import { XdmError, XsltError, type ErrorFrame, type ErrorSuggestion, type RelatedLocation } from '../../errors/index.js';
 import type { PathExpression, StepExpression } from '../../xpath/parse/ast.js';
 import type { TransformOptions, TransformResult } from '../../processor/types.js';
 import { parseXml } from '../../xml/parse.js';
-import { createXdmNode, type XdmAtomicValue, type XdmItem, type XdmNode } from '../../xdm/types.js';
+import { createXdmNode, createXdmString, type XdmAtomicValue, type XdmItem, type XdmNode } from '../../xdm/types.js';
 import { evaluate, evaluateEffectiveBooleanValue } from '../../xpath/eval/evaluator.js';
 import type { DynamicContext } from '../../xpath/eval/context.js';
 import type { GlobalBinding, Instruction, StylesheetIR, TemplateParam, TemplateRule, WithParam } from '../compile/ir.js';
@@ -28,6 +28,11 @@ const PREDEFINED_NAMESPACE_PREFIXES = new Map<string, string>([
 
 type DeferredVariableBinding = {
   readonly evaluate: () => unknown;
+};
+
+type ExternalParameters = {
+  readonly values: ReadonlyMap<string, unknown>;
+  readonly normalizedNames: readonly string[];
 };
 
 export function runTransform(
@@ -108,6 +113,7 @@ function applyTemplatesToItems(
   staticContext: DynamicContext['staticContext'],
   variables: ReadonlyMap<string, unknown> = new Map(),
   location?: TemplateRule['location'],
+  withParams: readonly WithParam[] = [],
 ): string {
   if (items.some((item) => asXdmNode(item) === undefined)) {
     throw createApplyTemplatesNodeSequenceError(items, location);
@@ -116,15 +122,20 @@ function applyTemplatesToItems(
   return items.map((item, index) => {
     const nodeItem = item as XdmNode;
     const context = createContext(nodeItem, staticContext, index + 1, items.length, variables);
-    return applyTemplateToNode(nodeItem.node, ir, context);
+    return applyTemplateToNode(nodeItem.node, ir, context, withParams);
   }).join('');
 }
 
-function applyTemplateToNode(node: Node, ir: StylesheetIR, context: DynamicContext): string {
+function applyTemplateToNode(
+  node: Node,
+  ir: StylesheetIR,
+  context: DynamicContext,
+  withParams: readonly WithParam[] = [],
+): string {
   const template = findBestMatchingTemplate(node, ir.templates, context.staticContext);
   if (template !== undefined) {
     try {
-      return renderInstructions(template.body, ir, context);
+      return renderTemplate(template, withParams, ir, context);
     } catch (error) {
       throw withPrependedFrame(
         error,
@@ -152,6 +163,7 @@ function renderInitialTemplate(name: string, ir: StylesheetIR, context: DynamicC
   const normalizedName = normalizeTemplateName(name, context.staticContext);
   const template = findNamedTemplate(normalizedName, ir.templates);
   if (template === undefined) {
+    const suggestion = createInitialTemplateSuggestion(name, ir.templates);
     throw new XsltError(
       XTSE0010,
       `Initial template ${name} is not declared in the current stylesheet.`,
@@ -159,13 +171,15 @@ function renderInitialTemplate(name: string, ir: StylesheetIR, context: DynamicC
       {
         initialTemplate: name,
       },
-      {
-        suggestions: [{
-          kind: 'fix',
-          label: `declare xsl:template name="${name}" or omit initialTemplate`,
-          confidence: 1,
-        }],
-      },
+      suggestion === undefined
+        ? {
+            suggestions: [{
+              kind: 'fix',
+              label: `declare xsl:template name="${name}" or omit initialTemplate`,
+              confidence: 1,
+            }],
+          }
+        : { suggestions: [suggestion] },
     );
   }
 
@@ -201,6 +215,64 @@ function normalizeTemplateName(name: string, staticContext: DynamicContext['stat
   return namespaceUri === undefined ? name : `{${namespaceUri}}${localName}`;
 }
 
+function createInitialTemplateSuggestion(name: string, templates: readonly TemplateRule[]): ErrorSuggestion | undefined {
+  const candidates = templates
+    .map((template) => template.name)
+    .filter((candidate): candidate is string => candidate !== undefined)
+    .map(formatTemplateSuggestionName);
+  const nearest = candidates
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(name, candidate),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean initialTemplate "${nearest.candidate}"?`,
+    replacement: nearest.candidate,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / nearest.candidate.length),
+  };
+}
+
+function createNamedTemplateCallSuggestion(name: string, templates: readonly TemplateRule[]): ErrorSuggestion | undefined {
+  const lookupName = formatTemplateSuggestionName(name);
+  const candidates = templates
+    .map((template) => template.name)
+    .filter((candidate): candidate is string => candidate !== undefined)
+    .map(formatTemplateSuggestionName);
+  const nearest = candidates
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(lookupName, candidate),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean xsl:call-template name="${nearest.candidate}"?`,
+    replacement: nearest.candidate,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / nearest.candidate.length),
+  };
+}
+
+function formatTemplateSuggestionName(name: string): string {
+  if (!name.startsWith('{')) {
+    return name;
+  }
+
+  const closingBrace = name.indexOf('}');
+  return closingBrace < 0 ? name : name.slice(closingBrace + 1);
+}
+
 function tryNormalizeEqName(name: string): string | undefined {
   if (!name.startsWith('Q{')) {
     return undefined;
@@ -218,6 +290,28 @@ function tryNormalizeEqName(name: string): string | undefined {
   }
 
   return namespaceUri.length === 0 ? localName : `{${namespaceUri}}${localName}`;
+}
+
+function computeLevenshteinDistance(left: string, right: string): number {
+  const previousRow = Array.from({ length: right.length + 1 }, (_, index) => index);
+
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    let previousDiagonal = previousRow[0] ?? 0;
+    previousRow[0] = leftIndex;
+
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const temp = previousRow[rightIndex] ?? 0;
+      const substitutionCost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+      previousRow[rightIndex] = Math.min(
+        (previousRow[rightIndex] ?? 0) + 1,
+        (previousRow[rightIndex - 1] ?? 0) + 1,
+        previousDiagonal + substitutionCost,
+      );
+      previousDiagonal = temp;
+    }
+  }
+
+  return previousRow[right.length] ?? right.length;
 }
 
 function findBestMatchingTemplate(
@@ -484,13 +578,15 @@ function renderInstruction(instruction: Instruction, ir: StylesheetIR, context: 
     case 'callTemplate': {
       const template = findNamedTemplate(instruction.name, ir.templates);
       if (template === undefined) {
+        const suggestion = createNamedTemplateCallSuggestion(instruction.name, ir.templates);
         throw new XsltError(
-          XTSE0010,
+          XTSE0650,
           `Named template ${instruction.name} is not declared in the current stylesheet.`,
           instruction.location,
           {
             templateName: instruction.name,
           },
+          suggestion === undefined ? undefined : { suggestions: [suggestion] },
         );
       }
 
@@ -527,7 +623,14 @@ function renderInstruction(instruction: Instruction, ir: StylesheetIR, context: 
         const items = instruction.select === undefined
           ? getChildNodeItems(context.contextItem)
           : [...evaluate(instruction.select, context)];
-        return applyTemplatesToItems(items, ir, context.staticContext, context.variables, instruction.location);
+        return applyTemplatesToItems(
+          items,
+          ir,
+          context.staticContext,
+          context.variables,
+          instruction.location,
+          instruction.withParams,
+        );
       } catch (error) {
         const frame = {
           kind: 'instruction',
@@ -609,7 +712,7 @@ function bindTemplateParams(
     const value = provided.has(param.name)
       ? provided.get(param.name)
       : param.required
-        ? throwMissingTemplateParam(param)
+        ? throwMissingTemplateParam(param, [...provided.keys()])
         : evaluateBindingValue(param, ir, {
             ...context,
             variables,
@@ -634,7 +737,7 @@ function evaluateBindingValue(
   }
 
   if (binding.body === undefined) {
-    return [];
+    return [createXdmString('')];
   }
 
   return evaluateTemporaryTree(binding.body, ir, context);
@@ -661,7 +764,11 @@ function evaluateTemporaryTree(
   return [createXdmNode(fragment)];
 }
 
-function throwMissingTemplateParam(param: Pick<TemplateParam, 'name' | 'location'>): never {
+function throwMissingTemplateParam(
+  param: Pick<TemplateParam, 'name' | 'location'>,
+  providedNames: readonly string[],
+): never {
+  const suggestion = createMissingTemplateParamSuggestion(param.name, providedNames);
   throw new XsltError(
     XTDE0700,
     `Required template parameter $${param.name} was not supplied.`,
@@ -669,6 +776,7 @@ function throwMissingTemplateParam(param: Pick<TemplateParam, 'name' | 'location
     {
       parameterName: param.name,
     },
+    suggestion === undefined ? undefined : { suggestions: [suggestion] },
   );
 }
 
@@ -730,7 +838,7 @@ function evaluateGlobalBindings(
     return new Map();
   }
 
-  const resolvedParameters = normalizeExternalParameters(parameters, staticContext);
+  const externalParameters = normalizeExternalParameters(parameters, staticContext);
   const runtimeBindings = new Map<string, unknown>();
   for (const binding of bindings) {
     let state: 'pending' | 'evaluating' | 'done' = 'pending';
@@ -752,9 +860,10 @@ function evaluateGlobalBindings(
 
         state = 'evaluating';
         try {
-          if (binding.kind === 'param' && resolvedParameters.has(binding.name)) {
-            cachedValue = resolvedParameters.get(binding.name);
+          if (binding.kind === 'param' && externalParameters.values.has(binding.name)) {
+            cachedValue = externalParameters.values.get(binding.name);
           } else if (binding.kind === 'param' && binding.required) {
+            const suggestion = createMissingStylesheetParameterSuggestion(binding.name, externalParameters.normalizedNames);
             throw new XsltError(
               XTDE0050,
               `Required stylesheet parameter $${binding.name} was not supplied.`,
@@ -762,6 +871,7 @@ function evaluateGlobalBindings(
               {
                 parameterName: binding.name,
               },
+              suggestion === undefined ? undefined : { suggestions: [suggestion] },
             );
           } else {
             const context = createContext(contextItem, staticContext, 1, 1, runtimeBindings);
@@ -805,21 +915,80 @@ function evaluateGlobalBindings(
 function normalizeExternalParameters(
   parameters: TransformOptions['parameters'],
   staticContext: DynamicContext['staticContext'],
-): ReadonlyMap<string, unknown> {
+): ExternalParameters {
   if (parameters === undefined) {
-    return new Map();
+    return {
+      values: new Map(),
+      normalizedNames: [],
+    };
   }
 
   const bindings = new Map<string, unknown>();
+  const normalizedNames: string[] = [];
   for (const [name, value] of Object.entries(parameters)) {
     const normalizedName = normalizeTemplateName(name, staticContext);
+    normalizedNames.push(normalizedName);
     bindings.set(normalizedName, value);
     if (!normalizedName.startsWith('{')) {
       bindings.set(`{}${normalizedName}`, value);
     }
   }
 
-  return bindings;
+  return {
+    values: bindings,
+    normalizedNames,
+  };
+}
+
+function createMissingStylesheetParameterSuggestion(
+  expectedName: string,
+  providedNames: readonly string[],
+): ErrorSuggestion | undefined {
+  const expectedDisplayName = expectedName.startsWith('{') ? expectedName : formatTemplateSuggestionName(expectedName);
+  const nearest = providedNames
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(
+        formatTemplateSuggestionName(expectedDisplayName),
+        formatTemplateSuggestionName(candidate),
+      ),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean to pass parameters["${expectedDisplayName}"]?`,
+    replacement: expectedDisplayName,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / formatTemplateSuggestionName(expectedDisplayName).length),
+  };
+}
+
+function createMissingTemplateParamSuggestion(
+  expectedName: string,
+  providedNames: readonly string[],
+): ErrorSuggestion | undefined {
+  const expectedDisplayName = formatTemplateSuggestionName(expectedName);
+  const nearest = providedNames
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(expectedDisplayName, formatTemplateSuggestionName(candidate)),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean xsl:with-param name="${expectedDisplayName}"?`,
+    replacement: expectedDisplayName,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / expectedDisplayName.length),
+  };
 }
 
 function asXdmNode(item: unknown): XdmNode | undefined {

@@ -39,8 +39,17 @@ export const FOTY0014 = 'FOTY0014'; // string value not defined for function/map
 
 // Static XSLT errors
 export const XTSE0010 = 'XTSE0010'; // unknown XSLT element
+export const XTSE0090 = 'XTSE0090'; // invalid attribute on XSLT instruction/declaration
 export const XTSE0165 = 'XTSE0165'; // import/include error
 export const XTSE0500 = 'XTSE0500'; // stylesheet module missing version
+export const XTSE0580 = 'XTSE0580'; // duplicate local parameter names
+export const XTSE0620 = 'XTSE0620'; // select attribute with non-empty content on variable-binding element
+export const XTSE0630 = 'XTSE0630'; // duplicate global variables or parameters
+export const XTSE0650 = 'XTSE0650'; // xsl:call-template target does not match any named template
+export const XTSE0660 = 'XTSE0660'; // duplicate named templates
+export const XTSE0670 = 'XTSE0670'; // duplicate sibling with-param names
+export const XTSE0680 = 'XTSE0680'; // xsl:call-template passes undeclared non-tunnel parameter
+export const XTSE0690 = 'XTSE0690'; // xsl:call-template omits required non-tunnel parameter
 
 // Dynamic XSLT errors
 export const XTDE0040 = 'XTDE0040'; // no match for initial mode
