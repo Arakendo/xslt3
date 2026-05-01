@@ -5,7 +5,7 @@
  * context.
  */
 
-import { FOAR0001, FORG0006, XPST0017, XPTY0019 } from '../../errors/codes.js';
+import { FOAR0001, FORG0006, XPTY0019 } from '../../errors/codes.js';
 import { XPathError } from '../../errors/XPathError.js';
 import type { ErrorDetails } from '../../errors/XdmError.js';
 import { createSequence } from '../../xdm/sequence.js';
@@ -26,6 +26,7 @@ import { createFlowExpressionEvaluator } from './flowExpressions.js';
 import { normalizeNodeSequence } from './navigation.js';
 import { createComparisonEvaluator } from './comparisonEvaluation.js';
 import { createPathEvaluator } from './pathEvaluation.js';
+import { createArityValidationHelpers } from './arityValidation.js';
 import { createScalarHelpers } from './scalarHelpers.js';
 import { createBuiltinFunctionEvaluator } from './builtinFunctions.js';
 import type { XPathAst, XPathBinaryOperator } from '../parse/ast.js';
@@ -299,6 +300,12 @@ function effectiveBooleanValue(items: readonly XdmItem[], span: SpanLike): boole
 }
 
 const {
+  requireArity,
+  validateFunctionCallSignature,
+  throwArityError,
+} = createArityValidationHelpers(createXPathError);
+
+const {
   compareGeneral,
   atomizeItems,
   atomizedNumericValues,
@@ -380,130 +387,6 @@ function createXPathError(code: string, message: string, span: SpanLike, details
     endColumn: span.endColumn,
     endOffset: span.end,
   }, details);
-}
-
-function requireArity(name: string, args: readonly XPathAst[], expected: number, span: SpanLike): void {
-  if (args.length !== expected) {
-    throwArityError(name, args.length, String(expected), span);
-  }
-}
-
-function validateFunctionCallSignature(name: string, actualArity: number, span: SpanLike): void {
-  switch (name) {
-    case 'fn:position':
-    case 'fn:last':
-    case 'fn:error':
-    case 'fn:true':
-    case 'fn:false':
-      if (actualArity !== 0) {
-        throwArityError(name, actualArity, '0', span);
-      }
-      return;
-    case 'fn:count':
-    case 'fn:exists':
-    case 'fn:empty':
-    case 'fn:exactly-one':
-    case 'fn:one-or-more':
-    case 'fn:zero-or-one':
-    case 'fn:boolean':
-    case 'fn:not':
-    case 'fn:codepoints-to-string':
-    case 'fn:upper-case':
-    case 'fn:lower-case':
-    case 'fn:min':
-    case 'fn:max':
-    case 'fn:avg':
-    case 'fn:distinct-values':
-    case 'fn:data':
-    case 'fn:reverse':
-    case 'fn:head':
-    case 'fn:tail':
-      if (actualArity !== 1) {
-        throwArityError(name, actualArity, '1', span);
-      }
-      return;
-    case 'fn:deep-equal':
-    case 'fn:QName':
-    case 'fn:trace':
-    case 'map:entry':
-    case 'fn:remove':
-    case 'fn:contains':
-    case 'fn:starts-with':
-    case 'fn:ends-with':
-      if (actualArity !== 2) {
-        throwArityError(name, actualArity, '2', span);
-      }
-      return;
-    case 'fn:concat':
-      if (actualArity < 2) {
-        throwArityError(name, actualArity, '>=2', span);
-      }
-      return;
-    case 'fn:string':
-    case 'fn:string-length':
-    case 'fn:normalize-space':
-    case 'fn:number':
-    case 'fn:name':
-    case 'fn:local-name':
-    case 'fn:namespace-uri':
-    case 'fn:generate-id':
-    case 'fn:node-name':
-    case 'fn:root':
-      if (actualArity !== 0 && actualArity !== 1) {
-        throwArityError(name, actualArity, '0..1', span);
-      }
-      return;
-    case 'fn:substring':
-    case 'fn:subsequence':
-      if (actualArity !== 2 && actualArity !== 3) {
-        throwArityError(name, actualArity, '2..3', span);
-      }
-      return;
-    case 'fn:string-join':
-    case 'fn:sum':
-      if (actualArity !== 1 && actualArity !== 2) {
-        throwArityError(name, actualArity, '1..2', span);
-      }
-      return;
-    case 'fn:matches':
-      if (actualArity !== 2 && actualArity !== 3) {
-        throwArityError(name, actualArity, '2..3', span);
-      }
-      return;
-    case 'fn:translate':
-      if (actualArity !== 3) {
-        throwArityError(name, actualArity, '3', span);
-      }
-      return;
-    case 'fn:replace':
-      if (actualArity !== 3 && actualArity !== 4) {
-        throwArityError(name, actualArity, '3..4', span);
-      }
-      return;
-    case 'fn:tokenize':
-      if (actualArity !== 1 && actualArity !== 2 && actualArity !== 3) {
-        throwArityError(name, actualArity, '1..3', span);
-      }
-      return;
-    default:
-      throw createXPathError(XPST0017, `Unknown function ${name}.`, span, {
-        functionName: name,
-        actualArity,
-      });
-  }
-}
-
-function throwArityError(name: string, actualArity: number, arityRequirement: string, span: SpanLike): never {
-  const requirementLabel = arityRequirement.includes('..')
-    ? arityRequirement.replace('..', ' or ')
-    : arityRequirement === '>=2'
-      ? 'at least 2'
-      : arityRequirement;
-  throw createXPathError(XPST0017, `Function ${name} expects ${requirementLabel} arguments but got ${actualArity}.`, span, {
-    functionName: name,
-    actualArity,
-    arityRequirement,
-  });
 }
 
 function describeItemsType(items: readonly XdmItem[]): string {
