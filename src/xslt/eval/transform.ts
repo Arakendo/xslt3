@@ -7,7 +7,7 @@
 
 import type { Node } from '@xmldom/xmldom';
 
-import { WEAVER_XSLT_UNSUPPORTED_INITIAL_TEMPLATE, XTDE0040, XTSE0010, XPTY0004 } from '../../errors/codes.js';
+import { XTDE0040, XTSE0010, XPTY0004 } from '../../errors/codes.js';
 import { XdmError, XsltError, type ErrorFrame, type RelatedLocation } from '../../errors/index.js';
 import type { PathExpression, StepExpression } from '../../xpath/parse/ast.js';
 import type { TransformOptions, TransformResult } from '../../processor/types.js';
@@ -47,29 +47,21 @@ export function runTransform(
     );
   }
 
-  if (options.initialTemplate !== undefined) {
-    throw new XsltError(
-      WEAVER_XSLT_UNSUPPORTED_INITIAL_TEMPLATE,
-      'Initial templates are not yet implemented in the current MVP+3 slice.',
-      undefined,
-      { initialTemplate: options.initialTemplate },
-      {
-        suggestions: [{
-          kind: 'fix',
-          label: 'omit initialTemplate and rely on match-based dispatch in the current MVP+3 slice',
-          confidence: 1,
-        }],
-      },
-    );
-  }
-
   const sourceDocument = parseXml(sourceXml);
+  const staticContext = createStaticContext(ir, options);
+
+  if (options.initialTemplate !== undefined) {
+    const initialContext = createContext(createXdmNode(sourceDocument), staticContext, 1, 1);
+    return {
+      output: renderInitialTemplate(options.initialTemplate, ir, initialContext),
+    };
+  }
 
   return {
     output: applyTemplatesToItems(
       [createXdmNode(sourceDocument)],
       ir,
-      createStaticContext(ir, options),
+      staticContext,
     ),
   };
 }
@@ -140,6 +132,37 @@ function findNamedTemplate(name: string, templates: readonly TemplateRule[]): Te
   }
 
   return undefined;
+}
+
+function renderInitialTemplate(name: string, ir: StylesheetIR, context: DynamicContext): string {
+  const template = findNamedTemplate(name, ir.templates);
+  if (template === undefined) {
+    throw new XsltError(
+      XTSE0010,
+      `Initial template ${name} is not declared in the current stylesheet.`,
+      undefined,
+      {
+        initialTemplate: name,
+      },
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: `declare xsl:template name="${name}" or omit initialTemplate`,
+          confidence: 1,
+        }],
+      },
+    );
+  }
+
+  try {
+    return renderInstructions(template.body, ir, context);
+  } catch (error) {
+    throw withPrependedFrame(
+      error,
+      createTemplateFrame(template),
+      createRelatedLocation('initial template', template.location),
+    );
+  }
 }
 
 function findBestMatchingTemplate(

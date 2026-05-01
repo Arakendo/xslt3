@@ -204,4 +204,23 @@ describe('@arakendo/xslt scaffold', () => {
       output: '<out><root-name>root</root-name><item>1:a</item><item>2:b</item></out>',
     });
   });
+
+  it('runs an initial template against the source document focus', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root"><wrong/></xsl:template>
+        <xsl:template name="main">
+          <out>
+            <xsl:value-of select="name(/root)"/>
+            <xsl:text>:</xsl:text>
+            <xsl:value-of select="count(/root/item)"/>
+          </out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root><item/><item/></root>', { initialTemplate: 'main' })).toEqual({
+      output: '<out>root:2</out>',
+    });
+  });
 });

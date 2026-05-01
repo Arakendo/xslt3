@@ -107,7 +107,7 @@ describe('XSLT diagnostics', () => {
     ].join('\n'));
   });
 
-  it('converts unsupported initialTemplate options into runtime diagnostics', () => {
+  it('converts missing initialTemplate options into runtime diagnostics', () => {
     const stylesheet = [
       '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
       '  <xsl:template match="/">',
@@ -122,25 +122,25 @@ describe('XSLT diagnostics', () => {
 
     assertValidDiagnostic(report);
     expect(report).toMatchObject({
-      code: 'WEAVER_XSLT_UNSUPPORTED_INITIAL_TEMPLATE',
-      phase: 'runtime',
-      category: 'execution',
-      message: 'Initial templates are not yet implemented in the current MVP+3 slice.',
+      code: 'XTSE0010',
+      phase: 'compile',
+      category: 'analysis',
+      message: 'Initial template main is not declared in the current stylesheet.',
       details: [{
         key: 'initialTemplate',
         value: 'main',
       }],
       suggestions: [{
         kind: 'fix',
-        label: 'omit initialTemplate and rely on match-based dispatch in the current MVP+3 slice',
+        label: 'declare xsl:template name="main" or omit initialTemplate',
         confidence: 1,
       }],
     });
 
     expect(formatDiagnostic(report, stylesheet)).toBe([
-      'error[WEAVER_XSLT_UNSUPPORTED_INITIAL_TEMPLATE]: Initial templates are not yet implemented in the current MVP+3 slice.',
+      'error[XTSE0010]: Initial template main is not declared in the current stylesheet.',
       '  = initialTemplate: main',
-      '  help: omit initialTemplate and rely on match-based dispatch in the current MVP+3 slice',
+      '  help: declare xsl:template name="main" or omit initialTemplate',
     ].join('\n'));
   });
 
@@ -181,39 +181,17 @@ describe('XSLT diagnostics', () => {
     ].join('\n'));
   });
 
-  it('converts named-only templates into static diagnostics', () => {
+  it('allows named-only templates when selected via initialTemplate', () => {
     const stylesheet = [
       '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
       '  <xsl:template name="main">',
-      '    <out/>',
+      '    <out><xsl:value-of select="name(/root)"/></out>',
       '  </xsl:template>',
       '</xsl:stylesheet>',
     ].join('\n');
-    const error = captureError(() => {
-      new XsltProcessor(stylesheet).transform('<root/>');
+    expect(new XsltProcessor(stylesheet).transform('<root/>', { initialTemplate: 'main' })).toEqual({
+      output: '<out>root</out>',
     });
-    const report = diagnosticReportFromError(error);
-
-    assertValidDiagnostic(report);
-    expect(report).toMatchObject({
-      code: 'XTSE0010',
-      phase: 'compile',
-      category: 'analysis',
-      message: 'Named templates are not yet implemented in the current MVP+3 slice.',
-      suggestions: [{
-        kind: 'fix',
-        label: 'use match="/" or another supported match pattern instead of a named-only template',
-        confidence: 1,
-      }],
-    });
-
-    expect(formatDiagnostic(report, stylesheet)).toBe([
-      'error[XTSE0010]: Named templates are not yet implemented in the current MVP+3 slice.',
-      '--> <stylesheet>:2:23',
-      '2 |   <xsl:template name="main">',
-      '  |                       ^^^^',
-      '  help: use match="/" or another supported match pattern instead of a named-only template',
-    ].join('\n'));
   });
 
   it('converts unsupported top-level literal result elements into static diagnostics', () => {
@@ -260,7 +238,7 @@ describe('XSLT diagnostics', () => {
   it('converts unsupported top-level XSLT declarations into static diagnostics', () => {
     const stylesheet = [
       '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
-      '  <xsl:output method="xml"/>',
+      '  <xsl:decimal-format name="comma" decimal-separator=","/>',
       '  <xsl:template match="/">',
       '    <out/>',
       '  </xsl:template>',
@@ -276,25 +254,25 @@ describe('XSLT diagnostics', () => {
       code: 'XTSE0010',
       phase: 'compile',
       category: 'analysis',
-      message: 'Unsupported top-level XSLT declaration xsl:output in current MVP+3 slice.',
+      message: 'Unsupported top-level XSLT declaration xsl:decimal-format in current MVP+3 slice.',
       details: [{
         key: 'declarationName',
-        value: 'xsl:output',
+        value: 'xsl:decimal-format',
       }],
       suggestions: [{
         kind: 'fix',
-        label: 'remove unsupported top-level declaration xsl:output in the current MVP+3 slice',
+        label: 'remove unsupported top-level declaration xsl:decimal-format in the current MVP+3 slice',
         confidence: 1,
       }],
     });
 
     expect(formatDiagnostic(report, stylesheet)).toBe([
-      'error[XTSE0010]: Unsupported top-level XSLT declaration xsl:output in current MVP+3 slice.',
+      'error[XTSE0010]: Unsupported top-level XSLT declaration xsl:decimal-format in current MVP+3 slice.',
       '--> <stylesheet>:2:4',
-      '2 |   <xsl:output method="xml"/>',
-      '  |    ^^^^^^^^^^',
-      '  = declarationName: xsl:output',
-      '  help: remove unsupported top-level declaration xsl:output in the current MVP+3 slice',
+      '2 |   <xsl:decimal-format name="comma" decimal-separator=","/>',
+      '  |    ^^^^^^^^^^^^^^^^^^',
+      '  = declarationName: xsl:decimal-format',
+      '  help: remove unsupported top-level declaration xsl:decimal-format in the current MVP+3 slice',
     ].join('\n'));
   });
 
@@ -448,7 +426,7 @@ describe('XSLT diagnostics', () => {
     expect(report.suggestions).toEqual([
       {
         kind: 'fix',
-        label: 'use one of the currently supported match patterns: /, name, *, node(), or text()',
+        label: 'use one of the currently supported simple match patterns: /, /name, name, *, node(), or text()',
         confidence: 1,
       },
     ]);
@@ -458,7 +436,7 @@ describe('XSLT diagnostics', () => {
       '--> <stylesheet>:2:24',
       '2 |   <xsl:template match="item[@id]">',
       '  |                        ^^^^^^^^^',
-      '  help: use one of the currently supported match patterns: /, name, *, node(), or text()',
+      '  help: use one of the currently supported simple match patterns: /, /name, name, *, node(), or text()',
     ].join('\n'));
   });
 
