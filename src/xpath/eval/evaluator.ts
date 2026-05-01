@@ -358,6 +358,13 @@ function evaluateFunctionCall(
       const item = evaluateOptionalSingletonItemArg(normalized, args, context, span);
       return [createXdmString(normalizeSpace(itemToStringValue(item, span)))];
     }
+    case 'fn:translate': {
+      requireArity(normalized, args, 3, span);
+      const input = itemToStringValue(evaluateSingletonStringishArg(args[0]!, context, span, normalized), span);
+      const mapFrom = itemToStringValue(evaluateSingletonStringishArg(args[1]!, context, span, normalized), span);
+      const mapTo = itemToStringValue(evaluateSingletonStringishArg(args[2]!, context, span, normalized), span);
+      return [createXdmString(xpathTranslate(input, mapFrom, mapTo))];
+    }
     case 'fn:contains':
       requireArity(normalized, args, 2, span);
       return [
@@ -1695,6 +1702,36 @@ function normalizeSpace(value: string): string {
     .replace(/[\u0009\u000A\u000D\u0020]+/g, ' ');
 }
 
+function xpathTranslate(input: string, mapFrom: string, mapTo: string): string {
+  const fromChars = Array.from(mapFrom);
+  const toChars = Array.from(mapTo);
+  const mapping = new Map<string, string | null>();
+
+  for (let index = 0; index < fromChars.length; index += 1) {
+    const char = fromChars[index]!;
+    if (mapping.has(char)) {
+      continue;
+    }
+
+    mapping.set(char, index < toChars.length ? toChars[index]! : null);
+  }
+
+  let result = '';
+  for (const char of Array.from(input)) {
+    const replacement = mapping.get(char);
+    if (replacement === undefined) {
+      result += char;
+      continue;
+    }
+
+    if (replacement !== null) {
+      result += replacement;
+    }
+  }
+
+  return result;
+}
+
 function getNodeNameValue(node: XdmNode | undefined): string {
   if (node === undefined) {
     return '';
@@ -2409,6 +2446,11 @@ function validateFunctionCallSignature(name: string, actualArity: number, span: 
     case 'fn:matches':
       if (actualArity !== 2 && actualArity !== 3) {
         throwArityError(name, actualArity, '2..3', span);
+      }
+      return;
+    case 'fn:translate':
+      if (actualArity !== 3) {
+        throwArityError(name, actualArity, '3', span);
       }
       return;
     case 'fn:replace':

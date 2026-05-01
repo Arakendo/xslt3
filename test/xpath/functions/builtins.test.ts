@@ -225,6 +225,9 @@ describe('XPath built-in function coverage', () => {
     expect([...evaluate(parseXPath('normalize-space(/root/item[1])'), context)]).toMatchObject([
       { type: 'xs:string', value: 'A B' },
     ]);
+    expect([...evaluate(parseXPath('translate("bar", "abc", "ABC")'), context)]).toMatchObject([
+      { type: 'xs:string', value: 'BAr' },
+    ]);
     expect([...evaluate(parseXPath('contains(/root/item[2], "Case")'), context)]).toMatchObject([
       { type: 'xs:boolean', value: true },
     ]);

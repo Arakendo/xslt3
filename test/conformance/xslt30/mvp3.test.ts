@@ -32,6 +32,18 @@ const MVP3_XSLT30_CASES: readonly Xslt30SliceCase[] = [
     caseName: 'nodetest-001',
   },
   {
+    setFile: 'tests/type/string/_string-test-set.xml',
+    caseName: 'string-011',
+  },
+  {
+    setFile: 'tests/type/string/_string-test-set.xml',
+    caseName: 'string-012',
+  },
+  {
+    setFile: 'tests/type/string/_string-test-set.xml',
+    caseName: 'string-013',
+  },
+  {
     setFile: 'tests/insn/lre/_lre-test-set.xml',
     caseName: 'lre-001',
   },
