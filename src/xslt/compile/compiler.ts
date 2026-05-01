@@ -12,11 +12,11 @@ import { XsltError, type ErrorContext, type ErrorSuggestion } from '../../errors
 import type { PathExpression, StepExpression, XPathAst } from '../../xpath/parse/ast.js';
 import { parseXPath } from '../../xpath/parse/parser.js';
 import { getAttributeValueSourceLocation, getElementNameSourceLocation, getNodeSourceLocation, parseXml } from '../../xml/parse.js';
-import type { AttributeInstruction, ChooseWhenBranch, Instruction, StylesheetIR, TemplateRule } from './ir.js';
+import type { AttributeInstruction, ChooseWhenBranch, Instruction, StylesheetIR, TemplateParam, TemplateRule, WithParam } from './ir.js';
 
 const XSLT_NAMESPACE = 'http://www.w3.org/1999/XSL/Transform';
 const STYLESHEET_SOURCE_NAME = '<stylesheet>';
-const SUPPORTED_XSLT_INSTRUCTION_NAMES = ['apply-templates', 'call-template', 'choose', 'for-each', 'if', 'otherwise', 'text', 'value-of', 'when'] as const;
+const SUPPORTED_XSLT_INSTRUCTION_NAMES = ['apply-templates', 'call-template', 'choose', 'comment', 'for-each', 'if', 'otherwise', 'text', 'value-of', 'when'] as const;
 
 type NodeListLike = {
   readonly length: number;
@@ -221,7 +221,7 @@ function compileTemplateRule(templateElement: Element, stylesheetXml: string): T
       ? getAttributeValueSourceLocation(stylesheetXml, templateElement, 'name', STYLESHEET_SOURCE_NAME)
         ?? getNodeSourceLocation(stylesheetXml, templateElement, STYLESHEET_SOURCE_NAME)
       : getNodeSourceLocation(stylesheetXml, templateElement, STYLESHEET_SOURCE_NAME);
-  const body = compileInstructions(templateElement.childNodes, stylesheetXml);
+  const { params, body } = compileTemplateContent(templateElement, stylesheetXml);
 
   return {
     ...(match === undefined ? {} : { match }),
@@ -230,7 +230,140 @@ function compileTemplateRule(templateElement: Element, stylesheetXml: string): T
     ...(name === undefined ? {} : { name }),
     modes: [],
     ...(priority === undefined || Number.isNaN(priority) ? {} : { priority }),
+    params,
     body,
+  };
+}
+
+function compileTemplateContent(templateElement: Element, stylesheetXml: string): {
+  readonly params: readonly TemplateParam[];
+  readonly body: readonly Instruction[];
+} {
+  const params: TemplateParam[] = [];
+  const body: Instruction[] = [];
+  let seenBodyInstruction = false;
+
+  for (let index = 0; index < templateElement.childNodes.length; index += 1) {
+    const node = templateElement.childNodes.item(index);
+    if (node === null) {
+      continue;
+    }
+
+    if (node.nodeType === node.ELEMENT_NODE) {
+      const element = node as Element;
+      if (isXsltElement(element, 'param')) {
+        if (seenBodyInstruction) {
+          throw createXsltStaticError(
+            'xsl:param must appear before other template content.',
+            getElementNameSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME)
+              ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+          );
+        }
+
+        params.push(compileTemplateParam(element, stylesheetXml));
+        continue;
+      }
+    }
+
+    const instruction = compileInstruction(node, stylesheetXml);
+    if (instruction !== undefined) {
+      seenBodyInstruction = true;
+      body.push(instruction);
+    }
+  }
+
+  return { params, body };
+}
+
+function compileTemplateParam(element: Element, stylesheetXml: string): TemplateParam {
+  const name = element.getAttribute('name');
+  if (name === null || name.length === 0) {
+    throw createXsltStaticError(
+      'xsl:param requires a name attribute.',
+      getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'add a name="..." attribute to xsl:param',
+          replacement: 'name="..."',
+          confidence: 1,
+        }],
+      },
+    );
+  }
+
+  const select = element.getAttribute('select') ?? undefined;
+  if (select === undefined && hasMeaningfulTemplateContent(element)) {
+    throw createXsltStaticError(
+      'xsl:param sequence-constructor defaults are not yet implemented in the current MVP+3 slice.',
+      getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      {
+        paramName: name,
+      },
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'replace xsl:param content with select="..." in the current MVP+3 slice',
+          confidence: 1,
+        }],
+      },
+    );
+  }
+
+  const location = getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
+    ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME);
+
+  return {
+    name,
+    ...(select === undefined ? {} : { select: parseXPath(select) }),
+    ...(select === undefined ? {} : { selectText: select }),
+    ...(location === undefined ? {} : { location }),
+  };
+}
+
+function compileWithParam(element: Element, stylesheetXml: string): WithParam {
+  const name = element.getAttribute('name');
+  if (name === null || name.length === 0) {
+    throw createXsltStaticError(
+      'xsl:with-param requires a name attribute.',
+      getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'add a name="..." attribute to xsl:with-param',
+          replacement: 'name="..."',
+          confidence: 1,
+        }],
+      },
+    );
+  }
+
+  const select = element.getAttribute('select') ?? undefined;
+  if (select === undefined && hasMeaningfulTemplateContent(element)) {
+    throw createXsltStaticError(
+      'xsl:with-param sequence-constructor values are not yet implemented in the current MVP+3 slice.',
+      getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
+      {
+        paramName: name,
+      },
+      {
+        suggestions: [{
+          kind: 'fix',
+          label: 'replace xsl:with-param content with select="..." in the current MVP+3 slice',
+          confidence: 1,
+        }],
+      },
+    );
+  }
+
+  const location = getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
+    ?? getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME);
+
+  return {
+    name,
+    ...(select === undefined ? {} : { select: parseXPath(select) }),
+    ...(select === undefined ? {} : { selectText: select }),
+    ...(location === undefined ? {} : { location }),
   };
 }
 
@@ -316,21 +449,17 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
       );
     }
 
-    if (childElements(element).length > 0) {
-      throw createXsltStaticError(
-        'xsl:call-template parameters are not yet implemented in the current MVP+3 slice.',
-        getNodeSourceLocation(stylesheetXml, element, STYLESHEET_SOURCE_NAME),
-        {
-          templateName: name,
-        },
-        {
-          suggestions: [{
-            kind: 'fix',
-            label: 'remove xsl:with-param children and use a parameterless named template in the current MVP+3 slice',
-            confidence: 1,
-          }],
-        },
-      );
+    const withParams: WithParam[] = [];
+    for (const child of childElements(element)) {
+      if (!isXsltElement(child, 'with-param')) {
+        throw createXsltStaticError(
+          `xsl:call-template only supports xsl:with-param children; found ${child.nodeName}.`,
+          getElementNameSourceLocation(stylesheetXml, child, STYLESHEET_SOURCE_NAME)
+            ?? getNodeSourceLocation(stylesheetXml, child, STYLESHEET_SOURCE_NAME),
+        );
+      }
+
+      withParams.push(compileWithParam(child, stylesheetXml));
     }
 
     const location = getAttributeValueSourceLocation(stylesheetXml, element, 'name', STYLESHEET_SOURCE_NAME)
@@ -339,6 +468,7 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
     return {
       kind: 'callTemplate',
       name,
+      withParams,
       ...(location === undefined ? {} : { location }),
     };
   }
@@ -369,6 +499,13 @@ function compileInstruction(node: Node, stylesheetXml: string): Instruction | un
       testText: test,
       body: compileInstructions(element.childNodes, stylesheetXml),
       ...(location === undefined ? {} : { location }),
+    };
+  }
+
+  if (isXsltElement(element, 'comment')) {
+    return {
+      kind: 'comment',
+      body: compileInstructions(element.childNodes, stylesheetXml),
     };
   }
 
@@ -593,6 +730,25 @@ function collectInheritedNamespaceAttributes(element: Element): AttributeInstruc
   }
 
   return attributes;
+}
+
+function hasMeaningfulTemplateContent(element: Element): boolean {
+  for (let index = 0; index < element.childNodes.length; index += 1) {
+    const node = element.childNodes.item(index);
+    if (node === null) {
+      continue;
+    }
+
+    if (node.nodeType === node.ELEMENT_NODE) {
+      return true;
+    }
+
+    if ((node.nodeType === node.TEXT_NODE || node.nodeType === node.CDATA_SECTION_NODE) && (node.nodeValue ?? '').trim().length > 0) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function isNamespaceDeclaration(attribute: Attr): boolean {

@@ -15,7 +15,7 @@ import { parseXml } from '../../xml/parse.js';
 import { createXdmNode, type XdmAtomicValue, type XdmItem, type XdmNode } from '../../xdm/types.js';
 import { evaluate, evaluateEffectiveBooleanValue } from '../../xpath/eval/evaluator.js';
 import type { DynamicContext } from '../../xpath/eval/context.js';
-import type { Instruction, StylesheetIR, TemplateRule } from '../compile/ir.js';
+import type { Instruction, StylesheetIR, TemplateParam, TemplateRule, WithParam } from '../compile/ir.js';
 
 const PREDEFINED_NAMESPACE_PREFIXES = new Map<string, string>([
   ['array', 'http://www.w3.org/2005/xpath-functions/array'],
@@ -155,7 +155,7 @@ function renderInitialTemplate(name: string, ir: StylesheetIR, context: DynamicC
   }
 
   try {
-    return renderInstructions(template.body, ir, context);
+    return renderTemplate(template, [], ir, context);
   } catch (error) {
     throw withPrependedFrame(
       error,
@@ -337,6 +337,8 @@ function renderInstruction(instruction: Instruction, ir: StylesheetIR, context: 
   switch (instruction.kind) {
     case 'literalText':
       return escapeText(instruction.text);
+    case 'comment':
+      return `<!--${renderInstructions(instruction.body, ir, context)}-->`;
     case 'literalElement': {
       const attributes = instruction.attributes.map((attribute) => ` ${attribute.name}="${escapeAttribute(attribute.value)}"`).join('');
       const body = renderInstructions(instruction.body, ir, context);
@@ -424,7 +426,7 @@ function renderInstruction(instruction: Instruction, ir: StylesheetIR, context: 
       }
 
       try {
-        return renderInstructions(template.body, ir, context);
+        return renderTemplate(template, instruction.withParams, ir, context);
       } catch (error) {
         throw withPrependedFrame(
           error,
@@ -473,6 +475,55 @@ function renderInstruction(instruction: Instruction, ir: StylesheetIR, context: 
       }
     }
   }
+}
+
+function renderTemplate(
+  template: TemplateRule,
+  withParams: readonly WithParam[],
+  ir: StylesheetIR,
+  context: DynamicContext,
+): string {
+  const variables = bindTemplateParams(template.params, withParams, context);
+  return renderInstructions(template.body, ir, {
+    ...context,
+    variables,
+  });
+}
+
+function bindTemplateParams(
+  params: readonly TemplateParam[],
+  withParams: readonly WithParam[],
+  context: DynamicContext,
+): ReadonlyMap<string, unknown> {
+  if (params.length === 0 && withParams.length === 0) {
+    return context.variables;
+  }
+
+  const provided = new Map<string, unknown>();
+  for (const withParam of withParams) {
+    provided.set(withParam.name, evaluateParamValue(withParam, context));
+  }
+
+  const variables = new Map(context.variables);
+  for (const param of params) {
+    const value = provided.has(param.name)
+      ? provided.get(param.name)
+      : evaluateParamValue(param, {
+          ...context,
+          variables,
+        });
+    variables.set(param.name, value);
+    variables.set(`{}${param.name}`, value);
+  }
+
+  return variables;
+}
+
+function evaluateParamValue(
+  param: Pick<TemplateParam, 'select'> | Pick<WithParam, 'select'>,
+  context: DynamicContext,
+): unknown {
+  return param.select === undefined ? [] : [...evaluate(param.select, context)];
 }
 
 function getChildNodeItems(item: unknown): XdmItem[] {

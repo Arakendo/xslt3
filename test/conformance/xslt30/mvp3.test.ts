@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { Attr, Document, Element, Node } from '@xmldom/xmldom';
 import { describe, expect, it } from 'vitest';
 
-import { XsltProcessor } from '../../../src/index.js';
+import { XsltProcessor, type TransformOptions } from '../../../src/index.js';
 import { parseXml } from '../../../src/xml/parse.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -20,6 +20,7 @@ type LoadedXslt30Case = {
   readonly stylesheet: string;
   readonly source: string;
   readonly expectedXml: string;
+  readonly options?: TransformOptions;
 };
 
 const MVP3_XSLT30_CASES: readonly Xslt30SliceCase[] = [
@@ -46,6 +47,10 @@ const MVP3_XSLT30_CASES: readonly Xslt30SliceCase[] = [
   {
     setFile: 'tests/fn/position/_position-test-set.xml',
     caseName: 'position-1125',
+  },
+  {
+    setFile: 'tests/insn/call-template/_call-template-test-set.xml',
+    caseName: 'call-template-0101',
   },
   {
     setFile: 'tests/type/string/_string-test-set.xml',
@@ -173,7 +178,7 @@ describe('W3C conformance — XSLT 3.0 MVP+3 slice', () => {
     for (const testCase of MVP3_XSLT30_CASES) {
       const loaded = loadXslt30Case(testCase);
       const proc = new XsltProcessor(loaded.stylesheet);
-      const { output } = proc.transform(loaded.source);
+      const { output } = proc.transform(loaded.source, loaded.options);
 
       try {
         expect(normalizeXml(output)).toBe(normalizeXml(loaded.expectedXml));
@@ -209,12 +214,24 @@ function loadXslt30Case(testCase: Xslt30SliceCase): LoadedXslt30Case {
 
   const expectedXml = loadExpectedXml(testCaseElement, setDirectory);
   const stylesheet = readFileSync(join(setDirectory, stylesheetFile), 'utf8');
+  const options = loadTransformOptions(testCaseElement);
 
   return {
     stylesheet,
     source,
     expectedXml,
+    ...(options === undefined ? {} : { options }),
   };
+}
+
+function loadTransformOptions(testCaseElement: Element): TransformOptions | undefined {
+  const testElement = testCaseElement.getElementsByTagName('test')[0];
+  if (testElement === undefined) {
+    return undefined;
+  }
+
+  const initialTemplate = testElement.getElementsByTagName('initial-template')[0]?.getAttribute('name') ?? undefined;
+  return initialTemplate === undefined ? undefined : { initialTemplate };
 }
 
 function resolveEnvironment(setDocument: Document, testCaseElement: Element): Element | undefined {

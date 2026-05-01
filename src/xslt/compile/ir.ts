@@ -29,6 +29,20 @@ export interface ChooseWhenBranch {
   readonly location?: SourceLocation;
 }
 
+export interface TemplateParam {
+  readonly name: string;
+  readonly select?: XPathAst;
+  readonly selectText?: string;
+  readonly location?: SourceLocation;
+}
+
+export interface WithParam {
+  readonly name: string;
+  readonly select?: XPathAst;
+  readonly selectText?: string;
+  readonly location?: SourceLocation;
+}
+
 export interface TemplateRule {
   /** Match pattern, pre-parsed. Undefined for named-only templates. */
   readonly match?: XPathAst;
@@ -42,6 +56,8 @@ export interface TemplateRule {
   readonly modes: readonly string[];
   /** Priority; undefined means compute from pattern. */
   readonly priority?: number;
+  /** Leading xsl:param declarations for named/template invocation. */
+  readonly params: readonly TemplateParam[];
   /** Sequence of instructions to evaluate. */
   readonly body: readonly Instruction[];
 }
@@ -56,6 +72,10 @@ export type Instruction =
   | {
       readonly kind: 'literalText';
       readonly text: string;
+    }
+  | {
+      readonly kind: 'comment';
+      readonly body: readonly Instruction[];
     }
   | {
       readonly kind: 'if';
@@ -80,6 +100,7 @@ export type Instruction =
   | {
       readonly kind: 'callTemplate';
       readonly name: string;
+      readonly withParams: readonly WithParam[];
       readonly location?: SourceLocation;
     }
   | {

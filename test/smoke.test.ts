@@ -223,4 +223,29 @@ describe('@arakendo/xslt scaffold', () => {
       output: '<out>root:2</out>',
     });
   });
+
+  it('binds xsl:with-param values and xsl:param defaults for named templates', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out>
+            <xsl:call-template name="emit"/>
+            <xsl:for-each select="item">
+              <xsl:call-template name="emit">
+                <xsl:with-param name="label" select="."/>
+              </xsl:call-template>
+            </xsl:for-each>
+          </out>
+        </xsl:template>
+        <xsl:template name="emit">
+          <xsl:param name="label" select="name()"/>
+          <entry><xsl:value-of select="$label"/></entry>
+        </xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root><item>a</item><item>b</item></root>')).toEqual({
+      output: '<out><entry>root</entry><entry>a</entry><entry>b</entry></out>',
+    });
+  });
 });
