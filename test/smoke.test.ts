@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { VERSION, XsltProcessor } from '../src/index.js';
 
-describe('@arakendo/xslt scaffold', () => {
+describe('Weaver scaffold', () => {
   it('exposes a version string', () => {
     expect(VERSION).toMatch(/^\d+\.\d+\.\d+/);
   });

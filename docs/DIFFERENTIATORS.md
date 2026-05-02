@@ -1,6 +1,6 @@
 # Differentiators — the "why bother" document
 
-> **Thesis:** `@arakendo/xslt` is not another XSLT interpreter. It is a
+> **Thesis:** Weaver (`@arakendo/weaver-xslt`) is not another XSLT interpreter. It is a
 > **TypeScript-native XSLT compiler** that emits inspectable, typed,
 > debuggable transform modules. The interpreter exists for conformance
 > testing and dynamic features; the codegen backend is the product.
@@ -78,7 +78,7 @@ Primary backend is a **codegen** that emits plain, readable TS:
 
 ```ts
 // invoice.xsl.ts — generated, do not edit
-import { Xdm, Writer, templates, type Ctx } from '@arakendo/xslt/runtime';
+import { Xdm, Writer, templates, type Ctx } from '@arakendo/weaver-xslt/runtime';
 
 /** match="invoice" (invoice.xsl:12) */
 function tmpl_invoice(ctx: Ctx, out: Writer): void {
@@ -223,7 +223,7 @@ roadmap, not behind the escape hatch.
 ### D5. **Watch mode, first-class**
 
 ```bash
-npx arakendo-xslt watch src/stylesheets/
+npx weaver-xslt watch src/stylesheets/
 ```
 
 A modern dev-experience pitch loses its point the moment the user's
@@ -392,8 +392,8 @@ thing in the debugger. That person is the customer.
 
 If a developer can:
 
-1. `npm install @arakendo/xslt`
-2. `npx arakendo-xslt compile invoice.xsl`
+1. `npm install @arakendo/weaver-xslt`
+2. `npx weaver-xslt compile invoice.xsl`
 3. Get a typed `invoice.xsl.ts` they can import in a React app
 4. See a red squiggle in VS Code when they mistype an element name in
    their XSLT

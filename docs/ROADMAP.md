@@ -45,7 +45,7 @@ yet. No CLI yet. Just: the thing works end-to-end in TypeScript.
 **Goal:** repo exists, builds, tests green, W3C suites visible.
 
 **Deliverables (complete):**
-- [x] `@arakendo/xslt` npm scaffold, strict TS, ESM, Node 20+
+- [x] `@arakendo/weaver-xslt` npm scaffold, strict TS, ESM, Node 20+
 - [x] Vitest + ESLint 9 + Prettier + CI matrix (Ubuntu/Windows × Node 20/22)
 - [x] MIT license, CONTRIBUTING, closed-contributions governance
 - [x] Layered `src/` (errors, xml, xdm, xpath/{lex,parse,eval}, xslt/{compile,eval}, processor)
@@ -204,7 +204,7 @@ sequence/atomization rules are right, or everything downstream is cursed
 ### MVP+3 — XSLT MVP on interpreter (done)
 
 **Goal:** run a real (tiny) invoice stylesheet end-to-end. This is the
-first moment `@arakendo/xslt` does what it says on the tin.
+first moment `@arakendo/weaver-xslt` does what it says on the tin.
 
 **Scope (in):**
 - Stylesheet loader: parse `.xsl` via `@xmldom/xmldom`, emit IR via
@@ -290,7 +290,7 @@ we should expect to rev the IR whenever codegen exposes a missing semantic.
 - Generated module shape:
   ```ts
   // invoice.xsl.ts (generated from invoice.xsl)
-  import type { TransformContext, XmlWriter } from '@arakendo/xslt/runtime';
+  import type { TransformContext, XmlWriter } from '@arakendo/weaver-xslt/runtime';
   export const source = { path: 'invoice.xsl', digest: '...' };
   export function transform(input: Document, ctx: TransformContext): string {
     // match="/" (invoice.xsl:1)
@@ -314,7 +314,7 @@ we should expect to rev the IR whenever codegen exposes a missing semantic.
 - [ ] Every MVP+3 golden passes under codegen (byte-equal to interpreter)
 - [ ] Generated fixtures exist and are human-reviewable
 - [ ] A generated file runs without importing the *compiler* — only
-      `@arakendo/xslt/runtime`. (Test: delete everything except runtime
+      `@arakendo/weaver-xslt/runtime`. (Test: delete everything except runtime
       + generated files in a sandbox, execute, see output.)
 - [ ] IR version is documented; any IR schema change requires updating
       `src/xslt/compile/ir.ts` version constant
@@ -337,10 +337,10 @@ we should expect to rev the IR whenever codegen exposes a missing semantic.
   `xs:string → string`, `xs:integer → number`, `xs:boolean → boolean`,
   `xs:double → number`, element/document → `Element | Document`, sequences
   → arrays, optional params → optional properties
-- Shipped `arakendo-xslt` CLI:
-  - `arakendo-xslt compile <glob>` → writes `.xsl.ts` + `.d.ts` + digest
-  - `arakendo-xslt run <stylesheet> --input <xml>` → runs via interpreter
-  - `arakendo-xslt --help` is not garbage
+- Shipped `weaver-xslt` CLI:
+  - `weaver-xslt compile <glob>` → writes `.xsl.ts` + `.d.ts` + digest
+  - `weaver-xslt run <stylesheet> --input <xml>` → runs via interpreter
+  - `weaver-xslt --help` is not garbage
 - `defineXsltFunctions('ns', { ... })` — typed extension function
   registration. At compile time, the compiler loads a `functions.ts`
   file (optional, convention-based), reads the TS signatures via the TS
@@ -354,8 +354,8 @@ we should expect to rev the IR whenever codegen exposes a missing semantic.
       one call). `tsc` passes on the consumer side.
 - [ ] Extension-function type-mismatch produces a stylesheet-located
       diagnostic with the `.ts` signature quoted inline
-- [ ] CLI published as `arakendo-xslt` bin entry in `package.json`
-- [ ] `arakendo-xslt compile` is documented in README with a copy-paste
+- [ ] CLI published as `weaver-xslt` bin entry in `package.json`
+- [ ] `weaver-xslt compile` is documented in README with a copy-paste
       that works
 
 ---
@@ -369,7 +369,7 @@ Rule of engagement: **watch correctness beats watch speed**. A 500 ms
 rebuild that serves stale output or stale diagnostics is a failed increment.
 
 **Scope (in):**
-- `arakendo-xslt watch <glob>`: chokidar-based, sub-second recompile on
+- `weaver-xslt watch <glob>`: chokidar-based, sub-second recompile on
   save, writes outputs atomically, streams diagnostics to stdout in the
   D1 caret format
 - Persistent IR cache keyed by `{ path, mtime, digest }` so only changed
@@ -388,13 +388,13 @@ rebuild that serves stale output or stale diagnostics is a failed increment.
   - Typos in function names against the known `fn:` registry + any
     `defineXsltFunctions` registrations
 - Bundler plugins (thin wrappers over the compiler):
-  - `@arakendo/xslt/vite` — `import './invoice.xsl'` works in Vite dev
-  - `@arakendo/xslt/esbuild` — same for esbuild / tsup
+  - `@arakendo/weaver-xslt/vite` — `import './invoice.xsl'` works in Vite dev
+  - `@arakendo/weaver-xslt/esbuild` — same for esbuild / tsup
 - JSON-safe diagnostic projection available for future editor/CLI
   boundaries without inventing a second report contract
 
 **Exit criteria:**
-- [ ] `arakendo-xslt watch` round-trips under 500ms for a 200-line stylesheet
+- [ ] `weaver-xslt watch` round-trips under 500ms for a 200-line stylesheet
 - [ ] Watch invalidation fixtures prove that editing a dependency updates
   emitted `.xsl.ts`, `.d.ts`, `.xsl.map`, and diagnostics together;
   no stale-output or stale-diagnostic regressions
@@ -539,7 +539,7 @@ foundational instability.
 - [ ] ≥70% of XSLT 3.0 required tests passing under **both** backends
 - [ ] ≥80% of QT3 required tests passing under both backends
 - [ ] Zero "unknown failure" — every failing test has a tagged reason
-- [ ] Public dashboard live at `arakendo.github.io/xslt3` (or equivalent)
+- [ ] Public dashboard live at `weaverxslt.org` (or equivalent)
 
 ---
 
@@ -610,7 +610,7 @@ execution model with shared semantics, not a bolt-on optimization pass.
   of differences — *not* a compat promise)
 - `xsl:evaluate` under interpreter backend only, documented as such
 - Semantic versioning commitment formalized in `VERSIONING.md`
-- `1.0.0` published to npm under the `@arakendo/xslt` scope
+- `1.0.0` published to npm under the `@arakendo/weaver-xslt` scope
 
 **Exit criteria:**
 - [ ] Docs site live

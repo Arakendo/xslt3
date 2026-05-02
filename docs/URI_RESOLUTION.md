@@ -4,7 +4,7 @@
 > application must provide.
 
 This document exists because URI handling is not an implementation detail.
-It is part of the contract between `@arakendo/xslt` and the host
+It is part of the contract between `@arakendo/weaver-xslt` and the host
 application embedding it.
 
 It complements [ARCHITECTURE.md](./ARCHITECTURE.md), especially the core

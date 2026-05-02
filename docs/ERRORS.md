@@ -1,6 +1,6 @@
 # Errors — structured diagnostics and runtime failures
 
-This document defines the error-reporting model for Weaver (`@arakendo/xslt`) across
+This document defines the error-reporting model for Weaver (`@arakendo/weaver-xslt`) across
 XPath, XSLT, serialization, the future CLI/watch-mode surface, codegen, and downstream
 editor or debugger tooling.
 

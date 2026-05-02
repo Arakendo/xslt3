@@ -2,7 +2,7 @@
 
 ## This project does not accept external contributions.
 
-`@arakendo/xslt` is **open source** (MIT licensed) but **closed to contributions**.
+`@arakendo/weaver-xslt` is **open source** (MIT licensed) but **closed to contributions**.
 You are free to:
 
 - Use the code in your own projects (commercial or otherwise) under the MIT License

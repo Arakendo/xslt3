@@ -1,0 +1,62 @@
+site_name: Weaver
+site_description: TypeScript-native XSLT compiler with inspectable generated TypeScript, diagnostics-first design, and an interpreter reference backend.
+site_url: https://weaverxslt.org/
+repo_url: https://github.com/Arakendo/weaver-xslt
+repo_name: Arakendo/weaver-xslt
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+  icon:
+    logo: material/transit-connection-variant
+
+nav:
+  - Home: index.md
+  - Differentiators: DIFFERENTIATORS.md
+  - Architecture: ARCHITECTURE.md
+  - Roadmap: ROADMAP.md
+  - Errors: ERRORS.md
+  - XPath: XPATH.md
+  - Semantic Boundaries: SEMANTIC_BOUNDARIES.md
+  - URI Resolution: URI_RESOLUTION.md
+  - Workbench API: WORKBENCH_API.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+extra:
+  generator: false

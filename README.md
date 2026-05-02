@@ -1,10 +1,10 @@
-# @arakendo/xslt
+# Weaver
 
 A TypeScript-native **XSLT 3.0 compiler** that emits inspectable, typed,
 debuggable transform modules — with an interpreter backend for
 conformance and dynamic features.
 
-<sub>repo: `xslt3` · internal codename: *Weaver*</sub>
+<sub>package: `@arakendo/weaver-xslt` · repo: `weaver-xslt`</sub>
 
 > Status: **interpreter MVP in progress** — the XPath core is in place, the MVP+3 XSLT interpreter slice runs real transforms, and the curated XSLT 3.0 conformance slice is now online.
 
@@ -38,7 +38,7 @@ npm test
 ## Hello world
 
 ```ts
-import { XsltProcessor } from '@arakendo/xslt';
+import { XsltProcessor } from '@arakendo/weaver-xslt';
 
 const stylesheet = `
   <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">

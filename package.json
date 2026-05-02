@@ -1,18 +1,18 @@
 {
-  "name": "@arakendo/xslt",
+  "name": "@arakendo/weaver-xslt",
   "version": "0.0.1",
-  "description": "A TypeScript XSLT 3.0 engine (codename: Weaver)",
+  "description": "Weaver is a TypeScript XSLT 3.0 engine",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Arakendo/xslt3.git"
+    "url": "git+https://github.com/Arakendo/weaver-xslt.git"
   },
   "bugs": {
-    "url": "https://github.com/Arakendo/xslt3/issues"
+    "url": "https://github.com/Arakendo/weaver-xslt/issues"
   },
-  "homepage": "https://github.com/Arakendo/xslt3#readme",
+  "homepage": "https://github.com/Arakendo/weaver-xslt#readme",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -42,7 +42,8 @@
   },
   "keywords": [
     "xslt",
-    "xslt3",
+    "weaver",
+    "weaver-xslt",
     "xpath",
     "xml",
     "typescript"

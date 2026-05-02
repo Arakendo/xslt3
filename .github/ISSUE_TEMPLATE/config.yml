@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: This project does not accept issues
-    url: https://github.com/Arakendo/xslt3/blob/main/CONTRIBUTING.md
-    about: '@arakendo/xslt is open source but closed to contributions. Please fork instead.'
+    url: https://github.com/Arakendo/weaver-xslt/blob/main/CONTRIBUTING.md
+    about: '@arakendo/weaver-xslt is open source but closed to contributions. Please fork instead.'

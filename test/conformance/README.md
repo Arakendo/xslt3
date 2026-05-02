@@ -1,7 +1,7 @@
 # W3C conformance
 
 This directory hosts conformance harnesses for the official W3C suites
-that matter to `@arakendo/xslt`.
+that matter to `@arakendo/weaver-xslt`.
 
 Current structure:
 

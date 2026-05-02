@@ -1,7 +1,7 @@
 # Project Guidelines
 
 ## Architecture
-- This repository builds `@arakendo/xslt` as a **TypeScript-native XSLT compiler**. The interpreter is the reference backend; the **codegen backend is the product**.
+- This repository builds `@arakendo/weaver-xslt` as a **TypeScript-native XSLT compiler**. The interpreter is the reference backend; the **codegen backend is the product**.
 - Start with the pinned docs before making architectural changes:
   - [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) for non-negotiable design decisions
   - [docs/DIFFERENTIATORS.md](../docs/DIFFERENTIATORS.md) for the product thesis and diagnostic goals

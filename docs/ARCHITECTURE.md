@@ -12,7 +12,7 @@
 ## 1. Goals & non-goals
 
 ### Thesis (one sentence)
-`@arakendo/xslt` is a **TypeScript-native XSLT compiler** that emits
+Weaver (`@arakendo/weaver-xslt`) is a **TypeScript-native XSLT compiler** that emits
 inspectable, typed, debuggable transform modules. An interpreter backend
 exists for conformance testing and dynamic features; the codegen backend
 is the product.
@@ -29,8 +29,8 @@ is the product.
 - **Typed integration**: typed params, typed extension functions, typed
   result shapes when feasible
 - Works in **Node 20+** and modern browsers (no Node-only APIs in core)
-- Usable as a library (`@arakendo/xslt`) and as a build step
-  (`npx arakendo-xslt compile stylesheet.xsl`)
+- Usable as a library (`@arakendo/weaver-xslt`) and as a build step
+  (`npx weaver-xslt compile stylesheet.xsl`)
 
 ### Non-goals (for now)
 - Streaming (XSLT 3.0 streamability) — design should not *preclude* it, but
@@ -339,7 +339,7 @@ The codegen backend emits **plain TypeScript source** (`.xsl.ts`) plus a
   emitter lowers into a tiny TypeScript output model and then renders to
   strings for simplicity and readability of the output.
 
-Generated code imports from `@arakendo/xslt/runtime` for shared helpers
+Generated code imports from `@arakendo/weaver-xslt/runtime` for shared helpers
 (writer, XPath primitives, template dispatcher, XDM operations). The
 runtime is a separate subpath export so projects can bundle *only* the
 runtime without the compiler.
@@ -473,7 +473,7 @@ src/
     fn/                    # XSLT-specific fns (current-group, etc.)
 
   runtime/                 # imported by generated code; also a public subpath
-    index.ts               # @arakendo/xslt/runtime entry
+    index.ts               # @arakendo/weaver-xslt/runtime entry
     writer.ts              # output tree writer used by generated code
     dispatcher.ts          # template rule dispatcher
     ext.ts                 # defineXsltFunctions (DEC-015)
@@ -504,19 +504,19 @@ access from core engine code.
 
 ```ts
 // Runtime / interpreter usage
-import { XsltProcessor } from '@arakendo/xslt';
+import { XsltProcessor } from '@arakendo/weaver-xslt';
 
 const proc = new XsltProcessor(stylesheetXml);
 const { output } = proc.transform(sourceXml, { parameters: { foo: 1 } });
 
 // Compile-to-TS usage (programmatic; CLI wraps this)
-import { compileStylesheetToTs } from '@arakendo/xslt/compile';
+import { compileStylesheetToTs } from '@arakendo/weaver-xslt/compile';
 
 const { code, declarations, sourceMap, diagnostics } =
   compileStylesheetToTs(stylesheetXml, { path: 'invoice.xsl' });
 
 // Runtime helpers imported by generated code (and by power users)
-import { defineXsltFunctions, Writer, Ctx } from '@arakendo/xslt/runtime';
+import { defineXsltFunctions, Writer, Ctx } from '@arakendo/weaver-xslt/runtime';
 ```
 
 Post-M6.5, a workbench-oriented boundary may sit alongside these surfaces,
@@ -549,8 +549,8 @@ diagnostics polish, then the codegen backend which is the product.
 | **M2** | XPath core on interpreter | All axes, predicates, value/general/node comparisons, `if/for/let/some/every`, ~40 fn:* functions. Target: 20% of QT3 passing. |
 | **M3** | XSLT MVP on interpreter | `xsl:template`, `xsl:apply-templates`, `xsl:value-of`, `xsl:for-each`, `xsl:choose`, `xsl:variable`, `xsl:param`, literal result elements. First golden test green. |
 | **M4** | **Codegen backend (v1)** | IR → readable TypeScript for M3 features; golden + parity fixtures compare output and structured diagnostics under both backends; M3 conformance slice passes under codegen; generated output committed to a fixtures folder for review |
-| **M5** | Typed params + typed extension functions | `.d.ts` emission; `defineXsltFunctions` with compile-time signature checking; CLI `arakendo-xslt compile` |
-| **M6** | Watch mode + source maps + diagnostics v2 | `arakendo-xslt watch`; Vite/esbuild plugin; `.xsl.map` output; static-analysis pass for unreachable templates, unused vars, priority conflicts, "did you mean" suggestions |
+| **M5** | Typed params + typed extension functions | `.d.ts` emission; `defineXsltFunctions` with compile-time signature checking; CLI `weaver-xslt compile` |
+| **M6** | Watch mode + source maps + diagnostics v2 | `weaver-xslt watch`; Vite/esbuild plugin; `.xsl.map` output; static-analysis pass for unreachable templates, unused vars, priority conflicts, "did you mean" suggestions |
 | **M6.5** | Live workbench / playground | four-pane XML + XSLT + generated TS + output loop over in-memory sources; generated TS stays read-only; linked highlighting consumes source-map and diagnostic artifacts rather than screen-scraped text |
 | **M7** | XPath type system + maps/arrays + higher-order | `cast as`, `instance of`, SequenceTypes, maps, arrays, function items |
 | **M8** | XSLT 3.0 feature-complete (non-streaming) | `xsl:accumulator`, `xsl:iterate`, `xsl:merge`, packages, modes, keys |
@@ -562,7 +562,7 @@ Time estimates intentionally omitted.
 ## 5. Open questions
 
 - Do we expose the parsed IR as a public API? (Leaning yes for debugger
-  tooling; behind `@arakendo/xslt/ir` subpath with its own version contract.)
+  tooling; behind `@arakendo/weaver-xslt/ir` subpath with its own version contract.)
 - How do we handle `xsl:result-document` in the browser? (Return a map;
   let the caller decide what to do with it.)
 - BigInt for `xs:integer`? (Spec says arbitrary precision. Probably yes

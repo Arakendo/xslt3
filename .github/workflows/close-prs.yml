@@ -22,7 +22,7 @@ jobs:
               repo: context.repo.repo,
               issue_number: pr.number,
               body: [
-                "Thanks for your interest in **@arakendo/xslt**!",
+                "Thanks for your interest in **@arakendo/weaver-xslt**!",
                 "",
                 "This project is open source (MIT) but **does not accept external contributions**.",
                 "See [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for details.",

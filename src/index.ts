@@ -1,5 +1,5 @@
 /**
- * @arakendo/xslt — a TypeScript XSLT 3.0 engine (codename: Weaver).
+ * Weaver (`@arakendo/weaver-xslt`) — a TypeScript XSLT 3.0 engine.
  *
  * Public entry point. Keep this surface tiny and stable.
  * Internal modules should not be imported by consumers.
