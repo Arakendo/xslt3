@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": "../../",
+    "paths": {
+      "@arakendo/weaver-xslt": ["src/index.ts"],
+      "@arakendo/weaver-xslt/compile": ["src/compile.ts"],
+      "@arakendo/weaver-xslt/runtime": ["src/runtime/index.ts"]
+    }
+  },
+  "include": ["./*.ts"],
+  "exclude": []
+}

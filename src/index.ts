@@ -8,4 +8,5 @@
 export { XsltProcessor } from './processor/XsltProcessor.js';
 export type { TransformOptions, TransformResult } from './processor/types.js';
 export { XdmError, XPathError, XsltError, type SourceLocation } from './errors/index.js';
+export { compileStylesheetToTs } from './compile.js';
 export { VERSION } from './version.js';

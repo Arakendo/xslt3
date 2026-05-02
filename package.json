@@ -20,6 +20,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./compile": {
+      "types": "./dist/compile.d.ts",
+      "import": "./dist/compile.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js"
     }
   },
   "files": [

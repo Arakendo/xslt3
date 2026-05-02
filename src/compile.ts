@@ -1,0 +1,1 @@
+export { compileStylesheetToTs, type CompileStylesheetToTsOptions } from './processor/compile.js';
