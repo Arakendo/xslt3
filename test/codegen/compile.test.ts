@@ -40,6 +40,8 @@ const APPLY_TEMPLATES_CHILD_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET = '<xsl:style
 const APPLY_TEMPLATES_CHILD_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_CHILD_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><xsl:choose><xsl:when test="flag"><xsl:if test="detail"><flagged/></xsl:if></xsl:when><xsl:otherwise><xsl:if test="vip"><vip/></xsl:if></xsl:otherwise></xsl:choose></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_CHILD_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><xsl:choose><xsl:when test="flag"><xsl:choose><xsl:when test="detail"><flagged/></xsl:when><xsl:otherwise><brief/></xsl:otherwise></xsl:choose></xsl:when><xsl:otherwise><xsl:choose><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:otherwise></xsl:choose></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_CHILD_APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><details><xsl:apply-templates select="detail"/></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_CHILD_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><details><xsl:apply-templates/></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="."/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_RELATIVE_SELECT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_ABSOLUTE_MATCH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
@@ -510,6 +512,36 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
+  it('falls back when a child template contains nested xsl:apply-templates', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-child-apply-templates.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+  });
+
+  it('falls back when a child template contains nested xsl:apply-templates without select', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-child-apply-templates-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('applyBuiltInTemplatesByPath(');
+  });
+
   it('falls back to the interpreter-backed runtime surface for unsupported instructions', () => {
     const stylesheet = `
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -881,6 +913,34 @@ describe('XSLT codegen MVP4 slice', () => {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_CHILD_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a child-template nested xsl:apply-templates stylesheet through the fallback runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail>fresh</detail><detail>green</detail></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_CHILD_APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'apply-templates-child-apply-templates.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_CHILD_APPLY_TEMPLATES_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a child-template nested xsl:apply-templates stylesheet without select through the fallback runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail>fresh</detail><detail>green</detail></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_CHILD_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-child-apply-templates-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_CHILD_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
 
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });

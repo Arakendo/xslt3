@@ -307,6 +307,11 @@ we should expect to rev the IR whenever codegen exposes a missing semantic.
   so IR changes surface as PR diffs
 - Fixture harness: compiles each golden twice (interpreter, codegen),
   asserts byte-equal output
+- Current MVP+4 planner boundary: root-level `xsl:apply-templates` shapes
+  may emit native plans, but nested `xsl:apply-templates` inside emitted
+  child template bodies currently fall back to the runtime/interpreter path.
+  Treat this as an explicit staging boundary until planner context is made
+  intentionally recursive.
 - CLI stub: `node dist/cli.js compile <file>` writes `<file>.ts`. Not yet
   the shipped CLI, but real enough to dogfood.
 

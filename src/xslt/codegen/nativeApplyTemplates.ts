@@ -57,6 +57,8 @@ export function emitRootApplyTemplatesInstruction(
     return undefined;
   }
 
+  // MVP+4 only plans the root apply-templates dispatch. Nested apply-templates
+  // inside child template bodies still fall back through generic emission.
   const childBody = emitInstructionSequence(childTemplate.body, runtimeHelpers, {
     contextNodeIdentifier: 'templateNode',
   });
