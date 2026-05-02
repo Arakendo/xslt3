@@ -14,22 +14,16 @@ import {
   assertAllowedXsltAttributes,
   assertNoDuplicateWithParam,
   assertNoSelectAndContent,
-  childElements,
   createAttributeSuggestion,
   createInstructionSuggestion,
   createXsltStaticError,
-  hasMeaningfulTemplateContent,
-  isSupportedTemplateMatch,
-  isXsltElement,
-  normalizeXsltQName,
-  parseRequiredAttribute,
-  parseXPathInContext,
   STYLESHEET_SOURCE_NAME,
   XMLNS_NAMESPACE,
-  XSLT_NAMESPACE,
 } from './compilerSupport.js';
 import { createInstructionEntrypoints, type InstructionEntrypointHelpers } from './instructionEntrypoints.js';
 import type { GlobalBinding, GlobalParam, GlobalVariable, StylesheetIR, TemplateRule } from './ir.js';
+import { childElements, hasMeaningfulTemplateContent, isXsltElement, parseRequiredAttribute, XSLT_NAMESPACE } from './xsltElementHelpers.js';
+import { isSupportedTemplateMatch, normalizeXsltQName, parseXPathInContext } from './xsltNameResolution.js';
 import {
   assertNoDuplicateGlobalBindings,
   assertNoDuplicateNamedTemplates,

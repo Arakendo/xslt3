@@ -4,8 +4,8 @@ import { XTSE0090, XTSE0165, XTSE0630, XTSE0650, XTSE0660, XTSE0680, XTSE0690 } 
 import type { ErrorContext, ErrorSuggestion } from '../../errors/index.js';
 import { computeLevenshteinDistance } from '../diagnostics.js';
 import { getAttributeValueSourceLocation, getElementNameSourceLocation, getNodeSourceLocation } from '../../xml/parse.js';
-import { descendantElements, isTunnelParamElement, leadingTemplateParamElements, parseRequiredAttribute } from './compilerSupport.js';
 import type { GlobalBinding, GlobalParam, GlobalVariable, StylesheetIR, TemplateRule } from './ir.js';
+import { descendantElements, isTunnelParamElement, leadingTemplateParamElements, parseRequiredAttribute } from './xsltElementHelpers.js';
 
 const SUPPORTED_XSLT_STYLESHEET_ATTRIBUTES = ['exclude-result-prefixes', 'version', 'xpath-default-namespace'] as const;
 const KNOWN_LATER_XSLT_STYLESHEET_ATTRIBUTES = [
