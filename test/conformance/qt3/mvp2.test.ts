@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import type { Qt3CaseExclusion, Qt3SliceCase } from './harness.js';
@@ -8,6 +11,9 @@ import {
   loadQt3SliceCases,
   runQt3Slice,
 } from './harness.js';
+
+const REPO_ROOT = join(import.meta.dirname, '..', '..', '..');
+const QT3_ROOT = join(REPO_ROOT, 'vendor', 'qt3tests');
 
 const MVP2_QT3_SET_FILES = [
   'prod/AxisStep.abbr.xml',
@@ -140,6 +146,11 @@ function logQt3Exclusions(excludedCases: readonly Qt3ExcludedCase[]): void {
 }
 
 describe('W3C conformance — QT3 MVP+2 slice', () => {
+  if (!existsSync(join(QT3_ROOT, 'catalog.xml'))) {
+    it.skip('suite not present — run: git submodule update --init', () => {});
+    return;
+  }
+
   it('executes a broader filtered QT3 slice and reports the top failing clusters', () => {
     const discoveredCases = loadQt3SliceCases(MVP2_QT3_SET_FILES);
     const runnableCases = discoveredCases.filter(isPotentiallySupportedXPathCase);

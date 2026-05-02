@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -35,6 +35,11 @@ const MVP1_QT3_CASES: readonly Qt3SliceCase[] = [
 ];
 
 describe('W3C conformance — QT3 MVP+1 slice', () => {
+  if (!existsSync(join(QT3_ROOT, 'catalog.xml'))) {
+    it.skip('suite not present — run: git submodule update --init', () => {});
+    return;
+  }
+
   it('executes a real filtered QT3 slice and reports a pass rate', () => {
     let passed = 0;
 
