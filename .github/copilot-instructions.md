@@ -35,6 +35,9 @@
 - Run the main test suite with `npm test`.
 - Use focused Vitest runs while iterating, then finish with the relevant broader validation.
 - Use `npm run test:conformance` only when the local slice is stable enough for broader conformance work.
+- GitHub Actions CI runs on clean runners without `vendor/` submodules checked out. Tests and harnesses that touch `vendor/qt3tests` or `vendor/xslt30-test` must skip or guard cleanly when those corpora are absent.
+- When asked to push, finish with the relevant local validation first. Default to `npm run typecheck` plus the narrowest relevant test run, and use full `npm test` when the change touches shared runtime/compiler behavior, test harnesses, workflow files, or package/configuration surfaces.
+- After pushing, check the latest GitHub Actions run when the change could affect CI or deployment. Treat fresh CI failures as part of the task, not as follow-up bookkeeping.
 
 ## XPath and XSLT Work
 - Preserve the hand-written parser architecture: recursive descent for paths/statements and Pratt-style expression parsing.
