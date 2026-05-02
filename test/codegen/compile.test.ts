@@ -31,10 +31,15 @@ const MATCHED_ROOT_FIXTURE_STYLESHEET = `
         </xsl:template>
       </xsl:stylesheet>
     `;
+const MATCHED_NESTED_ROOT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><xsl:if test="flag"><flagged/></xsl:if></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_DOT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="."/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="."/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_RELATIVE_SELECT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
 const GENERATED_RUNTIME_MODULE_SPECIFIER = '@runtime-test';
@@ -206,6 +211,23 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
+  it('emits native code for a single absolute multi-step matched element with relative body paths', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FIXTURE_STYLESHEET, { path: 'matched-nested-root.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root","section","item"]);');
+    expect(emitted).toContain('escapeText(selectSimplePathText(currentNode, ["name"]))');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
   it('emits native code for a root apply-templates select and a simple relative match template', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates.xsl' });
     const transpiled = ts.transpileModule(emitted, {
@@ -238,6 +260,22 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
+  it('emits native code for a root apply-templates select and a simple absolute match template', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
   it('emits native code for a root apply-templates without select and a simple relative match template', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-default.xsl' });
     const transpiled = ts.transpileModule(emitted, {
@@ -251,6 +289,56 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["item"], (templateNode) =>');
     expect(emitted).toContain('escapeText(stringValueOfNode(templateNode))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and a simple absolute match template', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute nested match template', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute nested match template', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","section","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -340,9 +428,44 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the matched-nested-root stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FIXTURE_STYLESHEET, { path: 'matched-nested-root.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the apply-templates stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
@@ -432,6 +555,20 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
 
+  it('executes a nested matched-element native module through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>world</name><flag/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_NESTED_ROOT_FIXTURE_STYLESHEET, 'matched-nested-root.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(MATCHED_NESTED_ROOT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
   it('executes a simple native apply-templates module through the runtime surface', () => {
     const sourceXml = '<root><item><name>apple</name></item><item><name>pear</name></item></root>';
     const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'apply-templates.xsl');
@@ -456,6 +593,20 @@ describe('XSLT codegen MVP4 slice', () => {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_RELATIVE_SELECT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute match template through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name></item><item><name>pear</name></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_FIXTURE_STYLESHEET, 'apply-templates-absolute-match.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_FIXTURE_STYLESHEET).transform(sourceXml);
 
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
@@ -498,6 +649,48 @@ describe('XSLT codegen MVP4 slice', () => {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute match through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name></item><note>carry</note><group><item><name>skip</name></item></group><item><name>pear</name></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute nested match through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name></item></section><section><item><name>pear</name></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute nested match through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name></item></section><group><item><name>skip-too</name></item></group><section><item><name>pear</name></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
 
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });

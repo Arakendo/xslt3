@@ -5,6 +5,7 @@ import { tsRawExpression, type TsExpression } from './ts-ir.js';
 interface RootApplyTemplatesShape {
   readonly rootTemplate: TemplateRule;
   readonly childTemplate: TemplateRule;
+  readonly childMatchAbsolute: boolean;
   readonly childMatchPath: readonly string[];
 }
 
@@ -19,7 +20,7 @@ export function tryGetRootApplyTemplatesShape(ir: StylesheetIR): RootApplyTempla
     return undefined;
   }
 
-  const childMatchPath = getSimpleRelativeMatchPath(childTemplate);
+  const childMatchPath = getSimpleMatchPath(childTemplate);
   if (childMatchPath === undefined) {
     return undefined;
   }
@@ -27,6 +28,7 @@ export function tryGetRootApplyTemplatesShape(ir: StylesheetIR): RootApplyTempla
   return {
     rootTemplate,
     childTemplate,
+    childMatchAbsolute: childTemplate.match?.kind === 'path' ? childTemplate.match.absolute : false,
     childMatchPath,
   };
 }
@@ -34,6 +36,7 @@ export function tryGetRootApplyTemplatesShape(ir: StylesheetIR): RootApplyTempla
 export function emitRootApplyTemplatesInstruction(
   instruction: Extract<Instruction, { readonly kind: 'applyTemplates' }>,
   childTemplate: TemplateRule,
+  childMatchAbsolute: boolean,
   childMatchPath: readonly string[],
   runtimeHelpers: Set<string>,
   emitInstructionSequence: (
@@ -64,15 +67,16 @@ export function emitRootApplyTemplatesInstruction(
   if (instruction.select === undefined) {
     runtimeHelpers.add('applyBuiltInTemplatesByPath');
     return tsRawExpression(
-      `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childMatchPath)}, (templateNode) => ${childBody.code})`,
+      childMatchAbsolute
+        ? `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childMatchPath)}, (templateNode) => ${childBody.code}, true)`
+        : `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childMatchPath)}, (templateNode) => ${childBody.code})`,
     );
   }
 
   const selectPath = tryGetSimpleChildPath(instruction.select);
   if (
     selectPath === undefined
-    || selectPath.segments.length < childMatchPath.length
-    || !endsWithPath(selectPath.segments, childMatchPath)
+    || !selectPathMatchesTemplate(selectPath.segments, childMatchPath, childMatchAbsolute)
   ) {
     return undefined;
   }
@@ -94,14 +98,13 @@ function isRootTemplateShape(template: TemplateRule): boolean {
     && template.match.steps.length === 0;
 }
 
-function getSimpleRelativeMatchPath(template: TemplateRule): readonly string[] | undefined {
+function getSimpleMatchPath(template: TemplateRule): readonly string[] | undefined {
   if (
     template.name !== undefined
     || template.modes.length > 0
     || template.params.length > 0
     || template.match === undefined
     || template.match.kind !== 'path'
-    || template.match.absolute
     || template.match.base !== undefined
     || template.match.steps.length === 0
   ) {
@@ -124,6 +127,18 @@ function getSimpleRelativeMatchPath(template: TemplateRule): readonly string[] |
   }
 
   return path;
+}
+
+function selectPathMatchesTemplate(
+  selectPath: readonly string[],
+  templatePath: readonly string[],
+  templateIsAbsolute: boolean,
+): boolean {
+  if (templateIsAbsolute) {
+    return selectPath.length === templatePath.length && endsWithPath(selectPath, templatePath);
+  }
+
+  return selectPath.length >= templatePath.length && endsWithPath(selectPath, templatePath);
 }
 
 function endsWithPath(path: readonly string[], suffix: readonly string[]): boolean {

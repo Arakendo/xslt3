@@ -68,12 +68,13 @@ export function applyBuiltInTemplatesByPath(
   startNode: Node,
   path: readonly string[],
   renderMatchedNode: (node: Node) => string,
+  absolute = false,
 ): string {
   if (path.length === 0) {
     return '';
   }
 
-  return renderBuiltInTemplateChildren(startNode, path, renderMatchedNode);
+  return renderBuiltInTemplateChildren(startNode, path, renderMatchedNode, absolute);
 }
 
 export function selectSimplePathText(startNode: Node, path: readonly string[]): string {
@@ -144,6 +145,7 @@ function renderBuiltInTemplateChildren(
   node: Node,
   path: readonly string[],
   renderMatchedNode: (node: Node) => string,
+  absolute: boolean,
 ): string {
   let output = '';
 
@@ -151,13 +153,13 @@ function renderBuiltInTemplateChildren(
     const child = node.childNodes.item(index);
     if (child === null || child.nodeType !== child.ELEMENT_NODE) {
       if (child !== null) {
-        output += renderBuiltInTemplateNode(child, path, renderMatchedNode);
+        output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute);
       }
 
       continue;
     }
 
-    output += renderBuiltInTemplateNode(child, path, renderMatchedNode);
+    output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute);
   }
 
   return output;
@@ -167,13 +169,14 @@ function renderBuiltInTemplateNode(
   node: Node,
   path: readonly string[],
   renderMatchedNode: (node: Node) => string,
+  absolute: boolean,
 ): string {
-  if (matchesSimpleRelativePath(node, path)) {
+  if (matchesSimplePath(node, path, absolute)) {
     return renderMatchedNode(node);
   }
 
   if (node.nodeType === node.DOCUMENT_NODE || node.nodeType === node.ELEMENT_NODE) {
-    return renderBuiltInTemplateChildren(node, path, renderMatchedNode);
+    return renderBuiltInTemplateChildren(node, path, renderMatchedNode, absolute);
   }
 
   if (
@@ -187,7 +190,7 @@ function renderBuiltInTemplateNode(
   return '';
 }
 
-function matchesSimpleRelativePath(node: Node, path: readonly string[]): boolean {
+function matchesSimplePath(node: Node, path: readonly string[], absolute: boolean): boolean {
   let current: Node | null = node;
 
   for (let index = path.length - 1; index >= 0; index -= 1) {
@@ -199,7 +202,7 @@ function matchesSimpleRelativePath(node: Node, path: readonly string[]): boolean
     current = current?.parentNode ?? null;
   }
 
-  return true;
+  return !absolute || current?.nodeType === current?.DOCUMENT_NODE;
 }
 
 function isUnqualifiedElementNamed(node: Node | null, localName: string): boolean {

@@ -73,12 +73,13 @@ function tryCreateRootApplyTemplatesNativePlan(ir: StylesheetIR): NativeTransfor
   if (shape === undefined) {
     return undefined;
   }
-  const { rootTemplate, childTemplate, childMatchPath } = shape;
+  const { rootTemplate, childTemplate, childMatchAbsolute, childMatchPath } = shape;
 
   const outputExpression = emitInstructionSequence(rootTemplate.body, runtimeHelpers, {
     renderApplyTemplates: (instruction) => emitRootApplyTemplatesInstruction(
       instruction,
       childTemplate,
+      childMatchAbsolute,
       childMatchPath,
       runtimeHelpers,
       emitInstructionSequence,
@@ -423,23 +424,26 @@ function emitAttributes(attributes: readonly AttributeInstruction[]): string {
 }
 
 function tryGetSimpleMatchPath(ast: PathExpression): readonly string[] | undefined {
-  if (!ast.absolute || ast.base !== undefined || ast.steps.length !== 1) {
+  if (!ast.absolute || ast.base !== undefined || ast.steps.length === 0) {
     return undefined;
   }
 
-  const [step] = ast.steps;
-  if (
-    step === undefined
-    || step.kind !== 'step'
-    || step.axis !== 'child'
-    || step.predicates.length > 0
-    || step.nodeTest.kind !== 'nameTest'
-    || step.nodeTest.name.includes(':')
-  ) {
-    return undefined;
+  const path: string[] = [];
+  for (const step of ast.steps) {
+    if (
+      step.kind !== 'step'
+      || step.axis !== 'child'
+      || step.predicates.length > 0
+      || step.nodeTest.kind !== 'nameTest'
+      || step.nodeTest.name.includes(':')
+    ) {
+      return undefined;
+    }
+
+    path.push(step.nodeTest.name);
   }
 
-  return [step.nodeTest.name];
+  return path;
 }
 
 function tryGetSimpleChildPath(
