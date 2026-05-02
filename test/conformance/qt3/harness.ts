@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 
 import type { Element, Node } from '@xmldom/xmldom';
@@ -11,6 +11,12 @@ import { createXdmNode, type XdmAtomicValue, type XdmItem, type XdmNode } from '
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..');
 const QT3_ROOT = join(REPO_ROOT, 'vendor', 'qt3tests');
+
+type Qt3CatalogState = {
+  readonly catalogRoot: Element;
+  readonly globalEnvironmentIndex: ReadonlyMap<string, Qt3Environment>;
+  readonly catalogSetFiles: readonly string[];
+};
 
 type Qt3Dependency = {
   readonly type: string;
@@ -117,11 +123,7 @@ export type Qt3CaseExclusion = {
 };
 
 const documentCache = new Map<string, Document>();
-const catalogRoot = requireDocumentElement(readXml('catalog.xml'), 'catalog.xml');
-const globalEnvironmentIndex = loadEnvironmentIndex(catalogRoot, '.');
-const catalogSetFiles = directChildElements(catalogRoot, 'test-set')
-  .map((testSet) => testSet.getAttribute('file'))
-  .filter((file): file is string => file !== null && file.length > 0);
+let catalogState: Qt3CatalogState | undefined;
 const SUPPORTED_MVP2_FUNCTIONS = new Set([
   'abs',
   'avg',
@@ -218,7 +220,11 @@ const NON_FUNCTION_CALL_TOKENS = new Set([
 const FUNCTION_CALL_PATTERN = /(^|[^A-Za-z0-9_.:-])((?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*)\s*\(/g;
 
 export function loadQt3CatalogSetFiles(): string[] {
-  return [...catalogSetFiles];
+  return [...getQt3CatalogState().catalogSetFiles];
+}
+
+export function hasQt3Catalog(): boolean {
+  return existsSync(join(QT3_ROOT, 'catalog.xml'));
 }
 
 export function loadQt3SliceCases(setFiles: readonly string[]): Qt3SliceCase[] {
@@ -632,7 +638,26 @@ function resolveEnvironment(
     return undefined;
   }
 
-  return localEnvironments?.get(environmentRef) ?? globalEnvironmentIndex.get(environmentRef);
+  return localEnvironments?.get(environmentRef) ?? getQt3CatalogState().globalEnvironmentIndex.get(environmentRef);
+}
+
+function getQt3CatalogState(): Qt3CatalogState {
+  if (catalogState !== undefined) {
+    return catalogState;
+  }
+
+  const catalogRoot = requireDocumentElement(readXml('catalog.xml'), 'catalog.xml');
+  const globalEnvironmentIndex = loadEnvironmentIndex(catalogRoot, '.');
+  const catalogSetFiles = directChildElements(catalogRoot, 'test-set')
+    .map((testSet) => testSet.getAttribute('file'))
+    .filter((file): file is string => file !== null && file.length > 0);
+
+  catalogState = {
+    catalogRoot,
+    globalEnvironmentIndex,
+    catalogSetFiles,
+  };
+  return catalogState;
 }
 
 function loadEnvironmentIndex(root: Element, baseDirectory: string): ReadonlyMap<string, Qt3Environment> {

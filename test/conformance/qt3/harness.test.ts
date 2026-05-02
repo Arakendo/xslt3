@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Qt3SliceCase } from './harness.js';
 import {
   getQt3CaseExclusion,
+  hasQt3Catalog,
   isPotentiallySupportedXPathCase,
   loadQt3CatalogSetFiles,
   loadQt3SliceCases,
@@ -26,6 +27,11 @@ function createCase(
 }
 
 describe('QT3 harness dependency filtering', () => {
+  if (!hasQt3Catalog()) {
+    it.skip('suite not present — run: git submodule update --init', () => {});
+    return;
+  }
+
   it('enumerates test-set files from the QT3 catalog', () => {
     const setFiles = loadQt3CatalogSetFiles();
 
