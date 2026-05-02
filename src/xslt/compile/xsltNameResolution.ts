@@ -89,16 +89,17 @@ export function isSupportedTemplateMatch(ast: XPathAst): boolean {
     return true;
   }
 
-  if (path.steps.length !== 1) {
+  if (path.steps.length === 0) {
     return false;
   }
 
-  const step = path.steps[0];
-  if (step?.kind !== 'step') {
-    return false;
+  for (const step of path.steps) {
+    if (step?.kind !== 'step' || !isSupportedTemplateStep(step as StepExpression)) {
+      return false;
+    }
   }
 
-  return isSupportedTemplateStep(step as StepExpression);
+  return true;
 }
 
 function tryNormalizeEqName(name: string): string | undefined {

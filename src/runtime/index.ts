@@ -64,6 +64,18 @@ export function selectDescendantElementsByName(startNode: Node, localName: strin
   return matches;
 }
 
+export function applyBuiltInTemplatesByPath(
+  startNode: Node,
+  path: readonly string[],
+  renderMatchedNode: (node: Node) => string,
+): string {
+  if (path.length === 0) {
+    return '';
+  }
+
+  return renderBuiltInTemplateChildren(startNode, path, renderMatchedNode);
+}
+
 export function selectSimplePathText(startNode: Node, path: readonly string[]): string {
   const node = selectSimplePathNode(startNode, path);
   if (node === null) {
@@ -126,6 +138,77 @@ function collectDescendantElementsByName(node: Node, localName: string, matches:
 
     collectDescendantElementsByName(child, localName, matches);
   }
+}
+
+function renderBuiltInTemplateChildren(
+  node: Node,
+  path: readonly string[],
+  renderMatchedNode: (node: Node) => string,
+): string {
+  let output = '';
+
+  for (let index = 0; index < node.childNodes.length; index += 1) {
+    const child = node.childNodes.item(index);
+    if (child === null || child.nodeType !== child.ELEMENT_NODE) {
+      if (child !== null) {
+        output += renderBuiltInTemplateNode(child, path, renderMatchedNode);
+      }
+
+      continue;
+    }
+
+    output += renderBuiltInTemplateNode(child, path, renderMatchedNode);
+  }
+
+  return output;
+}
+
+function renderBuiltInTemplateNode(
+  node: Node,
+  path: readonly string[],
+  renderMatchedNode: (node: Node) => string,
+): string {
+  if (matchesSimpleRelativePath(node, path)) {
+    return renderMatchedNode(node);
+  }
+
+  if (node.nodeType === node.DOCUMENT_NODE || node.nodeType === node.ELEMENT_NODE) {
+    return renderBuiltInTemplateChildren(node, path, renderMatchedNode);
+  }
+
+  if (
+    node.nodeType === node.TEXT_NODE
+    || node.nodeType === node.CDATA_SECTION_NODE
+    || node.nodeType === node.ATTRIBUTE_NODE
+  ) {
+    return escapeText(node.nodeValue ?? '');
+  }
+
+  return '';
+}
+
+function matchesSimpleRelativePath(node: Node, path: readonly string[]): boolean {
+  let current: Node | null = node;
+
+  for (let index = path.length - 1; index >= 0; index -= 1) {
+    const segment = path[index];
+    if (segment === undefined || !isUnqualifiedElementNamed(current, segment)) {
+      return false;
+    }
+
+    current = current?.parentNode ?? null;
+  }
+
+  return true;
+}
+
+function isUnqualifiedElementNamed(node: Node | null, localName: string): boolean {
+  if (node === null || node.nodeType !== node.ELEMENT_NODE) {
+    return false;
+  }
+
+  const nodeLocalName = node.localName ?? node.nodeName;
+  return nodeLocalName === localName && (node.namespaceURI ?? '') === '';
 }
 
 function collectStringValue(node: Node): string {

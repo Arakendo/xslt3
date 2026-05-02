@@ -186,20 +186,26 @@ function templateMatchesNode(template: TemplateRule, node: Node, staticContext: 
   }
 
   const match = template.match as PathExpression;
-  if (match.base !== undefined || match.steps.length !== 1) {
+  if (match.base !== undefined || match.steps.length === 0) {
     return false;
   }
 
-  const step = match.steps[0];
-  if (step?.kind !== 'step') {
-    return false;
+  return pathMatchesNode(match, node, staticContext);
+}
+
+function pathMatchesNode(path: PathExpression, node: Node, staticContext: StaticContext): boolean {
+  let current: Node | null = node;
+
+  for (let index = path.steps.length - 1; index >= 0; index -= 1) {
+    const step = path.steps[index];
+    if (step?.kind !== 'step' || current === null || !stepMatchesNode(step as StepExpression, current, staticContext)) {
+      return false;
+    }
+
+    current = current.parentNode;
   }
 
-  if (match.absolute && node.parentNode?.nodeType !== node.DOCUMENT_NODE) {
-    return false;
-  }
-
-  return stepMatchesNode(step as StepExpression, node, staticContext);
+  return !path.absolute || current?.nodeType === node.DOCUMENT_NODE;
 }
 
 function stepMatchesNode(step: StepExpression, node: Node, staticContext: StaticContext): boolean {
@@ -268,7 +274,7 @@ function getDefaultTemplatePriority(template: TemplateRule): number {
   }
 
   const match = template.match as PathExpression;
-  if (match.base !== undefined || match.steps.length !== 1) {
+  if (match.base !== undefined || match.steps.length === 0) {
     return Number.NEGATIVE_INFINITY;
   }
 
@@ -276,7 +282,7 @@ function getDefaultTemplatePriority(template: TemplateRule): number {
     return 0.5;
   }
 
-  const step = match.steps[0];
+  const step = match.steps[match.steps.length - 1];
   if (step?.kind !== 'step') {
     return Number.NEGATIVE_INFINITY;
   }

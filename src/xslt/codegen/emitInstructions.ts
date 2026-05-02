@@ -73,13 +73,13 @@ function tryCreateRootApplyTemplatesNativePlan(ir: StylesheetIR): NativeTransfor
   if (shape === undefined) {
     return undefined;
   }
-  const { rootTemplate, childTemplate, childMatchName } = shape;
+  const { rootTemplate, childTemplate, childMatchPath } = shape;
 
   const outputExpression = emitInstructionSequence(rootTemplate.body, runtimeHelpers, {
     renderApplyTemplates: (instruction) => emitRootApplyTemplatesInstruction(
       instruction,
       childTemplate,
-      childMatchName,
+      childMatchPath,
       runtimeHelpers,
       emitInstructionSequence,
       tryGetSimpleChildPath,

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { compileStylesheetToTs } from '../../src/compile.js';
 import {
+  applyBuiltInTemplatesByPath,
   createCompiledDocument,
   escapeText,
   selectDescendantElementsByName,
@@ -34,6 +35,58 @@ const APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:
 const APPLY_TEMPLATES_DOT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="."/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="."/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_RELATIVE_SELECT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const GENERATED_RUNTIME_MODULE_SPECIFIER = '@runtime-test';
+const GENERATED_RUNTIME_MODULE = {
+  applyBuiltInTemplatesByPath,
+  createCompiledDocument,
+  escapeText,
+  selectDescendantElementsByName,
+  selectSimplePathExists,
+  selectSimplePathNode,
+  selectSimplePathNodes,
+  selectSimplePathText,
+  stringValueOfNode,
+  transformCompiledStylesheet,
+};
+
+function compileAndLoadGeneratedModule(stylesheet: string, path: string): {
+  readonly diagnostics: readonly ts.Diagnostic[];
+  readonly exports: Record<string, unknown>;
+} {
+  const emitted = compileStylesheetToTs(stylesheet, {
+    path,
+    runtimeModuleSpecifier: GENERATED_RUNTIME_MODULE_SPECIFIER,
+  });
+  const transpiled = ts.transpileModule(emitted, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+    reportDiagnostics: true,
+  });
+  const module = { exports: {} as Record<string, unknown> };
+  const localRequire = (specifier: string) => {
+    if (specifier === GENERATED_RUNTIME_MODULE_SPECIFIER) {
+      return GENERATED_RUNTIME_MODULE;
+    }
+
+    throw new Error(`Unexpected generated-module import: ${specifier}`);
+  };
+  const executeModule = new Function('require', 'module', 'exports', transpiled.outputText) as (
+    requireImpl: (specifier: string) => unknown,
+    localModule: { exports: Record<string, unknown> },
+    localExports: Record<string, unknown>,
+  ) => void;
+
+  executeModule(localRequire, module, module.exports);
+
+  return {
+    diagnostics: transpiled.diagnostics ?? [],
+    exports: module.exports,
+  };
+}
 
 describe('XSLT codegen MVP4 slice', () => {
   it('emits a native TypeScript module for the simple literal-result subset', () => {
@@ -196,8 +249,40 @@ describe('XSLT codegen MVP4 slice', () => {
     });
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectDescendantElementsByName(document, "item").map((templateNode) =>');
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["item"], (templateNode) =>');
     expect(emitted).toContain('escapeText(stringValueOfNode(templateNode))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and a nested simple relative match template', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and a nested simple relative match template', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["section","item"], (templateNode) =>');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -262,6 +347,27 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the apply-templates-relative stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_FIXTURE_STYLESHEET, { path: 'apply-templates-relative.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the apply-templates-dot stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_DOT_FIXTURE_STYLESHEET, { path: 'apply-templates-dot.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-dot.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
@@ -298,49 +404,11 @@ describe('XSLT codegen MVP4 slice', () => {
       </xsl:stylesheet>
     `;
     const sourceXml = '<root><name>world</name></root>';
-    const runtimeModuleSpecifier = '@runtime-test';
-    const emitted = compileStylesheetToTs(stylesheet, {
-      path: 'hello.xsl',
-      runtimeModuleSpecifier,
-    });
-    const transpiled = ts.transpileModule(emitted, {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-      },
-      reportDiagnostics: true,
-    });
-    const module = { exports: {} as Record<string, unknown> };
-    const runtimeModule = {
-      createCompiledDocument,
-      escapeText,
-      selectDescendantElementsByName,
-      selectSimplePathExists,
-      selectSimplePathNode,
-      selectSimplePathNodes,
-      selectSimplePathText,
-      stringValueOfNode,
-      transformCompiledStylesheet,
-    };
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(stylesheet, 'hello.xsl');
 
-    const require = (specifier: string) => {
-      if (specifier === runtimeModuleSpecifier) {
-        return runtimeModule;
-      }
+    expect(diagnostics).toEqual([]);
 
-      throw new Error(`Unexpected generated-module import: ${specifier}`);
-    };
-
-    const executeModule = new Function('require', 'module', 'exports', transpiled.outputText) as (
-      localRequire: (specifier: string) => unknown,
-      localModule: { exports: Record<string, unknown> },
-      localExports: Record<string, unknown>,
-    ) => void;
-
-    expect(transpiled.diagnostics ?? []).toEqual([]);
-    executeModule(require, module, module.exports);
-
-    const generatedModule = module.exports as {
+    const generatedModule = exports as {
       readonly source: { readonly path: string };
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
@@ -352,49 +420,11 @@ describe('XSLT codegen MVP4 slice', () => {
 
   it('executes a matched-element native module through the runtime surface', () => {
     const sourceXml = '<root><name>world</name><flag/></root>';
-    const runtimeModuleSpecifier = '@runtime-test';
-    const emitted = compileStylesheetToTs(MATCHED_ROOT_FIXTURE_STYLESHEET, {
-      path: 'matched-root.xsl',
-      runtimeModuleSpecifier,
-    });
-    const transpiled = ts.transpileModule(emitted, {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-      },
-      reportDiagnostics: true,
-    });
-    const module = { exports: {} as Record<string, unknown> };
-    const runtimeModule = {
-      createCompiledDocument,
-      escapeText,
-      selectDescendantElementsByName,
-      selectSimplePathExists,
-      selectSimplePathNode,
-      selectSimplePathNodes,
-      selectSimplePathText,
-      stringValueOfNode,
-      transformCompiledStylesheet,
-    };
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_ROOT_FIXTURE_STYLESHEET, 'matched-root.xsl');
 
-    const require = (specifier: string) => {
-      if (specifier === runtimeModuleSpecifier) {
-        return runtimeModule;
-      }
+    expect(diagnostics).toEqual([]);
 
-      throw new Error(`Unexpected generated-module import: ${specifier}`);
-    };
-
-    const executeModule = new Function('require', 'module', 'exports', transpiled.outputText) as (
-      localRequire: (specifier: string) => unknown,
-      localModule: { exports: Record<string, unknown> },
-      localExports: Record<string, unknown>,
-    ) => void;
-
-    expect(transpiled.diagnostics ?? []).toEqual([]);
-    executeModule(require, module, module.exports);
-
-    const generatedModule = module.exports as {
+    const generatedModule = exports as {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(MATCHED_ROOT_FIXTURE_STYLESHEET).transform(sourceXml);
@@ -404,49 +434,11 @@ describe('XSLT codegen MVP4 slice', () => {
 
   it('executes a simple native apply-templates module through the runtime surface', () => {
     const sourceXml = '<root><item><name>apple</name></item><item><name>pear</name></item></root>';
-    const runtimeModuleSpecifier = '@runtime-test';
-    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_FIXTURE_STYLESHEET, {
-      path: 'apply-templates.xsl',
-      runtimeModuleSpecifier,
-    });
-    const transpiled = ts.transpileModule(emitted, {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-      },
-      reportDiagnostics: true,
-    });
-    const module = { exports: {} as Record<string, unknown> };
-    const runtimeModule = {
-      createCompiledDocument,
-      escapeText,
-      selectDescendantElementsByName,
-      selectSimplePathExists,
-      selectSimplePathNode,
-      selectSimplePathNodes,
-      selectSimplePathText,
-      stringValueOfNode,
-      transformCompiledStylesheet,
-    };
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'apply-templates.xsl');
 
-    const require = (specifier: string) => {
-      if (specifier === runtimeModuleSpecifier) {
-        return runtimeModule;
-      }
+    expect(diagnostics).toEqual([]);
 
-      throw new Error(`Unexpected generated-module import: ${specifier}`);
-    };
-
-    const executeModule = new Function('require', 'module', 'exports', transpiled.outputText) as (
-      localRequire: (specifier: string) => unknown,
-      localModule: { exports: Record<string, unknown> },
-      localExports: Record<string, unknown>,
-    ) => void;
-
-    expect(transpiled.diagnostics ?? []).toEqual([]);
-    executeModule(require, module, module.exports);
-
-    const generatedModule = module.exports as {
+    const generatedModule = exports as {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_FIXTURE_STYLESHEET).transform(sourceXml);
@@ -456,41 +448,11 @@ describe('XSLT codegen MVP4 slice', () => {
 
   it('executes a native apply-templates module with a relative select through the runtime surface', () => {
     const sourceXml = '<root><item><name>apple</name></item><item><name>pear</name></item></root>';
-    const runtimeModuleSpecifier = '@runtime-test';
-    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_FIXTURE_STYLESHEET, {
-      path: 'apply-templates-relative.xsl',
-      runtimeModuleSpecifier,
-    });
-    const transformed = ts.transpileModule(emitted, {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-      },
-    }).outputText;
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_RELATIVE_SELECT_FIXTURE_STYLESHEET, 'apply-templates-relative.xsl');
 
-    const runtimeModule = {
-      createCompiledDocument,
-      escapeText,
-      selectSimplePathNodes,
-      selectSimplePathText,
-      selectSimplePathExists,
-      selectSimplePathNode,
-      selectDescendantElementsByName,
-      stringValueOfNode,
-      transformCompiledStylesheet,
-    };
-    const module = { exports: {} as unknown };
-    const localRequire = (specifier: string) => {
-      if (specifier === runtimeModuleSpecifier) {
-        return runtimeModule;
-      }
+    expect(diagnostics).toEqual([]);
 
-      throw new Error(`Unexpected module request: ${specifier}`);
-    };
-    const evaluator = new Function('require', 'module', 'exports', transformed);
-    evaluator(localRequire, module, module.exports);
-
-    const generatedModule = module.exports as {
+    const generatedModule = exports as {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_RELATIVE_SELECT_FIXTURE_STYLESHEET).transform(sourceXml);
@@ -498,51 +460,27 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
 
+  it('executes a native apply-templates module with a nested relative match through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name></item></section><section><item><name>pear</name></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET, 'apply-templates-nested-match.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
   it('executes a native apply-templates child template using context-item string value', () => {
     const sourceXml = '<root><item>apple</item><item>pear</item></root>';
-    const runtimeModuleSpecifier = '@runtime-test';
-    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_DOT_FIXTURE_STYLESHEET, {
-      path: 'apply-templates-dot.xsl',
-      runtimeModuleSpecifier,
-    });
-    const transpiled = ts.transpileModule(emitted, {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-      },
-      reportDiagnostics: true,
-    });
-    const module = { exports: {} as Record<string, unknown> };
-    const runtimeModule = {
-      createCompiledDocument,
-      escapeText,
-      selectDescendantElementsByName,
-      selectSimplePathExists,
-      selectSimplePathNode,
-      selectSimplePathNodes,
-      selectSimplePathText,
-      stringValueOfNode,
-      transformCompiledStylesheet,
-    };
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_DOT_FIXTURE_STYLESHEET, 'apply-templates-dot.xsl');
 
-    const require = (specifier: string) => {
-      if (specifier === runtimeModuleSpecifier) {
-        return runtimeModule;
-      }
+    expect(diagnostics).toEqual([]);
 
-      throw new Error(`Unexpected generated-module import: ${specifier}`);
-    };
-
-    const executeModule = new Function('require', 'module', 'exports', transpiled.outputText) as (
-      localRequire: (specifier: string) => unknown,
-      localModule: { exports: Record<string, unknown> },
-      localExports: Record<string, unknown>,
-    ) => void;
-
-    expect(transpiled.diagnostics ?? []).toEqual([]);
-    executeModule(require, module, module.exports);
-
-    const generatedModule = module.exports as {
+    const generatedModule = exports as {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_DOT_FIXTURE_STYLESHEET).transform(sourceXml);
@@ -551,53 +489,29 @@ describe('XSLT codegen MVP4 slice', () => {
   });
 
   it('executes a native apply-templates module without select through the runtime surface', () => {
-    const sourceXml = '<invoice><item>apple</item><section><item>pear</item></section></invoice>';
-    const runtimeModuleSpecifier = '@runtime-test';
-    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, {
-      path: 'apply-templates-default.xsl',
-      runtimeModuleSpecifier,
-    });
-    const transpiled = ts.transpileModule(emitted, {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-      },
-      reportDiagnostics: true,
-    });
-    const module = { exports: {} as Record<string, unknown> };
-    const runtimeModule = {
-      createCompiledDocument,
-      escapeText,
-      selectDescendantElementsByName,
-      selectSimplePathExists,
-      selectSimplePathNode,
-      selectSimplePathNodes,
-      selectSimplePathText,
-      stringValueOfNode,
-      transformCompiledStylesheet,
-    };
+    const sourceXml = '<invoice><item>apple</item><note>carry</note><section><item>pear</item></section></invoice>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-default.xsl');
 
-    const require = (specifier: string) => {
-      if (specifier === runtimeModuleSpecifier) {
-        return runtimeModule;
-      }
+    expect(diagnostics).toEqual([]);
 
-      throw new Error(`Unexpected generated-module import: ${specifier}`);
-    };
-
-    const executeModule = new Function('require', 'module', 'exports', transpiled.outputText) as (
-      localRequire: (specifier: string) => unknown,
-      localModule: { exports: Record<string, unknown> },
-      localExports: Record<string, unknown>,
-    ) => void;
-
-    expect(transpiled.diagnostics ?? []).toEqual([]);
-    executeModule(require, module, module.exports);
-
-    const generatedModule = module.exports as {
+    const generatedModule = exports as {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with a nested relative match through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name></item></section><group><item><name>skip-too</name></item></group><section><item><name>pear</name></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-nested-match-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
 
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });

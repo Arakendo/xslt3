@@ -5,7 +5,7 @@ import { tsRawExpression, type TsExpression } from './ts-ir.js';
 interface RootApplyTemplatesShape {
   readonly rootTemplate: TemplateRule;
   readonly childTemplate: TemplateRule;
-  readonly childMatchName: string;
+  readonly childMatchPath: readonly string[];
 }
 
 export function tryGetRootApplyTemplatesShape(ir: StylesheetIR): RootApplyTemplatesShape | undefined {
@@ -19,22 +19,22 @@ export function tryGetRootApplyTemplatesShape(ir: StylesheetIR): RootApplyTempla
     return undefined;
   }
 
-  const childMatchName = getSimpleRelativeMatchName(childTemplate);
-  if (childMatchName === undefined) {
+  const childMatchPath = getSimpleRelativeMatchPath(childTemplate);
+  if (childMatchPath === undefined) {
     return undefined;
   }
 
   return {
     rootTemplate,
     childTemplate,
-    childMatchName,
+    childMatchPath,
   };
 }
 
 export function emitRootApplyTemplatesInstruction(
   instruction: Extract<Instruction, { readonly kind: 'applyTemplates' }>,
   childTemplate: TemplateRule,
-  childMatchName: string,
+  childMatchPath: readonly string[],
   runtimeHelpers: Set<string>,
   emitInstructionSequence: (
     instructions: readonly Instruction[],
@@ -62,17 +62,17 @@ export function emitRootApplyTemplatesInstruction(
   }
 
   if (instruction.select === undefined) {
-    runtimeHelpers.add('selectDescendantElementsByName');
+    runtimeHelpers.add('applyBuiltInTemplatesByPath');
     return tsRawExpression(
-      `selectDescendantElementsByName(document, ${JSON.stringify(childMatchName)}).map((templateNode) => ${childBody.code}).join("")`,
+      `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childMatchPath)}, (templateNode) => ${childBody.code})`,
     );
   }
 
   const selectPath = tryGetSimpleChildPath(instruction.select);
   if (
     selectPath === undefined
-    || selectPath.segments.length === 0
-    || selectPath.segments.at(-1) !== childMatchName
+    || selectPath.segments.length < childMatchPath.length
+    || !endsWithPath(selectPath.segments, childMatchPath)
   ) {
     return undefined;
   }
@@ -94,7 +94,7 @@ function isRootTemplateShape(template: TemplateRule): boolean {
     && template.match.steps.length === 0;
 }
 
-function getSimpleRelativeMatchName(template: TemplateRule): string | undefined {
+function getSimpleRelativeMatchPath(template: TemplateRule): readonly string[] | undefined {
   if (
     template.name !== undefined
     || template.modes.length > 0
@@ -103,22 +103,36 @@ function getSimpleRelativeMatchName(template: TemplateRule): string | undefined 
     || template.match.kind !== 'path'
     || template.match.absolute
     || template.match.base !== undefined
-    || template.match.steps.length !== 1
+    || template.match.steps.length === 0
   ) {
     return undefined;
   }
 
-  const [step] = template.match.steps;
-  if (
-    step === undefined
-    || step.kind !== 'step'
-    || step.axis !== 'child'
-    || step.predicates.length > 0
-    || step.nodeTest.kind !== 'nameTest'
-    || step.nodeTest.name.includes(':')
-  ) {
-    return undefined;
+  const path: string[] = [];
+  for (const step of template.match.steps) {
+    if (
+      step.kind !== 'step'
+      || step.axis !== 'child'
+      || step.predicates.length > 0
+      || step.nodeTest.kind !== 'nameTest'
+      || step.nodeTest.name.includes(':')
+    ) {
+      return undefined;
+    }
+
+    path.push(step.nodeTest.name);
   }
 
-  return step.nodeTest.name;
+  return path;
+}
+
+function endsWithPath(path: readonly string[], suffix: readonly string[]): boolean {
+  const offset = path.length - suffix.length;
+  for (let index = 0; index < suffix.length; index += 1) {
+    if (path[offset + index] !== suffix[index]) {
+      return false;
+    }
+  }
+
+  return true;
 }

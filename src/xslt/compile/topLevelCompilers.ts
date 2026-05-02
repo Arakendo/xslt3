@@ -180,7 +180,7 @@ export function compileTemplateRuleDeclaration(
       {
         suggestions: [{
           kind: 'fix',
-          label: 'use one of the currently supported simple match patterns: /, /name, name, *, node(), or text()',
+          label: 'use one of the currently supported child-only match patterns: /, /name, name, section/item, *, node(), or text()',
           confidence: 1,
         }],
       },
