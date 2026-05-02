@@ -115,7 +115,7 @@ describe('XPath comparison coverage', () => {
       let thrown: unknown;
 
       try {
-        [...evaluate(parseXPath(expression), createContext('<root/>'))];
+        Array.from(evaluate(parseXPath(expression), createContext('<root/>')));
       } catch (error) {
         thrown = error;
       }
@@ -170,7 +170,7 @@ describe('XPath comparison coverage', () => {
       let thrown: unknown;
 
       try {
-        [...evaluate(parseXPath(expression), createContext('<root/>'))];
+        Array.from(evaluate(parseXPath(expression), createContext('<root/>')));
       } catch (error) {
         thrown = error;
       }
@@ -194,7 +194,7 @@ describe('XPath comparison coverage', () => {
       let thrown: unknown;
 
       try {
-        [...evaluate(parseXPath(expression), createContext('<root/>'))];
+        Array.from(evaluate(parseXPath(expression), createContext('<root/>')));
       } catch (error) {
         thrown = error;
       }
@@ -238,7 +238,7 @@ describe('XPath comparison coverage', () => {
       let thrown: unknown;
 
       try {
-        [...evaluate(parseXPath(expression), context)];
+        Array.from(evaluate(parseXPath(expression), context));
       } catch (error) {
         thrown = error;
       }

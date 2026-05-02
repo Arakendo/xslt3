@@ -45,7 +45,7 @@ describe('XPath expression coverage', () => {
     let thrown: unknown;
 
     try {
-      [...evaluate(parseXPath('1.5 to 3'), createContext('<root/>'))];
+      Array.from(evaluate(parseXPath('1.5 to 3'), createContext('<root/>')));
     } catch (error) {
       thrown = error;
     }

@@ -1511,7 +1511,7 @@ describe('XPath regex functions', () => {
     let thrown: unknown;
 
     try {
-      [...evaluate(parseXPath('matches("a", ".", "z")'), createContext('<root/>'))];
+      Array.from(evaluate(parseXPath('matches("a", ".", "z")'), createContext('<root/>')));
     } catch (error) {
       thrown = error;
     }

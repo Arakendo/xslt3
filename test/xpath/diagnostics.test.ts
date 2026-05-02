@@ -54,7 +54,7 @@ describe('XPath diagnostics', () => {
 
   it('converts runtime type failures into validated DiagnosticReport snapshots', () => {
     const error = captureError(() => {
-      [...evaluate(parseXPath('"tea" + 1'), createContext('<root/>'))];
+      Array.from(evaluate(parseXPath('"tea" + 1'), createContext('<root/>')));
     });
     const report = diagnosticReportFromError(error);
 
@@ -95,7 +95,7 @@ describe('XPath diagnostics', () => {
 
   it('converts arity failures into validated DiagnosticReport snapshots with required details', () => {
     const error = captureError(() => {
-      [...evaluate(parseXPath('matches("tea")'), createContext('<root/>'))];
+      Array.from(evaluate(parseXPath('matches("tea")'), createContext('<root/>')));
     });
     const report = diagnosticReportFromError(error);
 
@@ -153,7 +153,7 @@ describe('XPath diagnostics', () => {
   it('formats runtime diagnostics against the failing subexpression span', () => {
     const expression = '"tea" + 1';
     const error = captureError(() => {
-      [...evaluate(parseXPath(expression), createContext('<root/>'))];
+      Array.from(evaluate(parseXPath(expression), createContext('<root/>')));
     });
     const report = diagnosticReportFromError(error);
 

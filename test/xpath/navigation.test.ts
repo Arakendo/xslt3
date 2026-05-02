@@ -163,7 +163,7 @@ describe('XPath navigation coverage', () => {
     let thrown: unknown;
 
     try {
-      [...evaluate(parseXPath('1 is /root'), createContext('<root/>'))];
+      Array.from(evaluate(parseXPath('1 is /root'), createContext('<root/>')));
     } catch (error) {
       thrown = error;
     }
