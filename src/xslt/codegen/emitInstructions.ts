@@ -81,12 +81,13 @@ function tryCreateRootApplyTemplatesNativePlan(ir: StylesheetIR): NativeTransfor
   const { rootTemplate, childTemplate, childMatchAbsolute, childMatchPath } = shape;
 
   const outputExpression = emitInstructionSequence(rootTemplate.body, runtimeHelpers, {
-    renderApplyTemplates: (instruction) => emitRootApplyTemplatesInstruction(
+    contextNodeIdentifier: 'document',
+      renderApplyTemplates: (instruction, contextNodeIdentifier) => emitRootApplyTemplatesInstruction(
       instruction,
       childTemplate,
       childMatchAbsolute,
       childMatchPath,
-      'currentNode',
+        contextNodeIdentifier,
       runtimeHelpers,
       emitInstructionSequence,
       tryGetSimpleChildPath,
@@ -160,12 +161,12 @@ function tryCreateMatchedTemplateApplyTemplatesNativePlan(ir: StylesheetIR): Nat
   }
 
   const outputExpression = emitInstructionSequence(primaryTemplate.body, runtimeHelpers, {
-    renderApplyTemplates: (instruction) => emitRootApplyTemplatesInstruction(
+      renderApplyTemplates: (instruction, contextNodeIdentifier) => emitRootApplyTemplatesInstruction(
       instruction,
       childTemplate,
       false,
       childMatchPath,
-      'currentNode',
+        contextNodeIdentifier,
       runtimeHelpers,
       emitInstructionSequence,
       tryGetSimpleChildPath,
@@ -221,6 +222,7 @@ function emitInstructionSequence(
     readonly contextNodeIdentifier?: string;
     readonly renderApplyTemplates?: (
       instruction: Extract<Instruction, { readonly kind: 'applyTemplates' }>,
+        contextNodeIdentifier: string,
     ) => TsExpression | undefined;
   } = {},
 ): TsExpression | undefined {
@@ -247,6 +249,7 @@ function emitInstruction(
     readonly contextNodeIdentifier?: string;
     readonly renderApplyTemplates?: (
       instruction: Extract<Instruction, { readonly kind: 'applyTemplates' }>,
+        contextNodeIdentifier: string,
     ) => TsExpression | undefined;
   },
 ): TsExpression | undefined {
@@ -365,7 +368,7 @@ function emitInstruction(
       );
     }
     case 'applyTemplates':
-      return options.renderApplyTemplates?.(instruction);
+      return options.renderApplyTemplates?.(instruction, contextNodeIdentifier);
     default:
       return undefined;
   }

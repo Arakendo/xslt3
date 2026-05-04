@@ -47,6 +47,7 @@ export function emitRootApplyTemplatesInstruction(
       readonly contextNodeIdentifier?: string;
       readonly renderApplyTemplates?: (
         instruction: Extract<Instruction, { readonly kind: 'applyTemplates' }>,
+        contextNodeIdentifier: string,
       ) => TsExpression | undefined;
     },
   ) => TsExpression | undefined,
