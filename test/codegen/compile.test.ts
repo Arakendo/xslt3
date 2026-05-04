@@ -2978,6 +2978,20 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the matched-root stylesheet', () => {
     const emitted = compileStylesheetToTs(MATCHED_ROOT_FIXTURE_STYLESHEET, { path: 'matched-root.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/matched-root.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
@@ -3027,6 +3041,20 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the matched-root-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_ROOT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'matched-root-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-root-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the matched-root-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_ROOT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'matched-root-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-root-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the matched-nested-root-for-each stylesheet', () => {
     const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root-for-each.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
@@ -3065,6 +3093,20 @@ describe('XSLT codegen MVP4 slice', () => {
   it('matches the checked-in generated fixture for the matched-nested-root-for-each-choose-nested-choose stylesheet', () => {
     const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose-nested-choose.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the matched-nested-root-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the matched-nested-root-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
@@ -3132,6 +3174,20 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the apply-templates-absolute-match-default-for-each stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default-for-each.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
@@ -3170,6 +3226,20 @@ describe('XSLT codegen MVP4 slice', () => {
   it('matches the checked-in generated fixture for the apply-templates-absolute-match-default-for-each-choose-nested-choose stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose-nested-choose.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-default-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-default-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
@@ -3237,6 +3307,20 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-default-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-default-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-default-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-default-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-for-each stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-for-each.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
@@ -3275,6 +3359,20 @@ describe('XSLT codegen MVP4 slice', () => {
   it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-for-each-choose-nested-choose stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose-nested-choose.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
@@ -3643,6 +3741,20 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the apply-templates-nested-match-default stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
@@ -3688,6 +3800,20 @@ describe('XSLT codegen MVP4 slice', () => {
   it('matches the checked-in generated fixture for the apply-templates-nested-match-default-for-each-choose-nested-choose stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose-nested-choose.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-default-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-default-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
