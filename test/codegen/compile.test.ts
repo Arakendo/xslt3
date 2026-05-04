@@ -3391,6 +3391,20 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the apply-templates-relative-simple-match-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_SIMPLE_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-simple-match-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-simple-match-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-relative-simple-match-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_SIMPLE_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-simple-match-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-simple-match-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the apply-templates-relative-nested-match stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_NESTED_MATCH_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-nested-match.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-nested-match.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
@@ -3436,6 +3450,20 @@ describe('XSLT codegen MVP4 slice', () => {
   it('matches the checked-in generated fixture for the apply-templates-relative-nested-match-for-each-choose-nested-choose stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-nested-match-for-each-choose-nested-choose.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-nested-match-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-relative-nested-match-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-nested-match-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-nested-match-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-relative-nested-match-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-nested-match-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-nested-match-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
@@ -3489,6 +3517,20 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the apply-templates-relative-absolute-match-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-absolute-match-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-absolute-match-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-relative-absolute-match-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-absolute-match-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-absolute-match-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the apply-templates-relative-absolute-nested-match stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_NESTED_MATCH_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-absolute-nested-match.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-absolute-nested-match.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
@@ -3534,6 +3576,20 @@ describe('XSLT codegen MVP4 slice', () => {
   it('matches the checked-in generated fixture for the apply-templates-relative-absolute-nested-match-for-each-choose-nested-choose stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-absolute-nested-match-for-each-choose-nested-choose.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-absolute-nested-match-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-relative-absolute-nested-match-for-each-apply-templates stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-absolute-nested-match-for-each-apply-templates.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-absolute-nested-match-for-each-apply-templates.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-relative-absolute-nested-match-for-each-apply-templates-default stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-relative-absolute-nested-match-for-each-apply-templates-default.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative-absolute-nested-match-for-each-apply-templates-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
