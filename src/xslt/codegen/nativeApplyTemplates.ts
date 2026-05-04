@@ -76,7 +76,16 @@ export function tryGetRootApplyTemplatesNestedShape(ir: StylesheetIR): RootApply
   }
 
   const matchingCandidates = rootApplyTemplates.select === undefined
-    ? candidateTemplates.filter((candidate) => candidate !== undefined && candidate.matchAbsolute)
+    ? (() => {
+        const absoluteCandidates = candidateTemplates.filter((candidate) => candidate !== undefined && candidate.matchAbsolute);
+        if (absoluteCandidates.length > 0) {
+          return absoluteCandidates;
+        }
+
+        const relativeCandidates = candidateTemplates.filter((candidate) => candidate !== undefined && !candidate.matchAbsolute);
+        const maxLength = relativeCandidates.reduce((currentMax, candidate) => Math.max(currentMax, candidate.matchPath.length), 0);
+        return relativeCandidates.filter((candidate) => candidate.matchPath.length === maxLength);
+      })()
     : (() => {
         const selectPath = getSimpleSelectPath(rootApplyTemplates.select);
         if (selectPath === undefined) {
