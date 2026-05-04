@@ -49,11 +49,23 @@ const MATCHED_ROOT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:styl
 const MATCHED_ROOT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root"><items><xsl:for-each select="item"><item><xsl:value-of select="name"/><details><xsl:apply-templates select="detail"/></details></item></xsl:for-each></items></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
 const MATCHED_ROOT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root"><items><xsl:for-each select="item"><item><xsl:value-of select="name"/><details><xsl:apply-templates/></details></item></xsl:for-each></items></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
 const MATCHED_NESTED_ROOT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><xsl:if test="flag"><flagged/></xsl:if></item></xsl:template></xsl:stylesheet>';
+const MATCHED_NESTED_ROOT_FOR_EACH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root/section"><items><xsl:for-each select="item"><item><xsl:value-of select="name"/></item></xsl:for-each></items></xsl:template></xsl:stylesheet>';
+const MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root/section"><items><xsl:for-each select="item"><item><xsl:value-of select="name"/><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></item></xsl:for-each></items></xsl:template></xsl:stylesheet>';
+const MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root/section"><items><xsl:for-each select="item"><item><xsl:value-of select="name"/><xsl:choose><xsl:when test="flag"><flagged/></xsl:when></xsl:choose></item></xsl:for-each></items></xsl:template></xsl:stylesheet>';
+const MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root/section"><items><xsl:for-each select="item"><item><xsl:value-of select="name"/><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></item></xsl:for-each></items></xsl:template></xsl:stylesheet>';
+const MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root/section"><items><xsl:for-each select="item"><item><xsl:value-of select="name"/><xsl:choose><xsl:when test="flag"><xsl:if test="detail"><flagged/></xsl:if></xsl:when><xsl:otherwise><xsl:if test="vip"><vip/></xsl:if></xsl:otherwise></xsl:choose></item></xsl:for-each></items></xsl:template></xsl:stylesheet>';
+const MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root/section"><items><xsl:for-each select="item"><item><xsl:value-of select="name"/><xsl:choose><xsl:when test="flag"><xsl:choose><xsl:when test="detail"><flagged/></xsl:when><xsl:otherwise><brief/></xsl:otherwise></xsl:choose></xsl:when><xsl:otherwise><xsl:choose><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:otherwise></xsl:choose></item></xsl:for-each></items></xsl:template></xsl:stylesheet>';
+const MATCHED_NESTED_ROOT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root/section"><items><xsl:for-each select="item"><item><xsl:value-of select="name"/><details><xsl:apply-templates select="detail"/></details></item></xsl:for-each></items></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
+const MATCHED_NESTED_ROOT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/root/section"><items><xsl:for-each select="item"><item><xsl:value-of select="name"/><details><xsl:apply-templates/></details></item></xsl:for-each></items></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_DOT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="."/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_CHILD_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><xsl:if test="flag"><flagged/></xsl:if></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_CHILD_FOR_EACH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><detail><xsl:value-of select="."/></detail></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:if test="marker"><flagged/></xsl:if></xsl:when><xsl:otherwise><xsl:if test="vip"><vip/></xsl:if></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:choose><xsl:when test="marker"><flagged/></xsl:when><xsl:otherwise><brief/></xsl:otherwise></xsl:choose></xsl:when><xsl:otherwise><xsl:choose><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_CHILD_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates select="detail"/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_CHILD_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_CHILD_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></item></xsl:template></xsl:stylesheet>';
@@ -66,11 +78,59 @@ const APPLY_TEMPLATES_CHILD_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:s
 const APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="."/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_RELATIVE_SELECT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="root/item"/></items></xsl:template><xsl:template match="item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_ABSOLUTE_MATCH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><detail><xsl:value-of select="."/></detail></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:if test="marker"><flagged/></xsl:if></xsl:when><xsl:otherwise><xsl:if test="vip"><vip/></xsl:if></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:choose><xsl:when test="marker"><flagged/></xsl:when><xsl:otherwise><brief/></xsl:otherwise></xsl:choose></xsl:when><xsl:otherwise><xsl:choose><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates select="detail"/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/item"/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><detail><xsl:value-of select="."/></detail></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:if test="marker"><flagged/></xsl:if></xsl:when><xsl:otherwise><xsl:if test="vip"><vip/></xsl:if></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:choose><xsl:when test="marker"><flagged/></xsl:when><xsl:otherwise><brief/></xsl:otherwise></xsl:choose></xsl:when><xsl:otherwise><xsl:choose><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates select="detail"/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><detail><xsl:value-of select="."/></detail></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:if test="marker"><flagged/></xsl:if></xsl:when><xsl:otherwise><xsl:if test="vip"><vip/></xsl:if></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:choose><xsl:when test="marker"><flagged/></xsl:when><xsl:otherwise><brief/></xsl:otherwise></xsl:choose></xsl:when><xsl:otherwise><xsl:choose><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates select="detail"/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><detail><xsl:value-of select="."/></detail></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:if test="marker"><flagged/></xsl:if></xsl:when><xsl:otherwise><xsl:if test="vip"><vip/></xsl:if></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:choose><xsl:when test="marker"><flagged/></xsl:when><xsl:otherwise><brief/></xsl:otherwise></xsl:choose></xsl:when><xsl:otherwise><xsl:choose><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates select="detail"/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="/root/section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><detail><xsl:value-of select="."/></detail></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:if test="marker"><flagged/></xsl:if></xsl:when><xsl:otherwise><xsl:if test="vip"><vip/></xsl:if></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:choose><xsl:when test="marker"><flagged/></xsl:when><xsl:otherwise><brief/></xsl:otherwise></xsl:choose></xsl:when><xsl:otherwise><xsl:choose><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates select="detail"/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><detail><xsl:value-of select="."/></detail></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:if test="marker"><flagged/></xsl:if></xsl:when><xsl:otherwise><xsl:if test="vip"><vip/></xsl:if></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:choose><xsl:when test="marker"><flagged/></xsl:when><xsl:otherwise><brief/></xsl:otherwise></xsl:choose></xsl:when><xsl:otherwise><xsl:choose><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates select="detail"/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="group"><xsl:apply-templates/></xsl:for-each></details></item></xsl:template><xsl:template match="detail"><detail><xsl:value-of select="."/></detail></xsl:template></xsl:stylesheet>';
 const GENERATED_RUNTIME_MODULE_SPECIFIER = '@runtime-test';
 const GENERATED_RUNTIME_MODULE = {
   applyBuiltInTemplatesByPath,
@@ -237,6 +297,150 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((currentNode) =>');
     expect(emitted).toContain('escapeText(selectSimplePathText(currentNode, ["name"]))');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a multi-step matched element template containing xsl:for-each', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root","section"]);');
+    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('escapeText(selectSimplePathText(currentNode, ["name"]))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a multi-step matched element template containing xsl:for-each with xsl:choose', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root","section"]);');
+    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a multi-step matched element template containing xsl:for-each with xsl:choose without xsl:otherwise', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose-no-otherwise.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root","section"]);');
+    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "")');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a multi-step matched element template containing xsl:for-each with multiple xsl:when branches', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose-multi-when.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root","section"]);');
+    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain('? "<vip>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a multi-step matched element template containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose-nested-if.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root","section"]);');
+    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["detail"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a multi-step matched element template containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose-nested-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root","section"]);');
+    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["detail"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('falls back when a multi-step matched element template contains xsl:for-each with nested xsl:apply-templates', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-apply-templates.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+  });
+
+  it('falls back when a multi-step matched element template contains xsl:for-each with nested xsl:apply-templates without select', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-apply-templates-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('applyBuiltInTemplatesByPath(');
   });
 
   it('emits native code when xsl:for-each contains xsl:if in its body', () => {
@@ -609,6 +813,302 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
+  it('emits native code for a root apply-templates select and an absolute match template containing xsl:for-each', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('escapeText(stringValueOfNode(currentNode))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute match template containing xsl:for-each with xsl:choose', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute match template containing xsl:for-each with xsl:choose without xsl:otherwise', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-choose-no-otherwise.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "")');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute match template containing xsl:for-each with multiple xsl:when branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-choose-multi-when.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain('? "<vip>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute match template containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-choose-nested-if.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute match template containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-choose-nested-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute match template containing xsl:for-each', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('escapeText(stringValueOfNode(currentNode))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute match template containing xsl:for-each with xsl:choose', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute match template containing xsl:for-each with xsl:choose without xsl:otherwise', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose-no-otherwise.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "")');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute match template containing xsl:for-each with multiple xsl:when branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose-multi-when.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain('? "<vip>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute match template containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose-nested-if.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute match template containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose-nested-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('falls back when an absolute match template selected by built-in apply-templates contains xsl:for-each with nested xsl:apply-templates', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-apply-templates.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('selectSimplePathNodes(templateNode, ["group"]).map((currentNode) =>');
+  });
+
+  it('falls back when an absolute match template selected by built-in apply-templates contains xsl:for-each with nested xsl:apply-templates without select', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-apply-templates-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('applyBuiltInTemplatesByPath(');
+  });
+
+  it('falls back when an absolute match template contains xsl:for-each with nested xsl:apply-templates', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-apply-templates.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('selectSimplePathNodes(templateNode, ["group"]).map((currentNode) =>');
+  });
+
+  it('falls back when an absolute match template contains xsl:for-each with nested xsl:apply-templates without select', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-apply-templates-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('applyBuiltInTemplatesByPath(');
+  });
+
   it('emits native code for a root apply-templates without select and a simple relative match template', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-default.xsl' });
     const transpiled = ts.transpileModule(emitted, {
@@ -675,6 +1175,302 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
+  it('emits native code for a root apply-templates without select and an absolute nested match template containing xsl:for-each', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","section","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('escapeText(stringValueOfNode(currentNode))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute nested match template containing xsl:for-each with xsl:choose', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","section","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute nested match template containing xsl:for-each with xsl:choose without xsl:otherwise', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-choose-no-otherwise.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","section","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "")');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute nested match template containing xsl:for-each with multiple xsl:when branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-choose-multi-when.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","section","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain('? "<vip>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute nested match template containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-choose-nested-if.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","section","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and an absolute nested match template containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-choose-nested-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","section","item"], (templateNode) =>');
+    expect(emitted).toContain(', true)');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('falls back when an absolute nested match template selected by built-in apply-templates contains xsl:for-each with nested xsl:apply-templates', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-apply-templates.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('selectSimplePathNodes(templateNode, ["group"]).map((currentNode) =>');
+  });
+
+  it('falls back when an absolute nested match template selected by built-in apply-templates contains xsl:for-each with nested xsl:apply-templates without select', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-apply-templates-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('applyBuiltInTemplatesByPath(');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute nested match template containing xsl:for-each', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('escapeText(stringValueOfNode(currentNode))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute nested match template containing xsl:for-each with xsl:choose', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute nested match template containing xsl:for-each with xsl:choose without xsl:otherwise', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose-no-otherwise.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "")');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute nested match template containing xsl:for-each with multiple xsl:when branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose-multi-when.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain('? "<vip>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute nested match template containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose-nested-if.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and an absolute nested match template containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose-nested-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('falls back when an absolute nested match template contains xsl:for-each with nested xsl:apply-templates', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-apply-templates.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('selectSimplePathNodes(templateNode, ["group"]).map((currentNode) =>');
+  });
+
+  it('falls back when an absolute nested match template contains xsl:for-each with nested xsl:apply-templates without select', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-apply-templates-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('applyBuiltInTemplatesByPath(');
+  });
+
   it('emits native code for a root apply-templates select and a nested simple relative match template', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match.xsl' });
     const transpiled = ts.transpileModule(emitted, {
@@ -691,6 +1487,151 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
+  it('emits native code for a root apply-templates select and a nested relative match template containing xsl:for-each', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('escapeText(stringValueOfNode(currentNode))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and a nested relative match template containing xsl:for-each with xsl:choose', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and a nested relative match template containing xsl:for-each with xsl:choose without xsl:otherwise', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-choose-no-otherwise.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "")');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and a nested relative match template containing xsl:for-each with multiple xsl:when branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-choose-multi-when.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain('? "<vip>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and a nested relative match template containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-choose-nested-if.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates select and a nested relative match template containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-choose-nested-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('falls back when a nested relative match template contains xsl:for-each with nested xsl:apply-templates', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-apply-templates.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('selectSimplePathNodes(templateNode, ["group"]).map((currentNode) =>');
+  });
+
+  it('falls back when a nested relative match template contains xsl:for-each with nested xsl:apply-templates without select', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-apply-templates-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('applyBuiltInTemplatesByPath(');
+  });
+
   it('emits native code for a root apply-templates without select and a nested simple relative match template', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default.xsl' });
     const transpiled = ts.transpileModule(emitted, {
@@ -705,6 +1646,151 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["section","item"], (templateNode) =>');
     expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and a nested relative match template containing xsl:for-each', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["section","item"], (templateNode) =>');
+    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('escapeText(stringValueOfNode(currentNode))');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and a nested relative match template containing xsl:for-each with xsl:choose', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["section","item"], (templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and a nested relative match template containing xsl:for-each with xsl:choose without xsl:otherwise', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose-no-otherwise.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["section","item"], (templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "")');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and a nested relative match template containing xsl:for-each with multiple xsl:when branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose-multi-when.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["section","item"], (templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain('? "<vip>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and a nested relative match template containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose-nested-if.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["section","item"], (templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a root apply-templates without select and a nested relative match template containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose-nested-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["section","item"], (templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('falls back when a nested relative match template selected by built-in apply-templates contains xsl:for-each with nested xsl:apply-templates', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-apply-templates.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('selectSimplePathNodes(templateNode, ["group"]).map((currentNode) =>');
+  });
+
+  it('falls back when a nested relative match template selected by built-in apply-templates contains xsl:for-each with nested xsl:apply-templates without select', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-apply-templates-default.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+    expect(emitted).not.toContain('applyBuiltInTemplatesByPath(');
   });
 
   it('emits native code when a child template uses xsl:value-of select="."', () => {
@@ -774,6 +1860,84 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('? "<flagged>" +');
     expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code when a child template contains xsl:for-each with xsl:choose without xsl:otherwise in its body', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-child-for-each-choose-no-otherwise.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain(': "")');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code when a child template contains xsl:for-each with multiple xsl:when branches in its body', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-child-for-each-choose-multi-when.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).toContain('? "<flagged>" +');
+    expect(emitted).toContain('? "<vip>" +');
+    expect(emitted).toContain(': "<plain>" +');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code when a child template contains xsl:for-each with nested xsl:if bodies inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-child-for-each-choose-nested-if.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code when a child template contains xsl:for-each with nested xsl:choose blocks inside xsl:choose branches', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-child-for-each-choose-nested-choose.xsl' });
+    const transpiled = ts.transpileModule(emitted, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+      reportDiagnostics: true,
+    });
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
+    expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -1063,6 +2227,48 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the matched-nested-root-for-each stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root-for-each.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the matched-nested-root-for-each-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root-for-each-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the matched-nested-root-for-each-choose-no-otherwise stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose-no-otherwise.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root-for-each-choose-no-otherwise.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the matched-nested-root-for-each-choose-multi-when stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose-multi-when.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root-for-each-choose-multi-when.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the matched-nested-root-for-each-choose-nested-if stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose-nested-if.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root-for-each-choose-nested-if.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the matched-nested-root-for-each-choose-nested-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'matched-nested-root-for-each-choose-nested-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the matched-nested-root stylesheet', () => {
     const emitted = compileStylesheetToTs(MATCHED_NESTED_ROOT_FIXTURE_STYLESHEET, { path: 'matched-nested-root.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/matched-nested-root.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
@@ -1080,6 +2286,90 @@ describe('XSLT codegen MVP4 slice', () => {
   it('matches the checked-in generated fixture for the apply-templates-absolute-match stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-for-each stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-for-each.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-for-each-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-for-each-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-for-each-choose-no-otherwise stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-choose-no-otherwise.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-for-each-choose-no-otherwise.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-for-each-choose-multi-when stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-choose-multi-when.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-for-each-choose-multi-when.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-for-each-choose-nested-if stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-choose-nested-if.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-for-each-choose-nested-if.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-for-each-choose-nested-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-for-each-choose-nested-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-default-for-each stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default-for-each.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-default-for-each-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default-for-each-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-default-for-each-choose-no-otherwise stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose-no-otherwise.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default-for-each-choose-no-otherwise.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-default-for-each-choose-multi-when stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose-multi-when.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default-for-each-choose-multi-when.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-default-for-each-choose-nested-if stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose-nested-if.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default-for-each-choose-nested-if.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-match-default-for-each-choose-nested-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-match-default-for-each-choose-nested-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-match-default-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
@@ -1105,6 +2395,90 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-default-for-each stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-default-for-each.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-default-for-each-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-default-for-each-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-default-for-each-choose-no-otherwise stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-choose-no-otherwise.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-default-for-each-choose-no-otherwise.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-default-for-each-choose-multi-when stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-choose-multi-when.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-default-for-each-choose-multi-when.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-default-for-each-choose-nested-if stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-choose-nested-if.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-default-for-each-choose-nested-if.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-default-for-each-choose-nested-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-default-for-each-choose-nested-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-default-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-for-each stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-for-each.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-for-each-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-for-each-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-for-each-choose-no-otherwise stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose-no-otherwise.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-for-each-choose-no-otherwise.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-for-each-choose-multi-when stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose-multi-when.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-for-each-choose-multi-when.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-for-each-choose-nested-if stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose-nested-if.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-for-each-choose-nested-if.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-absolute-nested-match-for-each-choose-nested-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-absolute-nested-match-for-each-choose-nested-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-absolute-nested-match-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the apply-templates-relative stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_RELATIVE_SELECT_FIXTURE_STYLESHEET, { path: 'apply-templates-relative.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-relative.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
@@ -1119,9 +2493,93 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
 
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-for-each stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-for-each.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-for-each-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-for-each-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-for-each-choose-no-otherwise stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-choose-no-otherwise.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-for-each-choose-no-otherwise.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-for-each-choose-multi-when stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-choose-multi-when.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-for-each-choose-multi-when.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-for-each-choose-nested-if stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-choose-nested-if.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-for-each-choose-nested-if.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-for-each-choose-nested-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-for-each-choose-nested-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
   it('matches the checked-in generated fixture for the apply-templates-nested-match-default stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-default-for-each stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default-for-each.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-default-for-each-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default-for-each-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-default-for-each-choose-no-otherwise stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose-no-otherwise.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default-for-each-choose-no-otherwise.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-default-for-each-choose-multi-when stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose-multi-when.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default-for-each-choose-multi-when.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-default-for-each-choose-nested-if stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose-nested-if.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default-for-each-choose-nested-if.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-nested-match-default-for-each-choose-nested-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-nested-match-default-for-each-choose-nested-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-nested-match-default-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
@@ -1143,6 +2601,34 @@ describe('XSLT codegen MVP4 slice', () => {
   it('matches the checked-in generated fixture for the apply-templates-child-for-each-choose stylesheet', () => {
     const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-child-for-each-choose.xsl' });
     const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-child-for-each-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-child-for-each-choose-no-otherwise stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, { path: 'apply-templates-child-for-each-choose-no-otherwise.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-child-for-each-choose-no-otherwise.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-child-for-each-choose-multi-when stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, { path: 'apply-templates-child-for-each-choose-multi-when.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-child-for-each-choose-multi-when.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-child-for-each-choose-nested-if stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, { path: 'apply-templates-child-for-each-choose-nested-if.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-child-for-each-choose-nested-if.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+    expect(emitted.trimEnd()).toBe(fixture.trimEnd());
+  });
+
+  it('matches the checked-in generated fixture for the apply-templates-child-for-each-choose-nested-choose stylesheet', () => {
+    const emitted = compileStylesheetToTs(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, { path: 'apply-templates-child-for-each-choose-nested-choose.xsl' });
+    const fixture = readFileSync(new URL('../generated-fixtures/apply-templates-child-for-each-choose-nested-choose.xsl.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
     expect(emitted.trimEnd()).toBe(fixture.trimEnd());
   });
@@ -1385,6 +2871,118 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
 
+  it('executes a multi-step matched-element native module containing xsl:for-each through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name></item><item><name>pear</name></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_NESTED_ROOT_FOR_EACH_FIXTURE_STYLESHEET, 'matched-nested-root-for-each.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(MATCHED_NESTED_ROOT_FOR_EACH_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a multi-step matched-element native module containing xsl:for-each with xsl:choose through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><flag/></item><item><name>pear</name></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, 'matched-nested-root-for-each-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a multi-step matched-element native module containing xsl:for-each with xsl:choose without xsl:otherwise through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><flag/></item><item><name>pear</name></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, 'matched-nested-root-for-each-choose-no-otherwise.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a multi-step matched-element native module containing xsl:for-each with multiple xsl:when branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><flag/></item><item><name>pear</name><vip/></item><item><name>plum</name></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, 'matched-nested-root-for-each-choose-multi-when.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a multi-step matched-element native module containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><flag/><detail/></item><item><name>pear</name><vip/></item><item><name>plum</name><flag/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, 'matched-nested-root-for-each-choose-nested-if.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a multi-step matched-element native module containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><flag/><detail/></item><item><name>pear</name><flag/></item><item><name>plum</name><vip/></item><item><name>berry</name></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, 'matched-nested-root-for-each-choose-nested-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(MATCHED_NESTED_ROOT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a multi-step matched-template for-each nested xsl:apply-templates stylesheet through the fallback runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail>fresh</detail><detail>green</detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_NESTED_ROOT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'matched-nested-root-for-each-apply-templates.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(MATCHED_NESTED_ROOT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a multi-step matched-template for-each nested xsl:apply-templates stylesheet without select through the fallback runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail>fresh</detail><detail>green</detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_NESTED_ROOT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, 'matched-nested-root-for-each-apply-templates-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(MATCHED_NESTED_ROOT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
   it('executes a matched-element native module containing xsl:for-each through the runtime surface', () => {
     const sourceXml = '<root><item><name>apple</name></item><item><name>pear</name></item></root>';
     const { diagnostics, exports } = compileAndLoadGeneratedModule(MATCHED_ROOT_FOR_EACH_FIXTURE_STYLESHEET, 'matched-root-for-each.xsl');
@@ -1539,6 +3137,230 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
 
+  it('executes a native apply-templates module with an absolute match template containing xsl:for-each through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail>fresh</detail><detail>green</detail></item><item><name>pear</name><detail>ripe</detail></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-for-each.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute match template containing xsl:for-each with xsl:choose through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/></detail><detail/></item><item><name>pear</name><detail/></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-for-each-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute match template containing xsl:for-each with xsl:choose without xsl:otherwise through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/></detail><detail/></item><item><name>pear</name><detail/></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-for-each-choose-no-otherwise.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute match template containing xsl:for-each with multiple xsl:when branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/></detail><detail><vip/></detail><detail/></item><item><name>pear</name><detail><vip/></detail></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-for-each-choose-multi-when.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute match template containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/><marker/></detail><detail><vip/></detail><detail><flag/></detail></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-for-each-choose-nested-if.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute match template containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/><marker/></detail><detail><flag/></detail><detail><vip/></detail><detail/></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-for-each-choose-nested-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute match template containing xsl:for-each through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail>fresh</detail><detail>green</detail></item><group><item><name>skip</name></item></group><item><name>pear</name><detail>ripe</detail></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-default-for-each.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute match template containing xsl:for-each with xsl:choose through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/></detail><detail/></item><group><item><name>skip</name></item></group><item><name>pear</name><detail/></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-default-for-each-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute match template containing xsl:for-each with xsl:choose without xsl:otherwise through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/></detail><detail/></item><group><item><name>skip</name></item></group><item><name>pear</name><detail/></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-default-for-each-choose-no-otherwise.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute match template containing xsl:for-each with multiple xsl:when branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/></detail><detail><vip/></detail><detail/></item><group><item><name>skip</name></item></group><item><name>pear</name><detail><vip/></detail></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-default-for-each-choose-multi-when.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute match template containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/><marker/></detail><detail><vip/></detail><detail><flag/></detail></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-default-for-each-choose-nested-if.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute match template containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/><marker/></detail><detail><flag/></detail><detail><vip/></detail><detail/></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-default-for-each-choose-nested-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a built-in apply-templates absolute match for-each nested xsl:apply-templates stylesheet through the fallback runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-default-for-each-apply-templates.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a built-in apply-templates absolute match for-each nested xsl:apply-templates stylesheet without select through the fallback runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-default-for-each-apply-templates-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes an absolute match for-each nested xsl:apply-templates stylesheet through the fallback runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-for-each-apply-templates.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes an absolute match for-each nested xsl:apply-templates stylesheet without select through the fallback runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-absolute-match-for-each-apply-templates-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
   it('executes a native apply-templates module with a nested relative match through the runtime surface', () => {
     const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name></item></section><section><item><name>pear</name></item></section></root>';
     const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET, 'apply-templates-nested-match.xsl');
@@ -1549,6 +3371,118 @@ describe('XSLT codegen MVP4 slice', () => {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with a nested relative match containing xsl:for-each through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name><detail>omit</detail></item><section><item><name>apple</name><detail>fresh</detail><detail>green</detail></item></section><section><item><name>pear</name><detail>ripe</detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with a nested relative match containing xsl:for-each with xsl:choose through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/></detail><detail/></item><item><name>pear</name><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with a nested relative match containing xsl:for-each with xsl:choose without xsl:otherwise through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/></detail><detail/></item><item><name>pear</name><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-choose-no-otherwise.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with a nested relative match containing xsl:for-each with multiple xsl:when branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/></detail><detail><vip/></detail><detail/></item><item><name>pear</name><detail><vip/></detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-choose-multi-when.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with a nested relative match containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/><marker/></detail><detail><vip/></detail><detail><flag/></detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-choose-nested-if.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with a nested relative match containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/><marker/></detail><detail><vip/></detail><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-choose-nested-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a nested relative match for-each nested xsl:apply-templates stylesheet through the fallback runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-apply-templates.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a nested relative match for-each nested xsl:apply-templates stylesheet without select through the fallback runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-apply-templates-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
 
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
@@ -1605,6 +3539,62 @@ describe('XSLT codegen MVP4 slice', () => {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates child template containing xsl:for-each with xsl:choose without xsl:otherwise through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/></detail><detail/></item><item><name>pear</name><detail/></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, 'apply-templates-child-for-each-choose-no-otherwise.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates child template containing xsl:for-each with multiple xsl:when branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/></detail><detail><vip/></detail><detail/></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, 'apply-templates-child-for-each-choose-multi-when.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates child template containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/><marker/></detail><detail><vip/></detail><detail><flag/></detail></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, 'apply-templates-child-for-each-choose-nested-if.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates child template containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>apple</name><detail><flag/><marker/></detail><detail><flag/></detail><detail><vip/></detail><detail/></item></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-child-for-each-choose-nested-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_CHILD_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
 
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
@@ -1791,6 +3781,230 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
 
+  it('executes a native apply-templates module without select and with an absolute nested match containing xsl:for-each through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name><detail>fresh</detail><detail>green</detail></item></section><group><item><name>skip-too</name></item></group><section><item><name>pear</name><detail>ripe</detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-default-for-each.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute nested match containing xsl:for-each with xsl:choose through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name><detail><flag/></detail><detail/></item></section><section><item><name>pear</name><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-default-for-each-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute nested match containing xsl:for-each with xsl:choose without xsl:otherwise through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name><detail><flag/></detail><detail/></item></section><section><item><name>pear</name><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-default-for-each-choose-no-otherwise.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute nested match containing xsl:for-each with multiple xsl:when branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name><detail><flag/></detail><detail><vip/></detail><detail/></item></section><section><item><name>pear</name><detail><vip/></detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-default-for-each-choose-multi-when.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute nested match containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name><detail><flag/><marker/></detail><detail><vip/></detail><detail><flag/></detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-default-for-each-choose-nested-if.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with an absolute nested match containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name><detail><flag/><marker/></detail><detail><flag/></detail><detail><vip/></detail><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-default-for-each-choose-nested-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a built-in apply-templates absolute nested match for-each nested xsl:apply-templates stylesheet through the fallback runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-default-for-each-apply-templates.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a built-in apply-templates absolute nested match for-each nested xsl:apply-templates stylesheet without select through the fallback runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-default-for-each-apply-templates-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute nested match containing xsl:for-each through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail>fresh</detail><detail>green</detail></item><item><name>pear</name><detail>ripe</detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-for-each.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute nested match containing xsl:for-each with xsl:choose through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/></detail><detail/></item><item><name>pear</name><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-for-each-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute nested match containing xsl:for-each with xsl:choose without xsl:otherwise through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/></detail><detail/></item><item><name>pear</name><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-for-each-choose-no-otherwise.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute nested match containing xsl:for-each with multiple xsl:when branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/></detail><detail><vip/></detail><detail/></item><item><name>pear</name><detail><vip/></detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-for-each-choose-multi-when.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute nested match containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/><marker/></detail><detail><vip/></detail><detail><flag/></detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-for-each-choose-nested-if.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module with an absolute nested match containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/><marker/></detail><detail><flag/></detail><detail><vip/></detail><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-for-each-choose-nested-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes an absolute nested match for-each nested xsl:apply-templates stylesheet through the fallback runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-for-each-apply-templates.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes an absolute nested match for-each nested xsl:apply-templates stylesheet without select through the fallback runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-absolute-nested-match-for-each-apply-templates-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_ABSOLUTE_NESTED_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
   it('executes a native apply-templates module without select and with a nested relative match through the runtime surface', () => {
     const sourceXml = '<root><item><name>skip</name></item><section><item><name>apple</name></item></section><group><item><name>skip-too</name></item></group><section><item><name>pear</name></item></section></root>';
     const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-nested-match-default.xsl');
@@ -1801,6 +4015,118 @@ describe('XSLT codegen MVP4 slice', () => {
       readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
     };
     const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with a nested relative match containing xsl:for-each through the runtime surface', () => {
+    const sourceXml = '<root><item><name>skip</name><detail>omit</detail></item><section><item><name>apple</name><detail>fresh</detail><detail>green</detail></item></section><group><item><name>skip-too</name><detail>omit</detail></item></group><section><item><name>pear</name><detail>ripe</detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET, 'apply-templates-nested-match-default-for-each.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with a nested relative match containing xsl:for-each with xsl:choose through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/></detail><detail/></item><item><name>pear</name><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-nested-match-default-for-each-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with a nested relative match containing xsl:for-each with xsl:choose without xsl:otherwise through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/></detail><detail/></item><item><name>pear</name><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, 'apply-templates-nested-match-default-for-each-choose-no-otherwise.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with a nested relative match containing xsl:for-each with multiple xsl:when branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/></detail><detail><vip/></detail><detail/></item><item><name>pear</name><detail><vip/></detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, 'apply-templates-nested-match-default-for-each-choose-multi-when.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with a nested relative match containing xsl:for-each with nested xsl:if bodies inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/><marker/></detail><detail><vip/></detail><detail><flag/></detail></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, 'apply-templates-nested-match-default-for-each-choose-nested-if.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a native apply-templates module without select and with a nested relative match containing xsl:for-each with nested xsl:choose blocks inside xsl:choose branches through the runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><detail><flag/><marker/></detail><detail><vip/></detail><detail/></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-nested-match-default-for-each-choose-nested-choose.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a built-in apply-templates nested relative match for-each nested xsl:apply-templates stylesheet through the fallback runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'apply-templates-nested-match-default-for-each-apply-templates.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('executes a built-in apply-templates nested relative match for-each nested xsl:apply-templates stylesheet without select through the fallback runtime surface', () => {
+    const sourceXml = '<root><section><item><name>apple</name><group><detail>fresh</detail><detail>green</detail></group></item></section></root>';
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-nested-match-default-for-each-apply-templates-default.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const interpreterResult = new XsltProcessor(APPLY_TEMPLATES_NESTED_MATCH_DEFAULT_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET).transform(sourceXml);
 
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
