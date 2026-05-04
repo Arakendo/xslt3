@@ -50,12 +50,7 @@ export function tryGetRootApplyTemplatesNestedShape(ir: StylesheetIR): RootApply
   }
 
   const rootApplyTemplates = findSingleApplyTemplatesInstruction(rootTemplate.body);
-  if (rootApplyTemplates === undefined || rootApplyTemplates.select === undefined || rootApplyTemplates.withParams.length > 0) {
-    return undefined;
-  }
-
-  const selectPath = getSimpleSelectPath(rootApplyTemplates.select);
-  if (selectPath === undefined) {
+  if (rootApplyTemplates === undefined || rootApplyTemplates.withParams.length > 0) {
     return undefined;
   }
 
@@ -80,10 +75,19 @@ export function tryGetRootApplyTemplatesNestedShape(ir: StylesheetIR): RootApply
     return undefined;
   }
 
-  const matchingCandidates = candidateTemplates.filter((candidate) =>
-    candidate !== undefined
-    && selectPathMatchesTemplate(selectPath.segments, candidate.matchPath, candidate.matchAbsolute),
-  );
+  const matchingCandidates = rootApplyTemplates.select === undefined
+    ? candidateTemplates.filter((candidate) => candidate !== undefined && candidate.matchAbsolute)
+    : (() => {
+        const selectPath = getSimpleSelectPath(rootApplyTemplates.select);
+        if (selectPath === undefined) {
+          return [];
+        }
+
+        return candidateTemplates.filter((candidate) =>
+          candidate !== undefined
+          && selectPathMatchesTemplate(selectPath.segments, candidate.matchPath, candidate.matchAbsolute),
+        );
+      })();
   if (matchingCandidates.length !== 1) {
     return undefined;
   }
