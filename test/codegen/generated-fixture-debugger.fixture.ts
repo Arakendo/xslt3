@@ -1,5 +1,5 @@
-import { createCompiledDocument, escapeText, selectSimplePathText } from '@arakendo/weaver-xslt/runtime';
-import type { TransformContext, TransformResult } from '@arakendo/weaver-xslt/runtime';
+import { createCompiledDocument, escapeText, selectSimplePathText } from '../../src/runtime/index.js';
+import type { TransformContext, TransformResult } from '../../src/runtime/index.js';
 
 export const source = { path: 'hello.xsl', digest: '34f4c921' } as const;
 
