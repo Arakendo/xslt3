@@ -40,11 +40,41 @@ jobs:
 
       - name: Test
         if: runner.os == 'Windows'
-        run: npm test -- --pool=forks --poolOptions.forks.singleFork --no-file-parallelism
+        id: test_windows
+        shell: pwsh
+        run: |
+          $logDir = Join-Path $env:RUNNER_TEMP 'weaver-xslt-logs'
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          $logPath = Join-Path $logDir 'windows-test.log'
 
-      - name: Test Remaining Windows Slice
-        if: runner.os == 'Windows'
-        run: npm test -- test/cli.test.ts test/golden.test.ts test/smoke.test.ts test/conformance test/xpath test/xslt --pool=forks --poolOptions.forks.singleFork --no-file-parallelism
+          npm test -- --pool=forks --poolOptions.forks.singleFork --no-file-parallelism 2>&1 | Tee-Object -FilePath $logPath
+          $exitCode = $LASTEXITCODE
+
+          "log_path=$logPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "exit_code=$exitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+          if ($exitCode -ne 0) {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value 'Windows test step failed. Last 200 log lines:'
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ''
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```text'
+            Get-Content -Path $logPath -Tail 200 | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```'
+          }
+
+          exit 0
+
+      - name: Upload Windows test log
+        if: runner.os == 'Windows' && steps.test_windows.outputs.exit_code != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-log-node-${{ matrix.node }}
+          path: ${{ steps.test_windows.outputs.log_path }}
+          if-no-files-found: error
+
+      - name: Fail on Windows test failure
+        if: runner.os == 'Windows' && steps.test_windows.outputs.exit_code != '0'
+        shell: pwsh
+        run: exit 1
 
       - name: Build
         run: npm run build
