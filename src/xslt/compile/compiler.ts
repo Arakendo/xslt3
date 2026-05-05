@@ -10,6 +10,8 @@ import type { Element } from '@xmldom/xmldom';
 import { XTSE0500 } from '../../errors/codes.js';
 import { getAttributeValueSourceLocation, getNodeSourceLocation, parseXml } from '../../xml/parse.js';
 import { STYLESHEET_IR_VERSION } from './ir.js';
+import type { ExtensionFunctionCatalog } from './extensionFunctions.js';
+import { validateXPathFunctionCalls } from './extensionFunctions.js';
 import {
   assertAllowedXsltAttributes,
   assertNoDuplicateWithParam,
@@ -41,9 +43,15 @@ import {
   type TopLevelCompilerHelpers,
 } from './topLevelCompilers.js';
 
-export function compileStylesheet(stylesheetXml: string): StylesheetIR {
+export interface CompileStylesheetOptions {
+  readonly sourceName?: string;
+  readonly extensionFunctions?: ExtensionFunctionCatalog;
+}
+
+export function compileStylesheet(stylesheetXml: string, options: CompileStylesheetOptions = {}): StylesheetIR {
   const stylesheetDocument = parseXml(stylesheetXml);
   const root = stylesheetDocument.documentElement;
+  const stylesheetSourceName = options.sourceName ?? STYLESHEET_SOURCE_NAME;
 
   if (root === null) {
     throw createXsltStaticError('Stylesheet has no document element.');
@@ -52,7 +60,7 @@ export function compileStylesheet(stylesheetXml: string): StylesheetIR {
   if (!isXsltElement(root, 'stylesheet') && !isXsltElement(root, 'transform')) {
     throw createXsltStaticError(
       'Stylesheet document element must be xsl:stylesheet or xsl:transform.',
-      getNodeSourceLocation(stylesheetXml, root, STYLESHEET_SOURCE_NAME),
+      getNodeSourceLocation(stylesheetXml, root, stylesheetSourceName),
       {
         suggestions: [{
           kind: 'fix',
@@ -63,14 +71,17 @@ export function compileStylesheet(stylesheetXml: string): StylesheetIR {
     );
   }
 
-  validateStylesheetRootAttributes(root, stylesheetXml, STYLESHEET_COMPILER_HELPERS);
+  const { namespaces, defaultElementNamespace } = collectStylesheetStaticContext(root);
+  const compilerHelpers = createCompilerHelpers(stylesheetSourceName, namespaces, options.extensionFunctions ?? new Map());
+
+  validateStylesheetRootAttributes(root, stylesheetXml, compilerHelpers.stylesheetHelpers);
 
   const version = root.getAttribute('version');
   if (version === null || version.length === 0) {
     throw createXsltStaticError(
       'Stylesheet module must declare a version attribute.',
-      getAttributeValueSourceLocation(stylesheetXml, root, 'version', STYLESHEET_SOURCE_NAME)
-        ?? getNodeSourceLocation(stylesheetXml, root, STYLESHEET_SOURCE_NAME),
+      getAttributeValueSourceLocation(stylesheetXml, root, 'version', stylesheetSourceName)
+        ?? getNodeSourceLocation(stylesheetXml, root, stylesheetSourceName),
       {
         suggestions: [{
           kind: 'fix',
@@ -83,16 +94,16 @@ export function compileStylesheet(stylesheetXml: string): StylesheetIR {
     );
   }
 
-  assertNoDuplicateNamedTemplates(root, stylesheetXml, STYLESHEET_COMPILER_HELPERS);
-  assertNoDuplicateGlobalBindings(root, stylesheetXml, STYLESHEET_COMPILER_HELPERS);
-  assertNoUnknownCalledTemplates(root, stylesheetXml, STYLESHEET_COMPILER_HELPERS);
-  assertNoInvalidCallTemplateParams(root, stylesheetXml, STYLESHEET_COMPILER_HELPERS);
+  assertNoDuplicateNamedTemplates(root, stylesheetXml, compilerHelpers.stylesheetHelpers);
+  assertNoDuplicateGlobalBindings(root, stylesheetXml, compilerHelpers.stylesheetHelpers);
+  assertNoUnknownCalledTemplates(root, stylesheetXml, compilerHelpers.stylesheetHelpers);
+  assertNoInvalidCallTemplateParams(root, stylesheetXml, compilerHelpers.stylesheetHelpers);
 
   const templates: TemplateRule[] = [];
   const globalBindings: GlobalBinding[] = [];
-  const location = getNodeSourceLocation(stylesheetXml, root, STYLESHEET_SOURCE_NAME);
+  const location = getNodeSourceLocation(stylesheetXml, root, stylesheetSourceName);
   for (const child of childElements(root)) {
-    const declaration = compileTopLevelDeclaration(child, stylesheetXml, STYLESHEET_COMPILER_HELPERS);
+    const declaration = compileTopLevelDeclaration(child, stylesheetXml, compilerHelpers.stylesheetHelpers);
     if (declaration === undefined) {
       continue;
     }
@@ -104,12 +115,10 @@ export function compileStylesheet(stylesheetXml: string): StylesheetIR {
 
     globalBindings.push(declaration);
   }
-  const { namespaces, defaultElementNamespace } = collectStylesheetStaticContext(root);
-
   if (templates.length === 0) {
     throw createXsltStaticError(
       'Stylesheet must declare at least one xsl:template.',
-      getNodeSourceLocation(stylesheetXml, root, STYLESHEET_SOURCE_NAME),
+      getNodeSourceLocation(stylesheetXml, root, stylesheetSourceName),
       {
         suggestions: [{
           kind: 'fix',
@@ -131,54 +140,88 @@ export function compileStylesheet(stylesheetXml: string): StylesheetIR {
   };
 }
 
-function compileTopLevelVariable(element: Element, stylesheetXml: string): GlobalVariable {
-  return compileTopLevelVariableDeclaration(element, stylesheetXml, TOP_LEVEL_COMPILER_HELPERS);
+function createCompilerHelpers(
+  stylesheetSourceName: string,
+  namespaces: Readonly<Record<string, string>>,
+  extensionFunctions: ExtensionFunctionCatalog,
+): {
+  readonly topLevelHelpers: TopLevelCompilerHelpers;
+  readonly stylesheetHelpers: StylesheetCompilerHelpers;
+} {
+  const parseXPathInCompileContext: TopLevelCompilerHelpers['parseXPathInContext'] = (
+    expression,
+    location,
+    ownerName,
+    attributeName,
+    frameKind,
+  ) => {
+    const ast = parseXPathInContext(expression, location, ownerName, attributeName, frameKind);
+    validateXPathFunctionCalls(ast, {
+      expressionText: expression,
+      ownerName,
+      attributeName,
+      namespaces,
+      extensionFunctions,
+      ...(location === undefined ? {} : { expressionLocation: location }),
+      ...(frameKind === undefined ? {} : { frameKind }),
+    });
+    return ast;
+  };
+
+  const baseCompilerHelpers = {
+    stylesheetSourceName,
+    isXsltElement,
+    assertAllowedXsltAttributes,
+    createXsltStaticError,
+    parseXPathInContext: parseXPathInCompileContext,
+    normalizeXsltQName,
+    assertNoSelectAndContent,
+    hasMeaningfulTemplateContent,
+  };
+
+  const instructionEntrypointHelpers: InstructionEntrypointHelpers = {
+    ...baseCompilerHelpers,
+    xsltNamespace: XSLT_NAMESPACE,
+    childElements,
+    assertNoDuplicateWithParam,
+    createInstructionSuggestion,
+  };
+
+  const { compileInstructions, compileInstruction } = createInstructionEntrypoints(instructionEntrypointHelpers);
+
+  const topLevelHelpers: TopLevelCompilerHelpers = {
+    ...baseCompilerHelpers,
+    compileInstructions,
+    compileInstruction,
+    isSupportedTemplateMatch,
+    parseRequiredAttribute,
+  };
+
+  function compileTopLevelVariable(element: Element, localStylesheetXml: string): GlobalVariable {
+    return compileTopLevelVariableDeclaration(element, localStylesheetXml, topLevelHelpers);
+  }
+
+  function compileTopLevelParam(element: Element, localStylesheetXml: string): GlobalParam {
+    return compileTopLevelParamDeclaration(element, localStylesheetXml, topLevelHelpers);
+  }
+
+  function compileTemplateRule(templateElement: Element, localStylesheetXml: string): TemplateRule {
+    return compileTemplateRuleDeclaration(templateElement, localStylesheetXml, topLevelHelpers);
+  }
+
+  const stylesheetHelpers: StylesheetCompilerHelpers = {
+    ...baseCompilerHelpers,
+    xsltNamespace: XSLT_NAMESPACE,
+    xmlnsNamespace: XMLNS_NAMESPACE,
+    createAttributeSuggestion,
+    childElements,
+    compileTemplateRule,
+    compileTopLevelParam,
+    compileTopLevelVariable,
+  };
+
+  return {
+    topLevelHelpers,
+    stylesheetHelpers,
+  };
 }
-
-function compileTopLevelParam(element: Element, stylesheetXml: string): GlobalParam {
-  return compileTopLevelParamDeclaration(element, stylesheetXml, TOP_LEVEL_COMPILER_HELPERS);
-}
-
-function compileTemplateRule(templateElement: Element, stylesheetXml: string): TemplateRule {
-  return compileTemplateRuleDeclaration(templateElement, stylesheetXml, TOP_LEVEL_COMPILER_HELPERS);
-}
-
-const BASE_COMPILER_HELPERS = {
-  stylesheetSourceName: STYLESHEET_SOURCE_NAME,
-  isXsltElement,
-  assertAllowedXsltAttributes,
-  createXsltStaticError,
-  parseXPathInContext,
-  normalizeXsltQName,
-  assertNoSelectAndContent,
-  hasMeaningfulTemplateContent,
-};
-
-const INSTRUCTION_ENTRYPOINT_HELPERS: InstructionEntrypointHelpers = {
-  ...BASE_COMPILER_HELPERS,
-  xsltNamespace: XSLT_NAMESPACE,
-  childElements,
-  assertNoDuplicateWithParam,
-  createInstructionSuggestion,
-};
-
-const { compileInstructions, compileInstruction } = createInstructionEntrypoints(INSTRUCTION_ENTRYPOINT_HELPERS);
-
-const TOP_LEVEL_COMPILER_HELPERS: TopLevelCompilerHelpers = {
-  ...BASE_COMPILER_HELPERS,
-  compileInstructions,
-  compileInstruction,
-  isSupportedTemplateMatch,
-  parseRequiredAttribute,
-};
-
-const STYLESHEET_COMPILER_HELPERS: StylesheetCompilerHelpers = {
-  ...BASE_COMPILER_HELPERS,
-  xsltNamespace: XSLT_NAMESPACE,
-  xmlnsNamespace: XMLNS_NAMESPACE,
-  createAttributeSuggestion,
-  childElements,
-  compileTemplateRule,
-  compileTopLevelParam,
-  compileTopLevelVariable,
-};

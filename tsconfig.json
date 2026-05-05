@@ -33,5 +33,5 @@
     "verbatimModuleSyntax": false
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],
-  "exclude": ["node_modules", "dist", "vendor", "test/generated-fixtures"]
+  "exclude": ["node_modules", "dist", "vendor", "test/generated-fixtures", "test/integration/react-app/generated", "test/integration/react-app/app.ts", "test/integration/react-app/runtime-shim.ts"]
 }

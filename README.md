@@ -57,6 +57,34 @@ console.log(result.output);
 // <hello>world</hello>
 ```
 
+## CLI
+
+From a local checkout, build the package and run the compiled CLI entrypoint.
+The compile command accepts a file path or glob and writes generated artifacts
+next to each matched stylesheet:
+
+```bash
+npm run build
+node dist/cli.js compile ./hello.xsl
+```
+
+That writes `./hello.xsl.ts`, `./hello.xsl.d.ts`, and `./hello.xsl.digest` using the current codegen backend.
+
+You can also run a stylesheet directly through the interpreter:
+
+```bash
+node dist/cli.js run ./hello.xsl --input ./input.xml
+```
+
+And the CLI exposes built-in usage text:
+
+```bash
+node dist/cli.js --help
+```
+
+When the package is installed from npm, the same command is exposed as
+`weaver-xslt compile ./hello.xsl` via the package `bin` entry.
+
 ## Scripts
 
 | Script              | Description                               |
@@ -64,6 +92,7 @@ console.log(result.output);
 | `npm run build`     | Compile TypeScript to `dist/`             |
 | `npm run dev`       | Run `src/index.ts` in watch mode via tsx  |
 | `npm test`          | Run the Vitest test suite once            |
+| `npm run test:packaging` | Build and dry-run the published package surface |
 | `npm run test:watch`| Run Vitest in watch mode                  |
 | `npm run typecheck` | Type-check without emitting               |
 | `npm run lint`      | Lint sources with ESLint                  |

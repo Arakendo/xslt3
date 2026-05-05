@@ -16,6 +16,9 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "weaver-xslt": "./dist/cli.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -41,6 +44,7 @@
     "clean": "rimraf dist",
     "dev": "tsx watch src/index.ts",
     "test": "vitest run",
+    "test:packaging": "npm run build && npm pack --json --dry-run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:conformance": "vitest run test/conformance",
@@ -59,7 +63,8 @@
   "author": "Arakendo",
   "license": "MIT",
   "dependencies": {
-    "@xmldom/xmldom": "^0.9.5"
+    "@xmldom/xmldom": "^0.9.5",
+    "typescript": "^5.7.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
@@ -70,7 +75,6 @@
     "prettier": "^3.4.2",
     "rimraf": "^6.0.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
   "engines": {

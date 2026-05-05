@@ -360,14 +360,18 @@ we should expect to rev the IR whenever codegen exposes a missing semantic.
   stylesheet call site, not the TS file
 
 **Exit criteria:**
-- [ ] Typed invocation works in a fixture React-ish project (under
+- [x] Typed invocation works in a fixture React-ish project (under
       `test/integration/react-app/` — just a tsconfig + one import +
       one call). `tsc` passes on the consumer side.
-- [ ] Extension-function type-mismatch produces a stylesheet-located
+- [x] Extension-function type-mismatch produces a stylesheet-located
       diagnostic with the `.ts` signature quoted inline
-- [ ] CLI published as `weaver-xslt` bin entry in `package.json`
-- [ ] `weaver-xslt compile` is documented in README with a copy-paste
+- [x] CLI published as `weaver-xslt` bin entry in `package.json`
+- [x] `weaver-xslt compile` is documented in README with a copy-paste
       that works
+- [x] Built CLI supports `compile <glob>`, `run <stylesheet> --input
+  <xml>`, and usable `--help`; end-to-end verification passes
+- [x] Packaging dry-run includes `dist/cli.js` as the published bin
+  target and the compiled CLI works from `dist/cli.js`
 
 ---
 

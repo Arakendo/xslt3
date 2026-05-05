@@ -37,6 +37,7 @@ export interface ChooseWhenBranch {
 
 export interface TemplateParam {
   readonly name: string;
+  readonly asType?: string;
   readonly required?: boolean;
   readonly select?: XPathAst;
   readonly selectText?: string;
@@ -56,6 +57,7 @@ export interface GlobalVariable {
 export interface GlobalParam {
   readonly kind: 'param';
   readonly name: string;
+  readonly asType?: string;
   readonly required?: boolean;
   readonly select?: XPathAst;
   readonly selectText?: string;

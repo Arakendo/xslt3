@@ -114,7 +114,11 @@ export function createArityValidationHelpers(createXPathError: CreateXPathError)
   };
 }
 
-function matchesArityRequirement(actualArity: number, arityRequirement: string): boolean {
+export function lookupFunctionArityRequirement(name: string): string | undefined {
+  return FUNCTION_ARITY_REQUIREMENTS.get(name);
+}
+
+export function matchesArityRequirement(actualArity: number, arityRequirement: string): boolean {
   switch (arityRequirement) {
     case '0':
     case '1':

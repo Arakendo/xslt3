@@ -1,24 +1,59 @@
+import { basename } from 'node:path';
+
 import { compileStylesheet } from '../xslt/compile/compiler.js';
-import { emitStylesheetModule } from '../xslt/codegen/emit.js';
+import { emitStylesheetDeclarationModule, emitStylesheetModule } from '../xslt/codegen/emit.js';
+import { loadExtensionFunctionCatalog } from './extensionFunctions.js';
 
 export interface CompileStylesheetToTsOptions {
   readonly path?: string;
+  readonly filePath?: string;
   readonly runtimeModuleSpecifier?: string;
+}
+
+export interface CompileStylesheetArtifacts {
+  readonly module: string;
+  readonly declaration: string;
+  readonly digest: string;
 }
 
 export function compileStylesheetToTs(
   stylesheetSource: string,
   options: CompileStylesheetToTsOptions = {},
 ): string {
-  const ir = compileStylesheet(stylesheetSource);
+  return compileStylesheetArtifacts(stylesheetSource, options).module;
+}
 
-  return emitStylesheetModule(ir, {
-    digest: createStylesheetDigest(stylesheetSource),
+export function compileStylesheetToDts(
+  stylesheetSource: string,
+  options: CompileStylesheetToTsOptions = {},
+): string {
+  return compileStylesheetArtifacts(stylesheetSource, options).declaration;
+}
+
+export function compileStylesheetArtifacts(
+  stylesheetSource: string,
+  options: CompileStylesheetToTsOptions = {},
+): CompileStylesheetArtifacts {
+  const digest = createStylesheetDigest(stylesheetSource);
+  const ir = compileStylesheet(stylesheetSource, {
+    ...(options.path === undefined && options.filePath === undefined
+      ? {}
+      : { sourceName: options.path ?? basename(options.filePath!) }),
+    ...(options.filePath === undefined ? {} : { extensionFunctions: loadExtensionFunctionCatalog(options.filePath) }),
+  });
+  const emitOptions = {
+    digest,
     ...(options.path === undefined ? {} : { path: options.path }),
     ...(options.runtimeModuleSpecifier === undefined
       ? {}
       : { runtimeModuleSpecifier: options.runtimeModuleSpecifier }),
-  });
+  };
+
+  return {
+    module: emitStylesheetModule(ir, emitOptions),
+    declaration: emitStylesheetDeclarationModule(ir, emitOptions),
+    digest,
+  };
 }
 
 function createStylesheetDigest(source: string): string {

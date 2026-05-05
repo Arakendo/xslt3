@@ -347,6 +347,7 @@ export function compileTemplateParamDeclaration(
   const body = select === undefined && helpers.hasMeaningfulTemplateContent(element)
     ? helpers.compileInstructions(element.childNodes, stylesheetXml)
     : undefined;
+  const asType = element.getAttribute('as') ?? undefined;
   const selectLocation = select === undefined
     ? undefined
     : getAttributeValueSourceLocation(stylesheetXml, element, 'select', helpers.stylesheetSourceName)
@@ -358,6 +359,7 @@ export function compileTemplateParamDeclaration(
 
   return {
     name,
+    ...(asType === undefined ? {} : { asType }),
     ...(required ? { required: true } : {}),
     ...(select === undefined ? {} : { select: helpers.parseXPathInContext(select, selectLocation, 'xsl:param', 'select') }),
     ...(select === undefined ? {} : { selectText: select }),
