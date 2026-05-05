@@ -66,7 +66,7 @@ describe('generated fixture audit', () => {
 
       expect(generatedModule.transform('<root><name>world</name></root>').output).toBe('<hello>world</hello>');
     } finally {
-      rmSync(sandboxDir, { recursive: true, force: true });
+      rmSync(sandboxDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 });

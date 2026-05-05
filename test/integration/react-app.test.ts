@@ -28,7 +28,7 @@ describe('integration fixture react-app', () => {
 
   afterEach(() => {
     if (stagedFixtureDir !== undefined) {
-      rmSync(stagedFixtureDir, { recursive: true, force: true });
+      rmSync(stagedFixtureDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
       stagedFixtureDir = undefined;
     }
   });

@@ -53,7 +53,7 @@ describe('extension function diagnostics', () => {
       expect(formatDiagnostic(report, stylesheet)).toContain('error[XPTY0004]: Extension function demo:formatAmount argument 1 expects number but got string.');
       expect(formatDiagnostic(report, stylesheet)).toContain('= signature: formatAmount(value: number): string');
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -89,7 +89,7 @@ describe('extension function diagnostics', () => {
         });
       }).not.toThrow();
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 });

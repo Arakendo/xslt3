@@ -70,7 +70,7 @@ describe('CLI', () => {
       expect(readFileSync(secondDeclarationPath, 'utf8')).toBe(secondExpected.declaration);
       expect(readFileSync(secondDigestPath, 'utf8')).toBe(`${secondExpected.digest}\n`);
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -98,7 +98,7 @@ describe('CLI', () => {
       expect(stderr[0]).toContain('error[XTSE0010]');
       expect(stderr[0]).toContain('xsl:copy-of');
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
@@ -126,7 +126,7 @@ describe('CLI', () => {
       expect(stderr).toEqual([]);
       expect(stdout).toEqual(['<hello>world</hello>\n']);
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 
