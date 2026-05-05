@@ -38,9 +38,17 @@ jobs:
         if: runner.os != 'Windows'
         run: npm test
 
-      - name: Test Codegen And Integration
+      - name: Test Codegen Core
         if: runner.os == 'Windows'
-        run: npm test -- test/codegen test/integration --pool=forks --poolOptions.forks.singleFork --no-file-parallelism
+        run: npm test -- test/codegen/compile.apply-templates-absolute-default-nested-runtime.test.ts test/codegen/compile.apply-templates-absolute-fixtures.test.ts test/codegen/compile.apply-templates-absolute-match-default-for-each-emission.test.ts test/codegen/compile.apply-templates-absolute-match-emission.test.ts test/codegen/compile.apply-templates-absolute-nested-match-default-emission.test.ts test/codegen/compile.apply-templates-absolute-nested-match-emission.test.ts test/codegen/compile.apply-templates-absolute-runtime.test.ts test/codegen/compile.apply-templates-child-emission.test.ts test/codegen/compile.apply-templates-child-for-each-emission.test.ts test/codegen/compile.apply-templates-child-runtime.test.ts test/codegen/compile.apply-templates-nested-match-default-runtime.test.ts test/codegen/compile.apply-templates-nested-match-emission.test.ts test/codegen/compile.apply-templates-nested-match-fixtures.test.ts test/codegen/compile.apply-templates-nested-match-runtime.test.ts test/codegen/compile.apply-templates-relative-absolute-fixtures.test.ts test/codegen/compile.apply-templates-relative-absolute-match-emission.test.ts test/codegen/compile.apply-templates-relative-absolute-nested-match-emission.test.ts test/codegen/compile.apply-templates-relative-absolute-runtime.test.ts test/codegen/compile.apply-templates-relative-fixtures.test.ts test/codegen/compile.apply-templates-relative-nested-match-emission.test.ts test/codegen/compile.apply-templates-relative-nested-match-fixtures.test.ts test/codegen/compile.apply-templates-relative-runtime.test.ts test/codegen/compile.apply-templates-relative-select-emission.test.ts test/codegen/compile.apply-templates-relative-simple-match-emission.test.ts test/codegen/compile.apply-templates-tail-fixtures.test.ts test/codegen/compile.core-emission.test.ts test/codegen/compile.core-fixtures.test.ts test/codegen/compile.core-runtime.test.ts test/codegen/compile.for-each-emission.test.ts test/codegen/compile.for-each-fixtures.test.ts test/codegen/compile.for-each-runtime.test.ts test/codegen/compile.matched-root-emission.test.ts test/codegen/compile.matched-root-fixtures.test.ts test/codegen/compile.matched-root-runtime.test.ts test/codegen/compile.native-runtime.test.ts test/codegen/compile.test.ts test/codegen/diagnostics.test.ts test/codegen/golden-runtime.test.ts test/codegen/generated-fixture-debugger.test.ts test/codegen/compile.declarations.test.ts --pool=forks --poolOptions.forks.singleFork --no-file-parallelism
+
+      - name: Test Codegen Filesystem
+        if: runner.os == 'Windows'
+        run: npm test -- test/codegen/extension-functions.test.ts test/codegen/generated-fixtures.audit.test.ts --pool=forks --poolOptions.forks.singleFork --no-file-parallelism
+
+      - name: Test Integration
+        if: runner.os == 'Windows'
+        run: npm test -- test/integration/react-app.test.ts --pool=forks --poolOptions.forks.singleFork --no-file-parallelism
 
       - name: Test Remaining Windows Slice
         if: runner.os == 'Windows'
