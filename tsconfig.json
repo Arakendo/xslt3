@@ -30,7 +30,13 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+    "baseUrl": ".",
+    "paths": {
+      "@arakendo/weaver-xslt": ["./src/index.ts"],
+      "@arakendo/weaver-xslt/compile": ["./src/compile.ts"],
+      "@arakendo/weaver-xslt/runtime": ["./src/runtime/index.ts"]
+    }
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "dist", "vendor", "test/generated-fixtures", "test/integration/react-app/generated", "test/integration/react-app/app.ts", "test/integration/react-app/runtime-shim.ts"]
