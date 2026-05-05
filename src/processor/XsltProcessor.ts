@@ -4,6 +4,10 @@ import { XsltError } from '../errors/index.js';
 import { compileStylesheet } from '../xslt/compile/compiler.js';
 import { runTransform } from '../xslt/eval/transform.js';
 
+export interface XsltProcessorOptions {
+  readonly sourceName?: string;
+}
+
 /**
  * Top-level XSLT 3.0 processor.
  *
@@ -12,9 +16,11 @@ import { runTransform } from '../xslt/eval/transform.js';
  */
 export class XsltProcessor {
   private readonly stylesheetSource: string;
+  private readonly stylesheetSourceName: string | undefined;
 
-  constructor(stylesheetSource: string) {
+  constructor(stylesheetSource: string, options: XsltProcessorOptions = {}) {
     this.stylesheetSource = stylesheetSource;
+    this.stylesheetSourceName = options.sourceName;
   }
 
   /**
@@ -40,7 +46,10 @@ export class XsltProcessor {
       );
     }
 
-    const ir = compileStylesheet(this.stylesheetSource);
+    const ir = compileStylesheet(
+      this.stylesheetSource,
+      this.stylesheetSourceName === undefined ? undefined : { sourceName: this.stylesheetSourceName },
+    );
     return runTransform(ir, _sourceXml, _options);
   }
 }

@@ -87,7 +87,7 @@ function runTransformCommand(args: readonly string[], io: CliIo): number {
   try {
     const stylesheet = readFileSync(resolvedStylesheetPath, 'utf8');
     const inputXml = readFileSync(resolvedInputPath, 'utf8');
-    const result = new XsltProcessor(stylesheet).transform(inputXml);
+    const result = new XsltProcessor(stylesheet, { sourceName: basename(resolvedStylesheetPath) }).transform(inputXml);
 
     io.stdout(`${result.output}\n`);
     return 0;

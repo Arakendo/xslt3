@@ -23,6 +23,15 @@ export default [
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'vendor/**', 'test/generated-fixtures/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      'vendor/**',
+      'test/generated-fixtures/**',
+      'test/integration/react-app/generated/**',
+      'test/integration/react-app/app.ts',
+      'test/integration/react-app/runtime-shim.ts',
+    ],
   },
 ];

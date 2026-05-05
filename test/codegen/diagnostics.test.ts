@@ -15,12 +15,13 @@ describe('codegen diagnostic parity', () => {
       '  </xsl:template>',
       '</xsl:stylesheet>',
     ].join('\n');
+    const sourceName = 'diagnostics-static.xsl';
 
     const interpreterError = captureError(() => {
-      new XsltProcessor(stylesheet).transform('<root><item>apple</item></root>');
+      new XsltProcessor(stylesheet, { sourceName }).transform('<root><item>apple</item></root>');
     });
     const codegenError = captureError(() => {
-      compileStylesheetToTs(stylesheet, { path: 'diagnostics-static.xsl' });
+      compileStylesheetToTs(stylesheet, { path: sourceName });
     });
 
     const interpreterReport = diagnosticReportFromError(interpreterError);
@@ -39,13 +40,14 @@ describe('codegen diagnostic parity', () => {
       '</xsl:stylesheet>',
     ].join('\n');
     const input = '<root/>';
-    const { exports } = compileAndLoadGeneratedModule(stylesheet, 'diagnostics-runtime.xsl');
+    const sourceName = 'diagnostics-runtime.xsl';
+    const { exports } = compileAndLoadGeneratedModule(stylesheet, sourceName);
     const generatedModule = exports as {
       readonly transform: (sourceXml: string) => { readonly output: string };
     };
 
     const interpreterError = captureError(() => {
-      new XsltProcessor(stylesheet).transform(input);
+      new XsltProcessor(stylesheet, { sourceName }).transform(input);
     });
     const codegenError = captureError(() => {
       generatedModule.transform(input);
