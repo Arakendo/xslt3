@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -7,6 +7,20 @@ import { describe, expect, it } from 'vitest';
 import { assertValidDiagnostic, diagnosticReportFromError, formatDiagnostic } from '../../src/diagnostics/index.js';
 import { compileStylesheetToTs } from '../../src/index.js';
 import { captureError } from '../helpers/captureError.js';
+
+function waitUntilReadable(filePath: string): void {
+  let delay = 50;
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    try {
+      readFileSync(filePath);
+      return;
+    } catch {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.min(delay, deadline - Date.now()));
+      delay *= 2;
+    }
+  }
+}
 
 describe('extension function diagnostics', () => {
   it('reports stylesheet-located type mismatches against functions.ts signatures', () => {
@@ -33,6 +47,7 @@ describe('extension function diagnostics', () => {
 
       writeFileSync(stylesheetPath, stylesheet, 'utf8');
       writeFileSync(join(tempDir, 'functions.ts'), functionsModule, 'utf8');
+      waitUntilReadable(join(tempDir, 'functions.ts'));
 
       const error = captureError(() => {
         compileStylesheetToTs(stylesheet, {
@@ -81,6 +96,7 @@ describe('extension function diagnostics', () => {
 
       writeFileSync(stylesheetPath, stylesheet, 'utf8');
       writeFileSync(join(tempDir, 'functions.ts'), functionsModule, 'utf8');
+      waitUntilReadable(join(tempDir, 'functions.ts'));
 
       expect(() => {
         compileStylesheetToTs(stylesheet, {

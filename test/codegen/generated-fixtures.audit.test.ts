@@ -60,7 +60,7 @@ describe('generated fixture audit', () => {
       mkdirSync(dirname(generatedModulePath), { recursive: true });
       writeFileSync(generatedModulePath, transpiled.outputText, 'utf8');
 
-      const generatedModule = await import(`${pathToFileURL(generatedModulePath).href}?t=${Date.now()}`) as {
+      const generatedModule = await importWithBackoff(`${pathToFileURL(generatedModulePath).href}?t=${Date.now()}`) as {
         readonly transform: (sourceXml: string) => { readonly output: string };
       };
 
@@ -70,6 +70,23 @@ describe('generated fixture audit', () => {
     }
   });
 });
+
+async function importWithBackoff(href: string): Promise<unknown> {
+  let delay = 100;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 7; attempt++) {
+    try {
+      return await import(href);
+    } catch (err) {
+      lastError = err;
+      if (attempt < 6) {
+        await new Promise<void>((resolve) => { setTimeout(resolve, delay); });
+        delay *= 2;
+      }
+    }
+  }
+  throw lastError;
+}
 
 function stageRuntimeOnlyPackage(sandboxDir: string): void {
   const packageRoot = join(sandboxDir, 'node_modules', '@arakendo', 'weaver-xslt');
