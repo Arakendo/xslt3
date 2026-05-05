@@ -19,12 +19,14 @@ Weaver is built around a few explicit priorities:
 
 ## Current status
 
-The project is pre-stability and currently centered on the interpreter MVP and the
-codegen architecture that follows it.
+The project is pre-stability and has completed the interpreter MVP, the first
+codegen backend slice, and the initial typed CLI and extension-function surface.
 
 - the XPath core is in place
 - the MVP+3 XSLT interpreter slice runs real transforms
-- the codegen backend remains the next major product milestone
+- the MVP+4 codegen backend emits reviewable TypeScript and runs the golden fixtures
+- the MVP+5 typed params, typed extension functions, and CLI surface are in place
+- the next major milestone is MVP+6: watch mode, source maps, and diagnostics v2
 
 ## Start here
 

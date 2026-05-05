@@ -274,7 +274,7 @@ first moment `@arakendo/weaver-xslt` does what it says on the tin.
 
 ---
 
-## MVP+4 — codegen backend v1 (the product)
+## MVP+4 — codegen backend v1 (the product) (done)
 
 **Goal:** compile the MVP+3 feature set to readable, debuggable
 TypeScript. The interpreter stays; it is no longer the product, it is the
@@ -337,7 +337,7 @@ we should expect to rev the IR whenever codegen exposes a missing semantic.
 
 ---
 
-## MVP+5 — typed params, typed extension functions, CLI
+## MVP+5 — typed params, typed extension functions, CLI (done)
 
 **Goal:** XSLT becomes a good citizen of the TS ecosystem. The pitch
 "call your stylesheet like a typed function" starts working here.
