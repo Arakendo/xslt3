@@ -540,6 +540,56 @@ separate repository; this repo only owns the engine boundary.
 
 ---
 
+## MVP+6.75 — XML node trace debugging
+
+**Goal:** let a host pause on an actual input XML node and inspect where that
+node is being processed in the stylesheet. This is runtime trace/debugger work,
+not an extension of source maps.
+
+Entry gate: do not start this increment until MVP+6.25 and MVP+6.5 have landed.
+It depends on both a shared native execution boundary and a host/workbench-style
+compile/run boundary that can render pause state.
+
+**Scope (in):**
+- Stable runtime identity for input XML nodes during a transform session
+- Engine-owned trace event model for meaningful node-processing events such as:
+  - node becomes current focus
+  - node enters a matched template
+  - node is selected by an instruction
+  - node is read by `xsl:value-of` / string-value extraction
+- Host-facing breakpoint predicates over node identity and event kind, so a
+  caller can ask to pause on a specific `<para>` or similar node
+- Pause payload includes the observed node, current template/instruction
+  provenance, and stack-like frames suitable for a workbench host
+- Parity coverage across:
+  - interpreter execution
+  - native direct execution
+  - native emitted execution
+
+**Scope (out):**
+- Treating XML as executable source in browser or VS Code debuggers
+- Full debugger-protocol integration
+- Reverse stepping / time-travel debugging
+- Full output-to-input lineage for every emitted character
+- Arbitrary conditional breakpoint expression languages
+
+**Exit criteria:**
+- [ ] A fixture host can identify an input node and pause when that node enters
+  a matched template or becomes the current focus
+- [ ] The pause payload includes the node identity plus template/instruction
+  provenance anchored on existing span/frame contracts
+- [ ] The same tracked-node fixture produces equivalent pause semantics under
+  interpreter, native direct, and native emitted execution
+- [ ] At least one public design note documents why XML-node breakpoints are a
+  trace/debugging feature rather than a source-map feature
+- [ ] A small demo or fixture proves the user story: "track this `<para>` node
+  through the transform"
+
+Design note: [XML_NODE_DEBUGGING.md](./XML_NODE_DEBUGGING.md) defines the
+engine-side contract and placement rationale for this increment.
+
+---
+
 ## MVP+7 — XPath type system + maps + arrays + higher-order
 
 **Goal:** close the XPath 3.1 feature gap that the MVP skipped. This is

@@ -42,6 +42,7 @@ nav:
   - Semantic Boundaries: SEMANTIC_BOUNDARIES.md
   - URI Resolution: URI_RESOLUTION.md
   - Workbench API: WORKBENCH_API.md
+  - XML Node Debugging: XML_NODE_DEBUGGING.md
 
 markdown_extensions:
   - admonition

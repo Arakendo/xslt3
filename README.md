@@ -201,6 +201,7 @@ plan with scope and exit criteria per increment. High-level milestones:
 - [x] M6 — Watch mode, source maps, static-analysis diagnostics v2, bundler polish
 - [ ] M6.25 — Native backend direct execution
 - [ ] M6.5 — Live workbench / playground
+- [ ] M6.75 — XML node trace debugging
 - [ ] M7 — XPath type system, maps/arrays, higher-order functions
 - [ ] M8 — XSLT 3.0 feature-complete (non-streaming)
 - [ ] M9 — Conformance push (≥70% under both backends)
