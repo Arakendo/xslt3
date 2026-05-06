@@ -438,4 +438,37 @@ describe('XSLT codegen MVP4 slice', () => {
 
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
+
+  it('executes a three-hop apply-templates chain through the native runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/">
+          <items><xsl:apply-templates select="/root/section/item"/></items>
+        </xsl:template>
+        <xsl:template match="section/item">
+          <item>
+            <name><xsl:value-of select="name"/></name>
+            <details><xsl:apply-templates select="detail"/></details>
+          </item>
+        </xsl:template>
+        <xsl:template match="detail">
+          <detail><xsl:apply-templates select="marker"/></detail>
+        </xsl:template>
+        <xsl:template match="marker">
+          <mark><xsl:value-of select="."/></mark>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(stylesheet, 'apply-templates-three-hop-runtime.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const sourceXml = '<root><section><item><name>alpha</name><detail><marker>one</marker><marker>two</marker></detail></item></section></root>';
+    const interpreterResult = new XsltProcessor(stylesheet).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
 });

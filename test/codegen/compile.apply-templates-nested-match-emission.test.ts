@@ -10,6 +10,7 @@ const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHE
 const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><flagged/></xsl:when><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:if test="marker"><flagged/></xsl:if></xsl:when><xsl:otherwise><xsl:if test="vip"><vip/></xsl:if></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
 const APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><xsl:value-of select="name"/><details><xsl:for-each select="detail"><xsl:choose><xsl:when test="flag"><xsl:choose><xsl:when test="marker"><flagged/></xsl:when><xsl:otherwise><brief/></xsl:otherwise></xsl:choose></xsl:when><xsl:otherwise><xsl:choose><xsl:when test="vip"><vip/></xsl:when><xsl:otherwise><plain/></xsl:otherwise></xsl:choose></xsl:otherwise></xsl:choose></xsl:for-each></details></item></xsl:template></xsl:stylesheet>';
+const APPLY_TEMPLATES_THREE_HOP_NESTED_MATCH_FIXTURE_STYLESHEET = '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><items><xsl:apply-templates select="/root/section/item"/></items></xsl:template><xsl:template match="section/item"><item><name><xsl:value-of select="name"/></name><details><xsl:apply-templates select="detail"/></details></item></xsl:template><xsl:template match="detail"><detail><xsl:apply-templates select="marker"/></detail></xsl:template><xsl:template match="marker"><mark><xsl:value-of select="."/></mark></xsl:template></xsl:stylesheet>';
 
 function transpileEmittedModule(stylesheet: string, path: string) {
   const emitted = compileStylesheetToTs(stylesheet, { path });
@@ -104,6 +105,16 @@ describe('XSLT codegen apply-templates nested-match emission', () => {
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a three-hop apply-templates chain instead of falling back to the interpreter path', () => {
+    const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_THREE_HOP_NESTED_MATCH_FIXTURE_STYLESHEET, 'apply-templates-three-hop-nested-match.xsl');
+
+    expect(transpiled.diagnostics ?? []).toEqual([]);
+    expect(emitted).toContain('selectSimplePathNodes(document, ["root","section","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["marker"]).map((templateNode) =>');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 });

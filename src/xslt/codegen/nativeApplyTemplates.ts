@@ -16,6 +16,13 @@ interface RootApplyTemplatesNestedShape extends RootApplyTemplatesShape {
   readonly nestedChildMatchPath: readonly string[];
 }
 
+export interface ApplyTemplatesTemplatePlan {
+  readonly template: TemplateRule;
+  readonly matchAbsolute: boolean;
+  readonly matchPath: readonly string[];
+  readonly nestedPlan?: ApplyTemplatesTemplatePlan;
+}
+
 export function tryGetRootApplyTemplatesShape(ir: StylesheetIR): RootApplyTemplatesShape | undefined {
   if (ir.templates.length !== 2) {
     return undefined;
@@ -206,6 +213,220 @@ export function emitRootApplyTemplatesInstruction(
   runtimeHelpers.add('selectSimplePathNodes');
   return tsRawExpression(
     `selectSimplePathNodes(${selectPath.absolute ? 'document' : contextNodeIdentifier}, ${JSON.stringify(selectPath.segments)}).map(${childTemplateCallback}).join("")`,
+  );
+}
+
+export function tryGetRootApplyTemplatesPlan(
+  ir: StylesheetIR,
+): { readonly rootTemplate: TemplateRule; readonly childPlan: ApplyTemplatesTemplatePlan } | undefined {
+  const rootTemplate = ir.templates.find((template) => isRootTemplateShape(template));
+  if (rootTemplate === undefined) {
+    return undefined;
+  }
+
+  const rootApplyTemplates = findSingleApplyTemplatesInstruction(rootTemplate.body);
+  if (rootApplyTemplates === undefined || rootApplyTemplates.withParams.length > 0) {
+    return undefined;
+  }
+
+  const remainingTemplates = ir.templates.filter((template) => template !== rootTemplate);
+  if (remainingTemplates.length === 0) {
+    return undefined;
+  }
+
+  const childPlan = tryBuildApplyTemplatesTemplatePlan(rootApplyTemplates, remainingTemplates);
+  if (childPlan === undefined) {
+    return undefined;
+  }
+
+  return {
+    rootTemplate,
+    childPlan: childPlan.plan,
+  };
+}
+
+export function emitPlannedApplyTemplatesInstruction(
+  instruction: Extract<Instruction, { readonly kind: 'applyTemplates' }>,
+  childPlan: ApplyTemplatesTemplatePlan,
+  contextNodeIdentifier: string,
+  runtimeHelpers: Set<string>,
+  emitInstructionSequence: (
+    instructions: readonly Instruction[],
+    runtimeHelpers: Set<string>,
+    options?: {
+      readonly contextNodeIdentifier?: string;
+      readonly renderApplyTemplates?: (
+        instruction: Extract<Instruction, { readonly kind: 'applyTemplates' }>,
+        contextNodeIdentifier: string,
+      ) => TsExpression | undefined;
+    },
+  ) => TsExpression | undefined,
+  tryGetSimpleChildPath: (
+    ast: PathExpression | StepExpression | object,
+  ) => { readonly absolute: boolean; readonly segments: readonly string[] } | undefined,
+  sourcePath?: string,
+): TsExpression | undefined {
+  if (instruction.withParams.length > 0) {
+    return undefined;
+  }
+
+  const nestedPlan = childPlan.nestedPlan;
+
+  const childBody = emitInstructionSequence(childPlan.template.body, runtimeHelpers, nestedPlan === undefined
+    ? {
+        contextNodeIdentifier: 'templateNode',
+      }
+    : {
+        contextNodeIdentifier: 'templateNode',
+        renderApplyTemplates: (nestedInstruction, nestedContextNodeIdentifier) => emitPlannedApplyTemplatesInstruction(
+          nestedInstruction,
+          nestedPlan,
+          nestedContextNodeIdentifier,
+          runtimeHelpers,
+          emitInstructionSequence,
+          tryGetSimpleChildPath,
+          sourcePath,
+        ),
+      });
+  if (childBody === undefined) {
+    return undefined;
+  }
+
+  const childTemplateCallback = renderCommentedArrowFunction(
+    renderTemplateProvenanceComment(childPlan.template, sourcePath),
+    '(templateNode)',
+    childBody.code,
+  );
+
+  if (instruction.select === undefined) {
+    runtimeHelpers.add('applyBuiltInTemplatesByPath');
+    return tsRawExpression(
+      childPlan.matchAbsolute
+        ? `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childPlan.matchPath)}, ${childTemplateCallback}, true)`
+        : `applyBuiltInTemplatesByPath(${contextNodeIdentifier}, ${JSON.stringify(childPlan.matchPath)}, ${childTemplateCallback})`,
+    );
+  }
+
+  const selectPath = tryGetSimpleChildPath(instruction.select);
+  if (
+    selectPath === undefined
+    || !selectPathMatchesTemplate(selectPath.segments, childPlan.matchPath, childPlan.matchAbsolute)
+  ) {
+    return undefined;
+  }
+
+  runtimeHelpers.add('selectSimplePathNodes');
+  return tsRawExpression(
+    `selectSimplePathNodes(${selectPath.absolute ? 'document' : contextNodeIdentifier}, ${JSON.stringify(selectPath.segments)}).map(${childTemplateCallback}).join("")`,
+  );
+}
+
+function tryBuildApplyTemplatesTemplatePlan(
+  instruction: Extract<Instruction, { readonly kind: 'applyTemplates' }>,
+  templates: readonly TemplateRule[],
+): { readonly plan: ApplyTemplatesTemplatePlan; readonly remainingTemplates: readonly TemplateRule[] } | undefined {
+  const candidates = getTemplateMatchCandidates(templates);
+  if (candidates === undefined) {
+    return undefined;
+  }
+
+  const matchingCandidates = getMatchingApplyTemplatesCandidates(instruction, candidates);
+  if (matchingCandidates.length !== 1) {
+    return undefined;
+  }
+
+  const [matchedCandidate] = matchingCandidates;
+  if (matchedCandidate === undefined) {
+    return undefined;
+  }
+
+  const remainingTemplates = templates.filter((template) => template !== matchedCandidate.template);
+  const nestedInstruction = findSingleApplyTemplatesInstruction(matchedCandidate.template.body);
+  if (nestedInstruction === undefined) {
+    return {
+      plan: {
+        template: matchedCandidate.template,
+        matchAbsolute: matchedCandidate.matchAbsolute,
+        matchPath: matchedCandidate.matchPath,
+      },
+      remainingTemplates,
+    };
+  }
+
+  if (nestedInstruction.withParams.length > 0) {
+    return undefined;
+  }
+
+  const nestedPlan = tryBuildApplyTemplatesTemplatePlan(nestedInstruction, remainingTemplates);
+  if (nestedPlan === undefined) {
+    return undefined;
+  }
+
+  return {
+    plan: {
+      template: matchedCandidate.template,
+      matchAbsolute: matchedCandidate.matchAbsolute,
+      matchPath: matchedCandidate.matchPath,
+      nestedPlan: nestedPlan.plan,
+    },
+    remainingTemplates: nestedPlan.remainingTemplates,
+  };
+}
+
+function getTemplateMatchCandidates(templates: readonly TemplateRule[]): Array<{
+  readonly template: TemplateRule;
+  readonly matchAbsolute: boolean;
+  readonly matchPath: readonly string[];
+}> | undefined {
+  const candidates = templates.map((template) => {
+    const matchPath = getSimpleMatchPath(template);
+    if (matchPath === undefined) {
+      return undefined;
+    }
+
+    return {
+      template,
+      matchAbsolute: template.match?.kind === 'path' ? template.match.absolute : false,
+      matchPath,
+    };
+  });
+  if (candidates.some((candidate) => candidate === undefined)) {
+    return undefined;
+  }
+
+  return candidates.filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== undefined);
+}
+
+function getMatchingApplyTemplatesCandidates(
+  instruction: Extract<Instruction, { readonly kind: 'applyTemplates' }>,
+  candidates: readonly {
+    readonly template: TemplateRule;
+    readonly matchAbsolute: boolean;
+    readonly matchPath: readonly string[];
+  }[],
+): readonly {
+  readonly template: TemplateRule;
+  readonly matchAbsolute: boolean;
+  readonly matchPath: readonly string[];
+}[] {
+  if (instruction.select === undefined) {
+    const absoluteCandidates = candidates.filter((candidate) => candidate.matchAbsolute);
+    if (absoluteCandidates.length > 0) {
+      return absoluteCandidates;
+    }
+
+    const relativeCandidates = candidates.filter((candidate) => !candidate.matchAbsolute);
+    const maxLength = relativeCandidates.reduce((currentMax, candidate) => Math.max(currentMax, candidate.matchPath.length), 0);
+    return relativeCandidates.filter((candidate) => candidate.matchPath.length === maxLength);
+  }
+
+  const selectPath = getSimpleSelectPath(instruction.select);
+  if (selectPath === undefined) {
+    return [];
+  }
+
+  return candidates.filter((candidate) =>
+    selectPathMatchesTemplate(selectPath.segments, candidate.matchPath, candidate.matchAbsolute),
   );
 }
 

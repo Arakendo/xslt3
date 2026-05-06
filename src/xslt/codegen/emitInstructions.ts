@@ -9,7 +9,12 @@ import {
   tsStringLiteral,
   type TsExpression,
 } from './ts-ir.js';
-import { emitRootApplyTemplatesInstruction, tryGetRootApplyTemplatesNestedShape, tryGetRootApplyTemplatesShape } from './nativeApplyTemplates.js';
+import {
+  emitPlannedApplyTemplatesInstruction,
+  tryGetRootApplyTemplatesPlan,
+  tryGetRootApplyTemplatesShape,
+  type ApplyTemplatesTemplatePlan,
+} from './nativeApplyTemplates.js';
 import {
   renderCommentedArrowFunction,
   renderInstructionProvenanceComment,
@@ -114,37 +119,32 @@ function tryCreateSingleTemplateNativePlan(ir: StylesheetIR, sourcePath?: string
 function tryCreateRootApplyTemplatesNativePlan(ir: StylesheetIR, sourcePath?: string): NativeTransformPlan | undefined {
   const runtimeHelpers = new Set<string>(['createCompiledDocument']);
   const shape = tryGetRootApplyTemplatesShape(ir);
-  const nestedShape = shape === undefined ? tryGetRootApplyTemplatesNestedShape(ir) : undefined;
-  if (shape === undefined && nestedShape === undefined) {
+  const recursivePlan = shape === undefined ? tryGetRootApplyTemplatesPlan(ir) : undefined;
+  if (shape === undefined && recursivePlan === undefined) {
     return undefined;
   }
-  const rootTemplate = shape?.rootTemplate ?? nestedShape?.rootTemplate;
-  const childTemplate = shape?.childTemplate ?? nestedShape?.childTemplate;
-  const childMatchAbsolute = shape?.childMatchAbsolute ?? nestedShape?.childMatchAbsolute;
-  const childMatchPath = shape?.childMatchPath ?? nestedShape?.childMatchPath;
-  if (rootTemplate === undefined || childTemplate === undefined || childMatchAbsolute === undefined || childMatchPath === undefined) {
+  const rootTemplate = shape?.rootTemplate ?? recursivePlan?.rootTemplate;
+  const childPlan: ApplyTemplatesTemplatePlan | undefined = shape === undefined
+    ? recursivePlan?.childPlan
+    : {
+        template: shape.childTemplate,
+        matchAbsolute: shape.childMatchAbsolute,
+        matchPath: shape.childMatchPath,
+      };
+  if (rootTemplate === undefined || childPlan === undefined) {
     return undefined;
   }
 
   const outputExpression = emitInstructionSequence(rootTemplate.body, runtimeHelpers, {
     contextNodeIdentifier: 'document',
-      renderApplyTemplates: (instruction, contextNodeIdentifier) => emitRootApplyTemplatesInstruction(
+    renderApplyTemplates: (instruction, contextNodeIdentifier) => emitPlannedApplyTemplatesInstruction(
       instruction,
-      childTemplate,
-      childMatchAbsolute,
-      childMatchPath,
-        contextNodeIdentifier,
+      childPlan,
+      contextNodeIdentifier,
       runtimeHelpers,
       emitInstructionSequence,
       tryGetSimpleChildPath,
       sourcePath,
-        nestedShape === undefined
-          ? undefined
-          : {
-              nestedChildTemplate: nestedShape.nestedChildTemplate,
-              nestedChildMatchAbsolute: nestedShape.nestedChildMatchAbsolute,
-              nestedChildMatchPath: nestedShape.nestedChildMatchPath,
-            },
     ),
   });
   if (outputExpression === undefined) {
@@ -217,12 +217,14 @@ function tryCreateMatchedTemplateApplyTemplatesNativePlan(ir: StylesheetIR, sour
   }
 
   const outputExpression = emitInstructionSequence(primaryTemplate.body, runtimeHelpers, {
-      renderApplyTemplates: (instruction, contextNodeIdentifier) => emitRootApplyTemplatesInstruction(
+    renderApplyTemplates: (instruction, contextNodeIdentifier) => emitPlannedApplyTemplatesInstruction(
       instruction,
-      childTemplate,
-      false,
-      childMatchPath,
-        contextNodeIdentifier,
+      {
+        template: childTemplate,
+        matchAbsolute: false,
+        matchPath: childMatchPath,
+      },
+      contextNodeIdentifier,
       runtimeHelpers,
       emitInstructionSequence,
       tryGetSimpleChildPath,
