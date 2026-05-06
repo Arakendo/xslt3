@@ -20,6 +20,8 @@ Current progress as of 2026-05-06:
 - supported stylesheets can execute through the direct native path today
 - unsupported native requests stay explicit through structured diagnostics and
       `auto` fallback metadata
+- a targeted parity helper now checks interpreter, direct native, and emitted
+      native behavior together for the supported top-level global-binding slice
 
 Still open:
 
@@ -71,7 +73,7 @@ fuzzy, the rest of the increment becomes surface churn over divergent engines.
 
 - [ ] Identify the smallest current golden set that must pass under all three
       execution strategies
-- [ ] Add or extend a parity harness that can run:
+- [x] Add or extend a parity harness that can run:
       - interpreter
       - native direct
       - native emitted

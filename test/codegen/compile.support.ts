@@ -5,6 +5,7 @@ import { expect } from 'vitest';
 
 import { compileStylesheetToTs } from '../../src/compile.js';
 import { XsltProcessor } from '../../src/index.js';
+import type { TransformOptions } from '../../src/processor/types.js';
 import {
   applyBuiltInTemplatesByPath,
   createCompiledDocument,
@@ -93,4 +94,33 @@ export function expectRuntimeModuleToMatchInterpreter(stylesheet: string, path: 
   const interpreterResult = new XsltProcessor(stylesheet).transform(sourceXml);
 
   expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+}
+
+export function expectNativeRuntimeParity(
+  stylesheet: string,
+  path: string,
+  sourceXml: string,
+  options: Omit<TransformOptions, 'execution'> = {},
+): void {
+  const { diagnostics, exports } = compileAndLoadGeneratedModule(stylesheet, path);
+
+  expect(diagnostics).toEqual([]);
+
+  const generatedModule = exports as {
+    readonly transform: (source: string, ctx?: Omit<TransformOptions, 'execution'>) => ReturnType<XsltProcessor['transform']>;
+  };
+  const processor = new XsltProcessor(stylesheet);
+  const interpreterResult = processor.transform(sourceXml, options);
+
+  expect(processor.transform(sourceXml, {
+    ...options,
+    execution: 'native',
+  })).toEqual({
+    ...interpreterResult,
+    execution: {
+      requested: 'native',
+      resolved: 'native',
+    },
+  });
+  expect(generatedModule.transform(sourceXml, options)).toEqual(interpreterResult);
 }

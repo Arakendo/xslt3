@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { compileStylesheetToTs } from '../../src/compile.js';
 import { XsltProcessor } from '../../src/index.js';
 
-import { compileAndLoadGeneratedModule } from './compile.support.js';
+import { compileAndLoadGeneratedModule, expectNativeRuntimeParity } from './compile.support.js';
 
 describe('XSLT codegen MVP4 slice', () => {
   it('emits native code for a single-focus position() test', () => {
@@ -483,25 +483,12 @@ describe('XSLT codegen MVP4 slice', () => {
         </xsl:template>
       </xsl:stylesheet>
     `;
-    const { diagnostics, exports } = compileAndLoadGeneratedModule(stylesheet, 'global-param-native-runtime.xsl');
-
-    expect(diagnostics).toEqual([]);
-
-    const generatedModule = exports as {
-      readonly transform: (source: string, ctx?: { readonly parameters?: Readonly<Record<string, unknown>> }) => ReturnType<XsltProcessor['transform']>;
-    };
     const sourceXml = '<root/>';
-    const interpreterResult = new XsltProcessor(stylesheet).transform(sourceXml, {
+    expectNativeRuntimeParity(stylesheet, 'global-param-native-runtime.xsl', sourceXml, {
       parameters: {
         greeting: 'hi',
       },
     });
-
-    expect(generatedModule.transform(sourceXml, {
-      parameters: {
-        greeting: 'hi',
-      },
-    })).toEqual(interpreterResult);
   });
 
   it('executes native code for a top-level xsl:variable select binding through the generated module surface', () => {
@@ -513,17 +500,8 @@ describe('XSLT codegen MVP4 slice', () => {
         </xsl:template>
       </xsl:stylesheet>
     `;
-    const { diagnostics, exports } = compileAndLoadGeneratedModule(stylesheet, 'global-variable-native-runtime.xsl');
-
-    expect(diagnostics).toEqual([]);
-
-    const generatedModule = exports as {
-      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
-    };
     const sourceXml = '<root/>';
-    const interpreterResult = new XsltProcessor(stylesheet).transform(sourceXml);
-
-    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+    expectNativeRuntimeParity(stylesheet, 'global-variable-native-runtime.xsl', sourceXml);
   });
 
   it('emits native code for forward-referenced top-level xsl:variable bindings using lazy getters', () => {
@@ -555,17 +533,8 @@ describe('XSLT codegen MVP4 slice', () => {
         </xsl:template>
       </xsl:stylesheet>
     `;
-    const { diagnostics, exports } = compileAndLoadGeneratedModule(stylesheet, 'global-variable-forward-ref-runtime.xsl');
-
-    expect(diagnostics).toEqual([]);
-
-    const generatedModule = exports as {
-      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
-    };
     const sourceXml = '<root><item>ok</item></root>';
-    const interpreterResult = new XsltProcessor(stylesheet).transform(sourceXml);
-
-    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+    expectNativeRuntimeParity(stylesheet, 'global-variable-forward-ref-runtime.xsl', sourceXml);
   });
 
   it('executes a three-hop apply-templates chain through the native runtime surface', () => {
