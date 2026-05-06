@@ -59,6 +59,9 @@ export const XTDE0640 = 'XTDE0640'; // circularity in global variables or parame
 export const XTDE0700 = 'XTDE0700'; // required template parameter not supplied
 export const XTDE1360 = 'XTDE1360'; // current-group outside for-each-group
 
+// Engine-specific XSLT execution diagnostics
+export const WEAVER_XSLT_NATIVE_UNSUPPORTED = 'WEAVER_XSLT_NATIVE_UNSUPPORTED';
+
 // Serialization
 export const SENR0001 = 'SENR0001'; // item is attribute or namespace node
 export const SERE0003 = 'SERE0003'; // invalid XML 1.0 character

@@ -6,7 +6,14 @@
  */
 
 export { XsltProcessor } from './processor/XsltProcessor.js';
-export type { TransformOptions, TransformResult } from './processor/types.js';
+export type {
+	TransformExecutionFallbackReason,
+	TransformExecutionFallbackReasonCode,
+	TransformExecutionInfo,
+	TransformExecutionMode,
+	TransformOptions,
+	TransformResult,
+} from './processor/types.js';
 export { XdmError, XPathError, XsltError, type SourceLocation } from './errors/index.js';
 export { defineXsltFunctions } from './functions.js';
 export {

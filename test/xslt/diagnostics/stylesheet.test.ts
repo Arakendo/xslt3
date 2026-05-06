@@ -432,6 +432,59 @@ describe('XSLT diagnostics', () => {
     ].join('\n'));
   });
 
+  it('converts unsupported native execution requests into runtime diagnostics', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:param name="greeting" select="\'hello\'"/>',
+      '  <xsl:template match="/">',
+      '    <out><xsl:value-of select="$greeting"/></out>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>', { execution: 'native' });
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report).toMatchObject({
+      code: 'WEAVER_XSLT_NATIVE_UNSUPPORTED',
+      phase: 'runtime',
+      category: 'execution',
+      message: 'Requested native execution is not available for this transform.',
+      details: [
+        {
+          key: 'requestedExecution',
+          value: 'native',
+        },
+        {
+          key: 'fallbackCode',
+          value: 'unsupported_stylesheet',
+        },
+      ],
+      suggestions: [
+        {
+          kind: 'fix',
+          label: 'use execution="auto" to allow interpreter fallback while the native surface is still landing',
+          confidence: 1,
+        },
+        {
+          kind: 'fix',
+          label: 'use execution="interpreter" to stay on the stable runtime path',
+          confidence: 0.9,
+        },
+      ],
+    });
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[WEAVER_XSLT_NATIVE_UNSUPPORTED]: Requested native execution is not available for this transform.',
+      '  = requestedExecution: native',
+      '  = fallbackCode: unsupported_stylesheet',
+      '  help: use execution="auto" to allow interpreter fallback while the native surface is still landing',
+      '  help: use execution="interpreter" to stay on the stable runtime path',
+    ].join('\n'));
+  });
+
   it('converts required xsl:param declarations with select attributes into static diagnostics', () => {
     const stylesheet = [
       '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',

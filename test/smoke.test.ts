@@ -21,6 +21,59 @@ describe('Weaver scaffold', () => {
     expect(proc.transform('<root/>')).toEqual({ output: '<hello>world</hello>' });
   });
 
+  it('resolves auto execution to the native path for a supported stylesheet', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/"><hello>world</hello></xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root/>', { execution: 'auto' })).toEqual({
+      output: '<hello>world</hello>',
+      execution: {
+        requested: 'auto',
+        resolved: 'native',
+      },
+    });
+  });
+
+  it('runs the explicit native execution path for a supported stylesheet', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/"><hello>world</hello></xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root/>', { execution: 'native' })).toEqual({
+      output: '<hello>world</hello>',
+      execution: {
+        requested: 'native',
+        resolved: 'native',
+      },
+    });
+  });
+
+  it('reports explicit auto execution fallback information for a stylesheet outside the native-supported slice', () => {
+    const proc = new XsltProcessor(`
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:param name="greeting" select="'world'"/>
+        <xsl:template match="/"><hello><xsl:value-of select="$greeting"/></hello></xsl:template>
+      </xsl:stylesheet>
+    `);
+
+    expect(proc.transform('<root/>', { execution: 'auto' })).toEqual({
+      output: '<hello>world</hello>',
+      execution: {
+        requested: 'auto',
+        resolved: 'interpreter',
+        fallbackReason: {
+          code: 'unsupported_stylesheet',
+          message: 'The current stylesheet is outside the native-supported slice for M6.25.',
+        },
+      },
+    });
+  });
+
   it('evaluates xsl:value-of against the source document', () => {
     const proc = new XsltProcessor(`
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
