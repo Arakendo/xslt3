@@ -56,8 +56,8 @@ describe('Weaver scaffold', () => {
   it('reports explicit auto execution fallback information for a stylesheet outside the native-supported slice', () => {
     const proc = new XsltProcessor(`
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-        <xsl:param name="greeting" select="'world'"/>
-        <xsl:template match="/"><hello><xsl:value-of select="$greeting"/></hello></xsl:template>
+        <xsl:param name="greeting"><label>world</label></xsl:param>
+        <xsl:template match="/"><hello><xsl:value-of select="$greeting/label"/></hello></xsl:template>
       </xsl:stylesheet>
     `);
 
@@ -503,11 +503,44 @@ describe('Weaver scaffold', () => {
     });
 
     expect(proc.transform('<root/>', {
+      execution: 'auto',
+    })).toEqual({
+      output: '<out>hello</out>',
+      execution: {
+        requested: 'auto',
+        resolved: 'native',
+      },
+    });
+
+    expect(proc.transform('<root/>', {
+      execution: 'native',
+    })).toEqual({
+      output: '<out>hello</out>',
+      execution: {
+        requested: 'native',
+        resolved: 'native',
+      },
+    });
+
+    expect(proc.transform('<root/>', {
       parameters: {
         greeting: 'hi',
       },
     })).toEqual({
       output: '<out>hi</out>',
+    });
+
+    expect(proc.transform('<root/>', {
+      execution: 'auto',
+      parameters: {
+        greeting: 'hi',
+      },
+    })).toEqual({
+      output: '<out>hi</out>',
+      execution: {
+        requested: 'auto',
+        resolved: 'native',
+      },
     });
   });
 

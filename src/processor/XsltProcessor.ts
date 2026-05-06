@@ -153,8 +153,9 @@ function executeNativeTransformPlan(
     [
       '"use strict";',
       helperBindings,
-      'void ctx;',
+      ...(plan.setupStatements.length === 0 ? ['void ctx;'] : []),
       'const document = createCompiledDocument(sourceXml);',
+      ...plan.setupStatements,
       ...(plan.needsCurrentNodeBinding
         ? [`const currentNode = ${plan.currentNodeExpression.code};`]
         : []),

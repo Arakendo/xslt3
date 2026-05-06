@@ -435,9 +435,9 @@ describe('XSLT diagnostics', () => {
   it('converts unsupported native execution requests into runtime diagnostics', () => {
     const stylesheet = [
       '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
-      '  <xsl:param name="greeting" select="\'hello\'"/>',
+      '  <xsl:param name="greeting"><label>hello</label></xsl:param>',
       '  <xsl:template match="/">',
-      '    <out><xsl:value-of select="$greeting"/></out>',
+      '    <out><xsl:value-of select="$greeting/label"/></out>',
       '  </xsl:template>',
       '</xsl:stylesheet>',
     ].join('\n');

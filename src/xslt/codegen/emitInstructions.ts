@@ -1,4 +1,4 @@
-import type { AttributeInstruction, Instruction, StylesheetIR, TemplateRule } from '../compile/ir.js';
+import type { AttributeInstruction, GlobalBinding, Instruction, StylesheetIR, TemplateRule } from '../compile/ir.js';
 import type { BinaryExpression, FunctionCallExpression, PathExpression, StepExpression, XPathAst } from '../../xpath/parse/ast.js';
 import {
   tsBinaryExpression,
@@ -28,15 +28,12 @@ export interface NativeTransformPlan {
   readonly currentNodeExpression: TsExpression;
   readonly currentNodeMayBeNull: boolean;
   readonly needsCurrentNodeBinding: boolean;
+  readonly setupStatements: readonly string[];
   readonly outputExpression: TsExpression;
   readonly runtimeHelpers: readonly string[];
 }
 
 export function tryCreateNativeTransformPlan(ir: StylesheetIR, sourcePath?: string): NativeTransformPlan | undefined {
-  if (ir.globalBindings.length > 0) {
-    return undefined;
-  }
-
   const singleTemplatePlan = tryCreateSingleTemplateNativePlan(ir, sourcePath);
   if (singleTemplatePlan !== undefined) {
     return singleTemplatePlan;
@@ -52,6 +49,10 @@ export function tryCreateNativeTransformPlan(ir: StylesheetIR, sourcePath?: stri
 
 function tryCreateSingleTemplateNativePlan(ir: StylesheetIR, sourcePath?: string): NativeTransformPlan | undefined {
   const runtimeHelpers = new Set<string>(['createCompiledDocument']);
+  const globalBindingSetup = tryCreateGlobalBindingSetup(ir.globalBindings, runtimeHelpers);
+  if (globalBindingSetup === undefined) {
+    return undefined;
+  }
   if (ir.templates.length === 0) {
     return undefined;
   }
@@ -96,10 +97,13 @@ function tryCreateSingleTemplateNativePlan(ir: StylesheetIR, sourcePath?: string
   }
 
   const outputExpression = emitInstructionSequence(template.body, runtimeHelpers, namedTemplates.size === 0
-    ? {}
+    ? {
+        variableBindings: globalBindingSetup.variableBindings,
+      }
     : {
         namedTemplates,
         activeNamedTemplateNames: [],
+        variableBindings: globalBindingSetup.variableBindings,
         ...(sourcePath === undefined ? {} : { sourcePath }),
       });
   if (outputExpression === undefined) {
@@ -111,6 +115,7 @@ function tryCreateSingleTemplateNativePlan(ir: StylesheetIR, sourcePath?: string
     currentNodeExpression: templateContext.currentNodeExpression,
     currentNodeMayBeNull: templateContext.currentNodeMayBeNull,
     needsCurrentNodeBinding: templateContext.currentNodeMayBeNull || outputExpression.code.includes('currentNode'),
+    setupStatements: globalBindingSetup.setupStatements,
     outputExpression,
     runtimeHelpers: [...runtimeHelpers].sort(),
   };
@@ -118,6 +123,10 @@ function tryCreateSingleTemplateNativePlan(ir: StylesheetIR, sourcePath?: string
 
 function tryCreateRootApplyTemplatesNativePlan(ir: StylesheetIR, sourcePath?: string): NativeTransformPlan | undefined {
   const runtimeHelpers = new Set<string>(['createCompiledDocument']);
+  const globalBindingSetup = tryCreateGlobalBindingSetup(ir.globalBindings, runtimeHelpers);
+  if (globalBindingSetup === undefined) {
+    return undefined;
+  }
   const shape = tryGetRootApplyTemplatesShape(ir);
   const recursivePlan = shape === undefined ? tryGetRootApplyTemplatesPlan(ir) : undefined;
   if (shape === undefined && recursivePlan === undefined) {
@@ -137,6 +146,7 @@ function tryCreateRootApplyTemplatesNativePlan(ir: StylesheetIR, sourcePath?: st
 
   const outputExpression = emitInstructionSequence(rootTemplate.body, runtimeHelpers, {
     contextNodeIdentifier: 'document',
+    variableBindings: globalBindingSetup.variableBindings,
     renderApplyTemplates: (instruction, contextNodeIdentifier) => emitPlannedApplyTemplatesInstruction(
       instruction,
       childPlan,
@@ -156,12 +166,18 @@ function tryCreateRootApplyTemplatesNativePlan(ir: StylesheetIR, sourcePath?: st
     currentNodeExpression: tsRawExpression('document'),
     currentNodeMayBeNull: false,
     needsCurrentNodeBinding: false,
+    setupStatements: globalBindingSetup.setupStatements,
     outputExpression,
     runtimeHelpers: [...runtimeHelpers].sort(),
   };
 }
 
 function tryCreateMatchedTemplateApplyTemplatesNativePlan(ir: StylesheetIR, sourcePath?: string): NativeTransformPlan | undefined {
+  const runtimeHelpers = new Set<string>(['createCompiledDocument']);
+  const globalBindingSetup = tryCreateGlobalBindingSetup(ir.globalBindings, runtimeHelpers);
+  if (globalBindingSetup === undefined) {
+    return undefined;
+  }
   if (ir.templates.length !== 2) {
     return undefined;
   }
@@ -210,13 +226,13 @@ function tryCreateMatchedTemplateApplyTemplatesNativePlan(ir: StylesheetIR, sour
     return undefined;
   }
 
-  const runtimeHelpers = new Set<string>(['createCompiledDocument']);
   const templateContext = createTemplateContextPlan(primaryTemplate, runtimeHelpers);
   if (templateContext === undefined) {
     return undefined;
   }
 
   const outputExpression = emitInstructionSequence(primaryTemplate.body, runtimeHelpers, {
+    variableBindings: globalBindingSetup.variableBindings,
     renderApplyTemplates: (instruction, contextNodeIdentifier) => emitPlannedApplyTemplatesInstruction(
       instruction,
       {
@@ -240,8 +256,60 @@ function tryCreateMatchedTemplateApplyTemplatesNativePlan(ir: StylesheetIR, sour
     currentNodeExpression: templateContext.currentNodeExpression,
     currentNodeMayBeNull: templateContext.currentNodeMayBeNull,
     needsCurrentNodeBinding: templateContext.currentNodeMayBeNull || outputExpression.code.includes('currentNode'),
+    setupStatements: globalBindingSetup.setupStatements,
     outputExpression,
     runtimeHelpers: [...runtimeHelpers].sort(),
+  };
+}
+
+function tryCreateGlobalBindingSetup(
+  bindings: readonly GlobalBinding[],
+  runtimeHelpers: Set<string>,
+): { readonly setupStatements: readonly string[]; readonly variableBindings: ReadonlyMap<string, TsExpression> } | undefined {
+  if (bindings.length === 0) {
+    return {
+      setupStatements: [],
+      variableBindings: new Map(),
+    };
+  }
+
+  const setupStatements: string[] = [];
+  const variableBindings = new Map<string, TsExpression>();
+
+  for (const [index, binding] of bindings.entries()) {
+    if (binding.body !== undefined || (binding.kind === 'param' && binding.required)) {
+      return undefined;
+    }
+
+    const identifier = `global_${binding.kind}_${sanitizeIdentifierFragment(binding.name)}_${index}`;
+    const bindingReference = tsRawExpression(identifier);
+    const defaultValueExpression = binding.select === undefined
+      ? tsStringLiteral('')
+      : emitVariableValueExpression(binding.select, runtimeHelpers, 'document', { variableBindings });
+    if (defaultValueExpression === undefined) {
+      return undefined;
+    }
+
+    if (binding.kind === 'param') {
+      setupStatements.push(
+        `const raw_${identifier} = ctx.parameters?.[${JSON.stringify(binding.name)}] ?? ctx.parameters?.[${JSON.stringify(binding.name.startsWith('{}') ? binding.name : `{}${binding.name}`)}];`,
+      );
+      setupStatements.push(
+        `const ${identifier} = raw_${identifier} === undefined ? ${defaultValueExpression.code} : String(raw_${identifier});`,
+      );
+    } else {
+      setupStatements.push(`const ${identifier} = ${defaultValueExpression.code};`);
+    }
+
+    variableBindings.set(binding.name, bindingReference);
+    if (!binding.name.startsWith('{}')) {
+      variableBindings.set(`{}${binding.name}`, bindingReference);
+    }
+  }
+
+  return {
+    setupStatements,
+    variableBindings,
   };
 }
 

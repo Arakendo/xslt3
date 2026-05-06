@@ -25,8 +25,9 @@ export function emitStylesheetModule(
         '',
         renderTemplateProvenanceComment(nativePlan.entryTemplate, plan.sourcePath),
         `export function transform(sourceXml: string, ctx: ${typeBlock.transformContextTypeName} = {}): TransformResult {`,
-        '  void ctx;',
+        ...(nativePlan.setupStatements.length === 0 ? ['  void ctx;'] : []),
         '  const document = createCompiledDocument(sourceXml);',
+        ...nativePlan.setupStatements.map((statement) => `  ${statement}`),
         ...(nativePlan.needsCurrentNodeBinding
           ? [`  const currentNode = ${renderTsExpression(nativePlan.currentNodeExpression)};`]
           : []),

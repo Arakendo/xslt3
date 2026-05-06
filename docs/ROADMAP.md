@@ -481,6 +481,8 @@ future workbench and embedding surfaces can choose `interpreter`, `native`, or
 
 Working checklist: [NATIVE_EXECUTION_CHECKLIST.md](./NATIVE_EXECUTION_CHECKLIST.md)
 
+Unsupported-native note: [NATIVE_EXECUTION_BOUNDARY.md](./NATIVE_EXECUTION_BOUNDARY.md)
+
 ---
 
 ## MVP+6.5 — live workbench / playground

@@ -439,6 +439,53 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
 
+  it('emits native code for a top-level xsl:param default and runtime parameter override', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:param name="greeting" select="'hello'"/>
+        <xsl:template match="/root">
+          <out><xsl:value-of select="$greeting"/></out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    const emitted = compileStylesheetToTs(stylesheet, { path: 'global-param-native.xsl' });
+
+    expect(emitted).toContain('const raw_global_param_greeting_0 = ctx.parameters?.["greeting"] ?? ctx.parameters?.["{}greeting"];');
+    expect(emitted).toContain('const global_param_greeting_0 = raw_global_param_greeting_0 === undefined ? "hello" : String(raw_global_param_greeting_0);');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('executes native code for a top-level xsl:param default and runtime parameter override through the generated module surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:param name="greeting" select="'hello'"/>
+        <xsl:template match="/root">
+          <out><xsl:value-of select="$greeting"/></out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(stylesheet, 'global-param-native-runtime.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string, ctx?: { readonly parameters?: Readonly<Record<string, unknown>> }) => ReturnType<XsltProcessor['transform']>;
+    };
+    const sourceXml = '<root/>';
+    const interpreterResult = new XsltProcessor(stylesheet).transform(sourceXml, {
+      parameters: {
+        greeting: 'hi',
+      },
+    });
+
+    expect(generatedModule.transform(sourceXml, {
+      parameters: {
+        greeting: 'hi',
+      },
+    })).toEqual(interpreterResult);
+  });
+
   it('executes a three-hop apply-templates chain through the native runtime surface', () => {
     const stylesheet = `
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">

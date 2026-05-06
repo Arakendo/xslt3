@@ -9,6 +9,25 @@ IR/plan boundary, [ROADMAP.md](./ROADMAP.md) for increment scope/exit criteria,
 and [XML_NODE_DEBUGGING.md](./XML_NODE_DEBUGGING.md) for why later tracing work
 depends on this increment landing cleanly.
 
+## Current status
+
+Current progress as of 2026-05-06:
+
+- recursive native `xsl:apply-templates` planning now covers the supported
+      three-hop chain instead of falling back to interpreter emission
+- the public transform surface now exposes
+      `execution: 'interpreter' | 'native' | 'auto'`
+- supported stylesheets can execute through the direct native path today
+- unsupported native requests stay explicit through structured diagnostics and
+      `auto` fallback metadata
+
+Still open:
+
+- shared plan-boundary documentation is still thinner than it should be
+- parity is still focused on targeted tests rather than the broader goldens
+- unsupported-native policy needed a dedicated design note, which now lives in
+      [NATIVE_EXECUTION_BOUNDARY.md](./NATIVE_EXECUTION_BOUNDARY.md)
+
 ## Why this doc exists
 
 M6.25 is easy to describe and easy to let sprawl.
@@ -56,7 +75,7 @@ fuzzy, the rest of the increment becomes surface churn over divergent engines.
       - interpreter
       - native direct
       - native emitted
-- [ ] Add one intentionally failing fixture that demonstrates the current
+- [x] Add one intentionally failing fixture that demonstrates the current
       nested `xsl:apply-templates` native limitation
 - [ ] Decide and document the temporary test label/tag for "native-direct"
       so parity results stay grep-able
@@ -86,9 +105,9 @@ Outcome:
 
 ### 2. Close the nested `xsl:apply-templates` gap
 
-- [ ] Find the exact fallback path where nested native dispatch drops back to
+- [x] Find the exact fallback path where nested native dispatch drops back to
       interpreter behavior
-- [ ] Replace root-only/native-special planning with intentional recursive
+- [x] Replace root-only/native-special planning with intentional recursive
       planning for the supported slice
 - [ ] Add coverage for at least these nested cases:
       - nested `apply-templates` inside a matched child template
@@ -102,12 +121,12 @@ Outcome:
 
 ### 3. Expose explicit execution selection
 
-- [ ] Add one library-facing execution selection surface using:
+- [x] Add one library-facing execution selection surface using:
       - `execution: 'interpreter' | 'native' | 'auto'`
-- [ ] Define `auto` as policy, not convenience text:
+- [x] Define `auto` as policy, not convenience text:
       - native when supported by the requested slice
       - interpreter otherwise
-- [ ] Return a structured reason when `auto` or `native` cannot stay on native
+- [x] Return a structured reason when `auto` or `native` cannot stay on native
       semantics for a requested input/slice
 
 Outcome:
@@ -130,7 +149,7 @@ Outcome:
 
 ### 5. Close the increment docs
 
-- [ ] Add the small design note the roadmap asks for: what exactly
+- [x] Add the small design note the roadmap asks for: what exactly
       "unsupported under native" means
 - [ ] Update public docs/API examples only after the behavior is real
 - [ ] Re-read roadmap exit criteria and ensure each one maps to an executable
