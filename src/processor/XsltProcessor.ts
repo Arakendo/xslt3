@@ -15,6 +15,7 @@ import {
   selectSimplePathNodes,
   selectSimplePathText,
   stringValueOfNode,
+  throwCircularNativeGlobalBinding,
 } from '../runtime/index.js';
 import { runTransform } from '../xslt/eval/transform.js';
 
@@ -198,4 +199,5 @@ const NATIVE_RUNTIME_HELPERS = {
   selectSimplePathNodes,
   selectSimplePathText,
   stringValueOfNode,
+  throwCircularNativeGlobalBinding,
 } as const;

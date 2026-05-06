@@ -485,6 +485,41 @@ describe('XSLT diagnostics', () => {
     ].join('\n'));
   });
 
+  it('preserves XTDE0640 diagnostics for circular top-level variables under native execution', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:variable name="a" select="$b"/>',
+      '  <xsl:variable name="b" select="$a"/>',
+      '  <xsl:template match="/">',
+      '    <out><xsl:value-of select="$a"/></out>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const error = captureError(() => {
+      new XsltProcessor(stylesheet).transform('<root/>', { execution: 'native' });
+    });
+    const report = diagnosticReportFromError(error);
+
+    assertValidDiagnostic(report);
+    expect(report).toMatchObject({
+      code: 'XTDE0640',
+      phase: 'runtime',
+      category: 'execution',
+      message: 'Circular top-level variable dependency involving $a.',
+      details: [
+        {
+          key: 'variableName',
+          value: 'a',
+        },
+      ],
+    });
+
+    expect(formatDiagnostic(report, stylesheet)).toBe([
+      'error[XTDE0640]: Circular top-level variable dependency involving $a.',
+      '  = variableName: a',
+    ].join('\n'));
+  });
+
   it('converts required xsl:param declarations with select attributes into static diagnostics', () => {
     const stylesheet = [
       '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',

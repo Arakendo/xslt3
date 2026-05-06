@@ -1,6 +1,8 @@
 import type { Node } from '@xmldom/xmldom';
 
 import type { TransformOptions, TransformResult } from '../processor/types.js';
+import { XTDE0640 } from '../errors/codes.js';
+import { XsltError } from '../errors/index.js';
 import { parseXml, type Document } from '../xml/parse.js';
 import { runTransform } from '../xslt/eval/transform.js';
 import type { StylesheetIR } from '../xslt/compile/ir.js';
@@ -123,6 +125,15 @@ export function transformCompiledStylesheet(
   context: TransformContext = {},
 ): TransformResult {
   return runTransform(ir, sourceXml, context);
+}
+
+export function throwCircularNativeGlobalBinding(bindingKind: 'param' | 'variable', variableName: string): never {
+  throw new XsltError(
+    XTDE0640,
+    `Circular top-level ${bindingKind} dependency involving $${variableName}.`,
+    undefined,
+    { variableName },
+  );
 }
 
 function findChildElement(node: Node, localName: string): Node | null {

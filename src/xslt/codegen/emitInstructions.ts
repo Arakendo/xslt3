@@ -276,13 +276,30 @@ function tryCreateGlobalBindingSetup(
   const setupStatements: string[] = [];
   const variableBindings = new Map<string, TsExpression>();
 
-  for (const [index, binding] of bindings.entries()) {
+  const bindingPlans = bindings.map((binding, index) => ({
+    binding,
+    identifier: `global_${binding.kind}_${sanitizeIdentifierFragment(binding.name)}_${index}`,
+    getterIdentifier: `get_global_${binding.kind}_${sanitizeIdentifierFragment(binding.name)}_${index}`,
+    stateIdentifier: `global_${binding.kind}_${sanitizeIdentifierFragment(binding.name)}_${index}_state`,
+    cacheIdentifier: `global_${binding.kind}_${sanitizeIdentifierFragment(binding.name)}_${index}_cache`,
+  }));
+
+  for (const plan of bindingPlans) {
+    const bindingReference = tsRawExpression(`${plan.getterIdentifier}()`);
+    variableBindings.set(plan.binding.name, bindingReference);
+    if (!plan.binding.name.startsWith('{}')) {
+      variableBindings.set(`{}${plan.binding.name}`, bindingReference);
+    }
+  }
+
+  runtimeHelpers.add('throwCircularNativeGlobalBinding');
+
+  for (const plan of bindingPlans) {
+    const { binding, identifier, getterIdentifier, stateIdentifier, cacheIdentifier } = plan;
     if (binding.body !== undefined || (binding.kind === 'param' && binding.required)) {
       return undefined;
     }
 
-    const identifier = `global_${binding.kind}_${sanitizeIdentifierFragment(binding.name)}_${index}`;
-    const bindingReference = tsRawExpression(identifier);
     const defaultValueExpression = binding.select === undefined
       ? tsStringLiteral('')
       : emitVariableValueExpression(binding.select, runtimeHelpers, 'document', { variableBindings });
@@ -290,21 +307,32 @@ function tryCreateGlobalBindingSetup(
       return undefined;
     }
 
+    setupStatements.push(`let ${stateIdentifier} = 0;`);
+    setupStatements.push(`let ${cacheIdentifier};`);
+    setupStatements.push(`function ${getterIdentifier}() {`);
+    setupStatements.push(`  if (${stateIdentifier} === 2) { return ${cacheIdentifier}; }`);
+    setupStatements.push(`  if (${stateIdentifier} === 1) { throwCircularNativeGlobalBinding(${JSON.stringify(binding.kind)}, ${JSON.stringify(binding.name)}); }`);
+    setupStatements.push(`  ${stateIdentifier} = 1;`);
+    setupStatements.push('  try {');
+
     if (binding.kind === 'param') {
       setupStatements.push(
-        `const raw_${identifier} = ctx.parameters?.[${JSON.stringify(binding.name)}] ?? ctx.parameters?.[${JSON.stringify(binding.name.startsWith('{}') ? binding.name : `{}${binding.name}`)}];`,
+        `    const raw_${identifier} = ctx.parameters?.[${JSON.stringify(binding.name)}] ?? ctx.parameters?.[${JSON.stringify(binding.name.startsWith('{}') ? binding.name : `{}${binding.name}`)}];`,
       );
       setupStatements.push(
-        `const ${identifier} = raw_${identifier} === undefined ? ${defaultValueExpression.code} : String(raw_${identifier});`,
+        `    ${cacheIdentifier} = raw_${identifier} === undefined ? ${defaultValueExpression.code} : String(raw_${identifier});`,
       );
     } else {
-      setupStatements.push(`const ${identifier} = ${defaultValueExpression.code};`);
+      setupStatements.push(`    ${cacheIdentifier} = ${defaultValueExpression.code};`);
     }
 
-    variableBindings.set(binding.name, bindingReference);
-    if (!binding.name.startsWith('{}')) {
-      variableBindings.set(`{}${binding.name}`, bindingReference);
-    }
+    setupStatements.push(`    ${stateIdentifier} = 2;`);
+    setupStatements.push(`    return ${cacheIdentifier};`);
+    setupStatements.push('  } catch (error) {');
+    setupStatements.push(`    ${stateIdentifier} = 0;`);
+    setupStatements.push('    throw error;');
+    setupStatements.push('  }');
+    setupStatements.push('}');
   }
 
   return {

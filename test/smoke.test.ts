@@ -486,6 +486,26 @@ describe('Weaver scaffold', () => {
     expect(proc.transform('<root/>')).toEqual({
       output: '<out>hello</out>',
     });
+
+    expect(proc.transform('<root/>', {
+      execution: 'auto',
+    })).toEqual({
+      output: '<out>hello</out>',
+      execution: {
+        requested: 'auto',
+        resolved: 'native',
+      },
+    });
+
+    expect(proc.transform('<root/>', {
+      execution: 'native',
+    })).toEqual({
+      output: '<out>hello</out>',
+      execution: {
+        requested: 'native',
+        resolved: 'native',
+      },
+    });
   });
 
   it('binds top-level xsl:param defaults and transform parameters before template execution', () => {
@@ -577,6 +597,26 @@ describe('Weaver scaffold', () => {
 
     expect(proc.transform('<root><item>ok</item></root>')).toEqual({
       output: '<out>ok</out>',
+    });
+
+    expect(proc.transform('<root><item>ok</item></root>', {
+      execution: 'auto',
+    })).toEqual({
+      output: '<out>ok</out>',
+      execution: {
+        requested: 'auto',
+        resolved: 'native',
+      },
+    });
+
+    expect(proc.transform('<root><item>ok</item></root>', {
+      execution: 'native',
+    })).toEqual({
+      output: '<out>ok</out>',
+      execution: {
+        requested: 'native',
+        resolved: 'native',
+      },
     });
   });
 });

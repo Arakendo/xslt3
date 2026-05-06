@@ -452,7 +452,25 @@ describe('XSLT codegen MVP4 slice', () => {
     const emitted = compileStylesheetToTs(stylesheet, { path: 'global-param-native.xsl' });
 
     expect(emitted).toContain('const raw_global_param_greeting_0 = ctx.parameters?.["greeting"] ?? ctx.parameters?.["{}greeting"];');
-    expect(emitted).toContain('const global_param_greeting_0 = raw_global_param_greeting_0 === undefined ? "hello" : String(raw_global_param_greeting_0);');
+    expect(emitted).toContain('function get_global_param_greeting_0() {');
+    expect(emitted).toContain('global_param_greeting_0_cache = raw_global_param_greeting_0 === undefined ? "hello" : String(raw_global_param_greeting_0);');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('emits native code for a top-level xsl:variable select binding', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:variable name="greeting" select="'hello'"/>
+        <xsl:template match="/root">
+          <out><xsl:value-of select="$greeting"/></out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    const emitted = compileStylesheetToTs(stylesheet, { path: 'global-variable-native.xsl' });
+
+    expect(emitted).toContain('function get_global_variable_greeting_0() {');
+    expect(emitted).toContain('global_variable_greeting_0_cache = "hello";');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -484,6 +502,70 @@ describe('XSLT codegen MVP4 slice', () => {
         greeting: 'hi',
       },
     })).toEqual(interpreterResult);
+  });
+
+  it('executes native code for a top-level xsl:variable select binding through the generated module surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:variable name="greeting" select="'hello'"/>
+        <xsl:template match="/root">
+          <out><xsl:value-of select="$greeting"/></out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(stylesheet, 'global-variable-native-runtime.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const sourceXml = '<root/>';
+    const interpreterResult = new XsltProcessor(stylesheet).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it('emits native code for forward-referenced top-level xsl:variable bindings using lazy getters', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:variable name="b" select="$a"/>
+        <xsl:variable name="a" select="/root/item"/>
+        <xsl:template match="/root">
+          <out><xsl:value-of select="$b"/></out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    const emitted = compileStylesheetToTs(stylesheet, { path: 'global-variable-forward-ref.xsl' });
+
+    expect(emitted).toContain('function get_global_variable_b_0() {');
+    expect(emitted).toContain('function get_global_variable_a_1() {');
+    expect(emitted).toContain('return global_variable_a_1_cache;');
+    expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
+  });
+
+  it('executes native code for forward-referenced top-level xsl:variable bindings through the generated module surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:variable name="b" select="$a"/>
+        <xsl:variable name="a" select="/root/item"/>
+        <xsl:template match="/root">
+          <out><xsl:value-of select="$b"/></out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+    const { diagnostics, exports } = compileAndLoadGeneratedModule(stylesheet, 'global-variable-forward-ref-runtime.xsl');
+
+    expect(diagnostics).toEqual([]);
+
+    const generatedModule = exports as {
+      readonly transform: (source: string) => ReturnType<XsltProcessor['transform']>;
+    };
+    const sourceXml = '<root><item>ok</item></root>';
+    const interpreterResult = new XsltProcessor(stylesheet).transform(sourceXml);
+
+    expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
 
   it('executes a three-hop apply-templates chain through the native runtime surface', () => {
