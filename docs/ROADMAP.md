@@ -479,6 +479,8 @@ future workbench and embedding surfaces can choose `interpreter`, `native`, or
 - [ ] A small design note captures what "unsupported under native" means so the
       boundary stays explicit instead of drifting into silent fallback
 
+Working checklist: [NATIVE_EXECUTION_CHECKLIST.md](./NATIVE_EXECUTION_CHECKLIST.md)
+
 ---
 
 ## MVP+6.5 — live workbench / playground

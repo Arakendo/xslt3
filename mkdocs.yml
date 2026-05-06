@@ -41,6 +41,7 @@ nav:
   - XPath: XPATH.md
   - Semantic Boundaries: SEMANTIC_BOUNDARIES.md
   - URI Resolution: URI_RESOLUTION.md
+  - Native Execution Checklist: NATIVE_EXECUTION_CHECKLIST.md
   - Workbench API: WORKBENCH_API.md
   - XML Node Debugging: XML_NODE_DEBUGGING.md
 
