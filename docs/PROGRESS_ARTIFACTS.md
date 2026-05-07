@@ -3,10 +3,18 @@
 This page is the public index for milestone evidence published on
 `weaverxslt.org`.
 
-Use it for small, curated artifacts that prove milestone status or debugging
-claims. Do not use it as a dumping ground for raw working files.
+Use it for small, curated public proof of milestone status or debugging claims.
+That proof may be either:
+
+- a live page or embedded demo published on `weaverxslt.org`
+- a supporting asset such as a screenshot, GIF, `webm`, or `mp4`
+
+Do not use it as a dumping ground for raw working files.
 
 ## Storage convention
+
+Live pages do not need files under `docs/assets/progress/`; they can be linked
+directly from this index.
 
 - Put assets under `docs/assets/progress/`
 - Prefer `webm` or `mp4` for screen recordings when practical
@@ -18,6 +26,27 @@ Published asset URLs will be under:
 ```text
 https://weaverxslt.org/assets/progress/<file>
 ```
+
+When the proof is a live page instead of a stored asset, link the page URL
+directly from this document.
+
+## Planned evidence
+
+### MVP+6.5 Workbench embed
+
+When the public workbench page or supporting media exists, record it here.
+
+Preferred proof:
+
+- live public page on `weaverxslt.org`
+
+Fallback proof:
+
+- short `webm`, `mp4`, GIF, or screenshot stored under `docs/assets/progress/`
+
+Checklist reference:
+
+- [WORKBENCH_EVIDENCE.md](./WORKBENCH_EVIDENCE.md)
 
 ## Current artifacts
 

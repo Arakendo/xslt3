@@ -107,6 +107,9 @@ especially where the reference still shows:
 - author-facing convenience rules that would complicate a clean first
   implementation
 
+The current adoption profile is documented in
+[WEAVERPDF_SYNTAX_PROFILE.md](./WEAVERPDF_SYNTAX_PROFILE.md).
+
 ## First implementation priority
 
 WeaverPDF starts with a bounded Markdown-first slice, not with FO and not with

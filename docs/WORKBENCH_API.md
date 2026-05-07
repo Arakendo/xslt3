@@ -4,6 +4,9 @@
 > workbench or playground. It is intentionally about the **engine boundary**,
 > not the UI or product implementation.
 
+For the public host-facing shape of the first `weaverxslt.org` embed, see
+[WORKBENCH_EMBED.md](./WORKBENCH_EMBED.md).
+
 It complements [ARCHITECTURE.md](./ARCHITECTURE.md), especially the public API
 boundary and source-map guidance, [DIFFERENTIATORS.md](./DIFFERENTIATORS.md)
 for why this matters to the product thesis, [ROADMAP.md](./ROADMAP.md) for
@@ -13,31 +16,31 @@ loading and identity.
 
 ## Why this doc exists
 
-The live workbench idea is good, but the implementation will live in a
-different closed repository and fold into a different product surface.
+The live workbench idea is good, and the current plan is to embed the first
+public example directly into `weaverxslt.org`.
 Weaver should therefore contribute the **engine contract** that such a host
-needs, not absorb the product's UI concerns into this repository.
+needs without collapsing the engine boundary into page-specific UI code.
 
 That means this doc is deliberately narrower than the original note:
 
 - it defines what Weaver should expose
 - it defines what the host/workbench must own
 - it does **not** design the final UI
-- it does **not** require this repository to ship the workbench product
+- it does **not** require the engine package itself to absorb website UI logic
 
 ## Core rule
 
 Weaver may expose a workbench-friendly API.
-Weaver does **not** become the workbench product.
+Weaver does **not** blur engine semantics and website UI into one surface.
 
 Corollaries:
 
 - The engine returns structured artifacts: diagnostics, generated TS,
   source-map data, IR handles, output.
-- The host application owns panes, debouncing policy, editor widgets,
-  persistence, sharing, and browser sandbox UX.
+- The embedding host owns panes, debouncing policy, editor widgets,
+  persistence, sharing, starter presets, and browser sandbox UX.
 - The same compile/run semantics must serve CLI, watch mode, tests, and the
-  external workbench. No UI-only compiler path is allowed.
+  embedded workbench. No UI-only compiler path is allowed.
 
 ## Goals
 
@@ -53,10 +56,22 @@ Corollaries:
 
 - Building the actual four-pane UI in this repository.
 - Choosing Monaco versus another editor surface.
-- Defining the closed-repo product architecture, routing, auth, persistence,
-  examples gallery, or sharing model.
+- Defining the final website information architecture, routing, persistence,
+  examples gallery, or sharing model beyond what the engine boundary needs.
 - Allowing edited generated TS to flow back into XSLT semantics.
 - Requiring browser execution of generated TS in Weaver itself.
+
+## Host placement
+
+For MVP+6.5, assume the first host is a public embed on `weaverxslt.org`.
+That changes where the example appears, but it does not change the boundary:
+
+- this repository owns the engine-facing compile/run and mapping API
+- the site embed owns pane layout, browser worker wiring, and page UX
+- the site embed may ship a small preset picker that seeds both editable
+  panes with starter XML + XSLT examples
+- the workbench example should be demonstrable from docs-site content without
+  inventing a second compiler path
 
 ## Placement in the roadmap
 
@@ -119,13 +134,16 @@ and separation of concerns.
 Current implemented slice:
 
 - `@arakendo/weaver-xslt/workbench` now exports `SourceDocument`,
-  `CompiledStylesheet`, `CompileRequest`, `CompileResult`,
+  `CompiledStylesheet`, `WeaverSourceMap`, `CompileRequest`, `CompileResult`,
   `TransformRequest`, `TransformResult`, `CompileAndTransformRequest`,
   `CompileAndTransformResult`, `compile(...)`, `transform(...)`, and
   `compileAndTransform(...)`.
 - The first slice now includes a reusable compiled-stylesheet handle for
   repeated runs while keeping `compileAndTransform(...)` as the one-shot
   convenience boundary.
+- The source-map surface is now structured rather than raw-only: callers keep
+  access to the raw JSON while also getting `mapSourceToGenerated(...)` and
+  `mapGeneratedToSource(...)` for linked-highlighting work.
 
 ### Source documents
 
@@ -285,6 +303,10 @@ export interface SourceSpanMap {
 }
 ```
 
+The current `WeaverSourceMap` implementation uses the existing emitted
+line-based source map plus provenance comments, so returned spans are honest
+line-level spans rather than pretending to have token precision.
+
 Rules:
 
 - Empty results are acceptable; fake precision is not.
@@ -366,21 +388,158 @@ For the roadmap slice in this repository, the minimal useful contract is:
   fallback under `execution: 'auto'`
 - convenience compile-and-transform entry point
 
-That is enough for an external workbench product to build:
+That is enough for a `weaverxslt.org` embed or any other host to build:
 
 - XML pane
 - XSLT pane
 - read-only generated TS pane
 - output pane
 - diagnostics panel
+- a small preset selector that swaps in editable starter documents
 
-without requiring this repository to ship the actual workbench.
+without forcing the engine package to absorb the actual page implementation.
+
+## Starter preset set for MVP+6.5
+
+For the first public `weaverxslt.org` embed, keep the preset set small and
+intentional. The point is to remove blank-page friction, not to ship a full
+examples catalog.
+
+Recommended host-side preset shape:
+
+```ts
+interface WorkbenchPreset {
+  id: string;
+  label: string;
+  description: string;
+  sourceXml: SourceDocument;
+  stylesheet: SourceDocument;
+}
+```
+
+Rules:
+
+- Selecting a preset should replace both editable panes.
+- After hydration, users must be able to edit both panes freely.
+- Presets should be static content owned by the host, not fetched through a
+  second compiler path.
+- The first set should stay small enough that users can understand what each
+  one is demonstrating at a glance.
+
+Recommended first set:
+
+### 1. Hello world
+
+Purpose: prove the core compile -> generated TS -> output loop with the
+smallest possible stylesheet.
+
+Source XML:
+
+```xml
+<root>
+  <name>world</name>
+</root>
+```
+
+Stylesheet:
+
+```xml
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:template match="/">
+    <hello>
+      <xsl:value-of select="/root/name"/>
+    </hello>
+  </xsl:template>
+</xsl:stylesheet>
+```
+
+Expected output:
+
+```xml
+<hello>world</hello>
+```
+
+### 2. Parameters with defaults
+
+Purpose: show that stylesheets can expose explicit configuration while still
+producing useful output without requiring extra UI beyond the XML + XSLT panes.
+
+Source XML:
+
+```xml
+<root/>
+```
+
+Stylesheet:
+
+```xml
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:param name="greeting" select="'hello'"/>
+  <xsl:template match="/root">
+    <out>
+      <xsl:value-of select="$greeting"/>
+    </out>
+  </xsl:template>
+</xsl:stylesheet>
+```
+
+Expected output:
+
+```xml
+<out>hello</out>
+```
+
+### 3. Apply-templates flow
+
+Purpose: show the rule-based execution model instead of only single-template
+rendering.
+
+Source XML:
+
+```xml
+<catalog>
+  <item>alpha</item>
+  <item>beta</item>
+</catalog>
+```
+
+Stylesheet:
+
+```xml
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:template match="/catalog">
+    <items>
+      <xsl:apply-templates select="item"/>
+    </items>
+  </xsl:template>
+
+  <xsl:template match="item">
+    <entry>
+      <xsl:value-of select="."/>
+    </entry>
+  </xsl:template>
+</xsl:stylesheet>
+```
+
+Expected output:
+
+```xml
+<items><entry>alpha</entry><entry>beta</entry></items>
+```
+
+These three presets are enough to prove:
+
+- direct value extraction
+- parameterized stylesheet structure
+- multi-template rule dispatch
+
+without turning the first embed into an examples browser.
 
 ## Product boundary reminder
 
 This repository should stop at the engine contract.
 
-The closed-repo product may build:
+The website embed or any later host may build:
 
 - panes and editor chrome
 - sharing

@@ -1,5 +1,10 @@
-import { diagnosticReportFromError, sortDiagnostics, type DiagnosticReport } from './diagnostics/index.js';
-import { compileStylesheetRuntimeArtifacts } from './processor/compile.js';
+import {
+  diagnosticReportFromError,
+  sortDiagnostics,
+  type DiagnosticReport,
+  type SourceSpan,
+} from './diagnostics/index.js';
+import { compileStylesheetRuntimeArtifacts } from './processor/runtimeArtifacts.js';
 import { XsltProcessor } from './processor/XsltProcessor.js';
 import type { TransformExecutionInfo, TransformExecutionFallbackReason, TransformOptions } from './processor/types.js';
 
@@ -42,7 +47,7 @@ export interface CompileSuccessResult {
   readonly diagnostics: readonly DiagnosticReport[];
   readonly stylesheet: CompiledStylesheet;
   readonly generatedTs?: string;
-  readonly sourceMap?: string;
+  readonly sourceMap?: WeaverSourceMap;
 }
 
 export interface CompileFailureResult {
@@ -89,7 +94,7 @@ export interface CompileAndTransformSuccessResult {
   readonly output: string;
   readonly stylesheet: CompiledStylesheet;
   readonly generatedTs?: string;
-  readonly sourceMap?: string;
+  readonly sourceMap?: WeaverSourceMap;
   readonly execution?: TransformExecutionInfo;
   readonly notices?: readonly WorkbenchNotice[];
 }
@@ -98,16 +103,26 @@ export interface CompileAndTransformFailureResult {
   readonly ok: false;
   readonly diagnostics: readonly DiagnosticReport[];
   readonly generatedTs?: string;
-  readonly sourceMap?: string;
+  readonly sourceMap?: WeaverSourceMap;
 }
 
 export type CompileAndTransformResult = CompileAndTransformSuccessResult | CompileAndTransformFailureResult;
+
+export type GeneratedSpan = SourceSpan;
+
+export interface WeaverSourceMap {
+  readonly raw: string;
+  readonly sourceUri: string;
+  readonly generatedUri: string;
+  mapSourceToGenerated(span: SourceSpan): readonly GeneratedSpan[];
+  mapGeneratedToSource(span: GeneratedSpan): readonly SourceSpan[];
+}
 
 export class CompiledStylesheet {
   readonly stylesheet: SourceDocument;
   readonly diagnostics: readonly DiagnosticReport[];
   readonly generatedTs?: string;
-  readonly sourceMap?: string;
+  readonly sourceMap?: WeaverSourceMap;
   private readonly processor: XsltProcessor;
 
   private constructor(
@@ -115,7 +130,7 @@ export class CompiledStylesheet {
     diagnostics: readonly DiagnosticReport[],
     processor: XsltProcessor,
     generatedTs?: string,
-    sourceMap?: string,
+    sourceMap?: WeaverSourceMap,
   ) {
     this.stylesheet = stylesheet;
     this.diagnostics = diagnostics;
@@ -133,7 +148,7 @@ export class CompiledStylesheet {
     diagnostics: readonly DiagnosticReport[],
     processor: XsltProcessor,
     generatedTs?: string,
-    sourceMap?: string,
+    sourceMap?: WeaverSourceMap,
   ): CompiledStylesheet {
     return new CompiledStylesheet(
       stylesheet,
@@ -176,6 +191,9 @@ export function compile(request: CompileRequest): CompileResult {
     const processor = XsltProcessor.fromIr(request.stylesheet.text, artifacts.ir, {
       sourceName: request.stylesheet.uri,
     });
+    const sourceMap = request.options?.emitSourceMap === false
+      ? undefined
+      : StructuredWeaverSourceMap.create(request.stylesheet, artifacts.module, artifacts.sourceMap);
 
     return {
       ok: true,
@@ -185,10 +203,10 @@ export function compile(request: CompileRequest): CompileResult {
         artifacts.diagnostics,
         processor,
         request.options?.emitGeneratedTs === false ? undefined : artifacts.module,
-        request.options?.emitSourceMap === false ? undefined : artifacts.sourceMap,
+        sourceMap,
       ),
       ...(request.options?.emitGeneratedTs === false ? {} : { generatedTs: artifacts.module }),
-      ...(request.options?.emitSourceMap === false ? {} : { sourceMap: artifacts.sourceMap }),
+      ...(sourceMap === undefined ? {} : { sourceMap }),
     };
   } catch (error) {
     return {
@@ -284,3 +302,260 @@ function createFallbackNotice(
         }),
   };
 }
+
+interface SourceMapPayload {
+  readonly file?: string;
+  readonly mappings?: string;
+}
+
+interface LineInfo {
+  readonly lineNumber: number;
+  readonly startOffset: number;
+  readonly endOffset: number;
+  readonly length: number;
+}
+
+interface LineMapping {
+  readonly generatedLine: number;
+  readonly sourceLine: number;
+}
+
+class StructuredWeaverSourceMap implements WeaverSourceMap {
+  readonly raw: string;
+  readonly sourceUri: string;
+  readonly generatedUri: string;
+
+  private readonly sourceLineInfos: readonly LineInfo[];
+  private readonly generatedLineInfos: readonly LineInfo[];
+  private readonly mappings: readonly LineMapping[];
+
+  private constructor(
+    raw: string,
+    sourceUri: string,
+    generatedUri: string,
+    sourceLineInfos: readonly LineInfo[],
+    generatedLineInfos: readonly LineInfo[],
+    mappings: readonly LineMapping[],
+  ) {
+    this.raw = raw;
+    this.sourceUri = sourceUri;
+    this.generatedUri = generatedUri;
+    this.sourceLineInfos = sourceLineInfos;
+    this.generatedLineInfos = generatedLineInfos;
+    this.mappings = mappings;
+  }
+
+  static create(stylesheet: SourceDocument, generatedTs: string, raw: string): WeaverSourceMap {
+    const payload = JSON.parse(raw) as SourceMapPayload;
+    return new StructuredWeaverSourceMap(
+      raw,
+      stylesheet.uri,
+      buildGeneratedUri(stylesheet.uri, payload.file),
+      createLineInfos(stylesheet.text),
+      createLineInfos(generatedTs),
+      parseLineMappings(payload.mappings ?? ''),
+    );
+  }
+
+  mapSourceToGenerated(span: SourceSpan): readonly GeneratedSpan[] {
+    if (span.uri !== undefined && span.uri !== this.sourceUri) {
+      return [];
+    }
+
+    const matchedLines = this.mappings
+      .filter((mapping) => overlapsLineRange(span.lineStart, span.lineEnd, mapping.sourceLine, mapping.sourceLine))
+      .map((mapping) => mapping.generatedLine);
+
+    return createMergedLineSpans(this.generatedUri, this.generatedLineInfos, matchedLines);
+  }
+
+  mapGeneratedToSource(span: GeneratedSpan): readonly SourceSpan[] {
+    if (span.uri !== undefined && span.uri !== this.generatedUri) {
+      return [];
+    }
+
+    const matchedLines = this.mappings
+      .filter((mapping) => overlapsLineRange(span.lineStart, span.lineEnd, mapping.generatedLine, mapping.generatedLine))
+      .map((mapping) => mapping.sourceLine);
+
+    return createMergedLineSpans(this.sourceUri, this.sourceLineInfos, matchedLines);
+  }
+}
+
+function buildGeneratedUri(sourceUri: string, sourceMapFileName: string | undefined): string {
+  if (sourceMapFileName !== undefined && sourceMapFileName.length > 0) {
+    const slashIndex = Math.max(sourceUri.lastIndexOf('/'), sourceUri.lastIndexOf('\\'));
+    if (slashIndex >= 0) {
+      return `${sourceUri.slice(0, slashIndex + 1)}${sourceMapFileName}`;
+    }
+  }
+
+  return `${sourceUri}.ts`;
+}
+
+function createLineInfos(text: string): readonly LineInfo[] {
+  const lines = splitMappedLines(text);
+  const infos: LineInfo[] = [];
+  let startOffset = 0;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    infos.push({
+      lineNumber: index + 1,
+      startOffset,
+      endOffset: startOffset + line.length,
+      length: line.length,
+    });
+    startOffset += line.length + 1;
+  }
+
+  return infos;
+}
+
+function splitMappedLines(text: string): readonly string[] {
+  if (text.length === 0) {
+    return [''];
+  }
+
+  return text.endsWith('\n')
+    ? text.slice(0, -1).split('\n')
+    : text.split('\n');
+}
+
+function parseLineMappings(mappingsText: string): readonly LineMapping[] {
+  if (mappingsText.length === 0) {
+    return [];
+  }
+
+  const mappings: LineMapping[] = [];
+  let previousSourceIndex = 0;
+  let previousSourceLine = 0;
+  let previousSourceColumn = 0;
+
+  const generatedLines = mappingsText.split(';');
+  for (let generatedLineIndex = 0; generatedLineIndex < generatedLines.length; generatedLineIndex += 1) {
+    const generatedLine = generatedLines[generatedLineIndex] ?? '';
+    if (generatedLine.length === 0) {
+      continue;
+    }
+
+    let previousGeneratedColumn = 0;
+    for (const segment of generatedLine.split(',')) {
+      if (segment.length === 0) {
+        continue;
+      }
+
+      const decoded = decodeVlqSegment(segment);
+      if (decoded.length < 4) {
+        continue;
+      }
+
+      previousGeneratedColumn += decoded[0] ?? 0;
+      previousSourceIndex += decoded[1] ?? 0;
+      previousSourceLine += decoded[2] ?? 0;
+      previousSourceColumn += decoded[3] ?? 0;
+
+      if (previousSourceIndex !== 0) {
+        continue;
+      }
+
+      mappings.push({
+        generatedLine: generatedLineIndex + 1,
+        sourceLine: previousSourceLine + 1,
+      });
+    }
+  }
+
+  return mappings;
+}
+
+function decodeVlqSegment(segment: string): readonly number[] {
+  const values: number[] = [];
+  let value = 0;
+  let shift = 0;
+
+  for (const character of segment) {
+    const digit = BASE64_VLQ_DIGITS.indexOf(character);
+    if (digit < 0) {
+      continue;
+    }
+
+    const continuation = (digit & 32) !== 0;
+    value += (digit & 31) << shift;
+    if (continuation) {
+      shift += 5;
+      continue;
+    }
+
+    const isNegative = (value & 1) === 1;
+    values.push(isNegative ? -((value - 1) >> 1) : value >> 1);
+    value = 0;
+    shift = 0;
+  }
+
+  return values;
+}
+
+function overlapsLineRange(
+  lineStart: number,
+  lineEnd: number,
+  candidateStart: number,
+  candidateEnd: number,
+): boolean {
+  return lineStart <= candidateEnd && candidateStart <= lineEnd;
+}
+
+function createMergedLineSpans(
+  uri: string,
+  lineInfos: readonly LineInfo[],
+  lineNumbers: readonly number[],
+): readonly SourceSpan[] {
+  const uniqueSortedLineNumbers = [...new Set(lineNumbers)]
+    .filter((lineNumber) => lineNumber >= 1 && lineNumber <= lineInfos.length)
+    .sort((left, right) => left - right);
+
+  if (uniqueSortedLineNumbers.length === 0) {
+    return [];
+  }
+
+  const spans: SourceSpan[] = [];
+  let rangeStart = uniqueSortedLineNumbers[0]!;
+  let previousLine = rangeStart;
+
+  for (let index = 1; index < uniqueSortedLineNumbers.length; index += 1) {
+    const lineNumber = uniqueSortedLineNumbers[index]!;
+    if (lineNumber === previousLine + 1) {
+      previousLine = lineNumber;
+      continue;
+    }
+
+    spans.push(createLineRangeSpan(uri, lineInfos, rangeStart, previousLine));
+    rangeStart = lineNumber;
+    previousLine = lineNumber;
+  }
+
+  spans.push(createLineRangeSpan(uri, lineInfos, rangeStart, previousLine));
+  return spans;
+}
+
+function createLineRangeSpan(
+  uri: string,
+  lineInfos: readonly LineInfo[],
+  lineStart: number,
+  lineEnd: number,
+): SourceSpan {
+  const start = lineInfos[lineStart - 1]!;
+  const end = lineInfos[lineEnd - 1]!;
+
+  return {
+    uri,
+    offsetStart: start.startOffset,
+    offsetEnd: end.endOffset,
+    lineStart,
+    columnStart: 1,
+    lineEnd,
+    columnEnd: end.length + 1,
+  };
+}
+
+const BASE64_VLQ_DIGITS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';

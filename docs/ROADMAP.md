@@ -528,6 +528,8 @@ consumer of those foundations, not an excuse to build them halfway.
   - editable XSLT pane
   - read-only generated TypeScript pane
   - live output + diagnostics pane
+  - a small preset selector that can prefill the XML + XSLT panes with
+    editable starter examples
 - Debounced compile-and-run loop driven by the same engine surfaces used by
   the CLI/watch path; no second compiler, no UI-only diagnostic format
 - Linked highlighting v1 for the spans we already own:
@@ -539,7 +541,7 @@ consumer of those foundations, not an excuse to build them halfway.
 **Scope (out):**
 - Editable generated TS
 - Step debugger / trace timeline / output-to-source mapping
-- Shareable playground URLs, examples gallery, multi-file workspace UX
+- Shareable playground URLs, full examples gallery, multi-file workspace UX
 - Executing user-generated TS in the main page or with ambient I/O
 
 **Exit criteria:**
@@ -547,6 +549,8 @@ consumer of those foundations, not an excuse to build them halfway.
       files required for the core loop
 - [ ] Editing either XML or XSLT updates diagnostics and output from the same
       underlying compile/run surfaces used by non-UI entry points
+- [ ] The host offers at least a small preset selector that hydrates both XML
+  and XSLT panes with editable starter content
 - [ ] Workbench API supports both one-shot execution and repeated transforms
   through a reusable compiled handle
 - [ ] Generated TS pane shows the emitted `.xsl.ts` for a successful compile
@@ -559,8 +563,9 @@ consumer of those foundations, not an excuse to build them halfway.
       loop with a copy-pasteable example
 
 Design note: [WORKBENCH_API.md](./WORKBENCH_API.md) defines the Weaver-side
-engine contract for this increment. The actual workbench product may live in a
-separate repository; this repo only owns the engine boundary.
+engine contract for this increment. The first public host is expected to be an
+embed on `weaverxslt.org`; this repo still owns the engine boundary rather
+than page-specific UI code.
 
 ---
 

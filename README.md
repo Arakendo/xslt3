@@ -139,6 +139,15 @@ That keeps the compile/run split explicit for embedders that want to compile a
 stylesheet once, inspect generated TS or source maps, and reuse the same
 compiled handle as often as they want.
 
+For the first public `weaverxslt.org` embed, the workbench is expected to ship
+with a small preset selector that hydrates both editable panes with starter
+XML + XSLT pairs. The initial preset set is documented in
+[docs/WORKBENCH_API.md](./docs/WORKBENCH_API.md) and currently targets three
+simple flows: hello world, parameters with defaults, and `xsl:apply-templates`
+with matching rules.
+For the public host-facing shape of that embed, including default preset and
+page behavior, see [docs/WORKBENCH_EMBED.md](./docs/WORKBENCH_EMBED.md).
+
 ## CLI
 
 From a local checkout, build the package and run the compiled CLI entrypoint.

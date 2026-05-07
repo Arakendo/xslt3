@@ -3,6 +3,14 @@
 Weaver is a TypeScript-native XSLT compiler that aims to make XSLT readable,
 debuggable, and workable in normal TypeScript toolchains.
 
+## Live workbench
+
+The public live-workbench route for `weaverxslt.org` is [Workbench](WORKBENCH.md).
+
+That page is the stable front-page link target for the upcoming MVP+6.5 embed.
+It will eventually host the live demo or launch directly into it; until then,
+it links to the current host, checklist, and engine-boundary notes.
+
 The engine has two backends:
 
 - an interpreter backend used as the semantic reference implementation
@@ -33,9 +41,13 @@ codegen backend slice, and the initial typed CLI and extension-function surface.
 - [Differentiators](DIFFERENTIATORS.md) for the product thesis
 - [Architecture](ARCHITECTURE.md) for the pinned design decisions
 - [Roadmap](ROADMAP.md) for milestone scope and exit criteria
+- [Workbench](WORKBENCH.md) for the stable public live-workbench entry point
+- [Workbench Embed](WORKBENCH_EMBED.md) for the first public `weaverxslt.org` live-workbench surface
+- [Workbench Checklist](WORKBENCH_CHECKLIST.md) for the concrete MVP+6.5 host implementation work order
 - [WeaverPDF](WEAVERPDF.md) for the Markdown-first PDF lane and its boundary with WeaverFO
 - [WeaverPDF v1](WEAVERPDF_V1.md) for the first bounded implementation target
 - [WeaverPDF Architecture](WEAVERPDF_ARCHITECTURE.md) for the owned document AST and layout IR contracts
+- [WeaverPDF Syntax Profile](WEAVERPDF_SYNTAX_PROFILE.md) for what the EzPDF language seed is adopted, normalized, deferred, or banned
 - [Practical Streaming](STREAMING.md) for the tracked-later streaming design direction
 - [XSD Validation Design](XSD_VALIDATION.md) for the proposed preflight-validation boundary and placement
 - [DevTools Checklist](DEVTOOLS_CHECKLIST.md) for manual `.xsl` source-map and breakpoint verification

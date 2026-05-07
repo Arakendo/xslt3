@@ -33,6 +33,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Workbench: WORKBENCH.md
   - Differentiators: DIFFERENTIATORS.md
   - Architecture: ARCHITECTURE.md
   - Roadmap: ROADMAP.md
@@ -45,6 +46,9 @@ nav:
   - Native Plan Boundary: NATIVE_PLAN_BOUNDARY.md
   - Native Execution Checklist: NATIVE_EXECUTION_CHECKLIST.md
   - Workbench API: WORKBENCH_API.md
+  - Workbench Embed: WORKBENCH_EMBED.md
+  - Workbench Checklist: WORKBENCH_CHECKLIST.md
+  - Workbench Evidence: WORKBENCH_EVIDENCE.md
   - XML Node Debugging: XML_NODE_DEBUGGING.md
 
 markdown_extensions:
@@ -62,6 +66,12 @@ markdown_extensions:
 
 plugins:
   - search
+
+extra_css:
+  - assets/workbench/app.css
+
+extra_javascript:
+  - assets/workbench/app.js
 
 extra:
   generator: false

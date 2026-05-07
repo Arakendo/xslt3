@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import * as stylesheetCompiler from '../src/xslt/compile/compiler.js';
+import type { SourceSpan } from '../src/diagnostics.js';
 import { CompiledStylesheet, compile, compileAndTransform, transform } from '../src/workbench.js';
 
 describe('workbench boundary', () => {
@@ -27,7 +28,49 @@ describe('workbench boundary', () => {
     }
     expect(result.stylesheet).toBeInstanceOf(CompiledStylesheet);
     expect(result.generatedTs).toContain('export function transform(');
-    expect(result.sourceMap).toContain('"sources": [');
+    expect(result.sourceMap?.raw).toContain('"sources": [');
+  });
+
+  it('maps stylesheet instruction spans to generated TS lines and back', () => {
+    const stylesheetText = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:template match="/">',
+      '    <hello><xsl:value-of select="/root/name"/></hello>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+    const result = compile({
+      stylesheet: {
+        uri: 'memory:/highlight.xsl',
+        text: stylesheetText,
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('expected compile to succeed');
+    }
+
+    const instructionSpan = findSpan(result.stylesheet.stylesheet, '<xsl:value-of select="/root/name"/>');
+    const generatedSpans = result.sourceMap?.mapSourceToGenerated(instructionSpan) ?? [];
+
+    expect(generatedSpans.length).toBeGreaterThan(0);
+    expect(generatedSpans[0]?.uri).toBe('memory:/highlight.xsl.ts');
+
+    const generatedValueOfSpan = generatedSpans.find((span) => {
+      const generatedText = sliceSpan(result.generatedTs ?? '', span);
+      return generatedText.includes('selectSimplePathText');
+    });
+    expect(generatedValueOfSpan).toBeDefined();
+
+    const roundTrippedSpans = result.sourceMap?.mapGeneratedToSource(generatedValueOfSpan!) ?? [];
+    expect(roundTrippedSpans).toEqual([
+      expect.objectContaining({
+        uri: 'memory:/highlight.xsl',
+        lineStart: instructionSpan.lineStart,
+        lineEnd: instructionSpan.lineStart,
+      }),
+    ]);
   });
 
   it('does not recompile on first transform after compile', () => {
@@ -170,3 +213,28 @@ describe('workbench boundary', () => {
     expect(result.generatedTs).toContain('export function transform(');
   });
 });
+
+function findSpan(document: { readonly uri: string; readonly text: string }, needle: string): SourceSpan {
+  const offsetStart = document.text.indexOf(needle);
+  if (offsetStart < 0) {
+    throw new Error(`Could not find ${needle}.`);
+  }
+
+  const before = document.text.slice(0, offsetStart);
+  const lineStart = before.length === 0 ? 1 : before.split('\n').length;
+  const columnStart = offsetStart - before.lastIndexOf('\n');
+
+  return {
+    uri: document.uri,
+    offsetStart,
+    offsetEnd: offsetStart + needle.length,
+    lineStart,
+    columnStart,
+    lineEnd: lineStart,
+    columnEnd: columnStart + needle.length,
+  };
+}
+
+function sliceSpan(text: string, span: SourceSpan): string {
+  return text.slice(span.offsetStart, span.offsetEnd);
+}
