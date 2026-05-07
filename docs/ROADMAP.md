@@ -467,7 +467,8 @@ future workbench and embedding surfaces can choose `interpreter`, `native`, or
 - New XSLT features beyond the existing supported slice
 - JIT/bytecode backends, opaque binary plans, or "fast path" semantics that do
   not round-trip through the shared IR/plan model
-- Streaming-native execution; that belongs to MVP+10
+- Streaming-native execution; that belongs to the separately tracked streaming
+  design work, not the active MVP list
 - Aggressive auto-selection heuristics for partially supported future features
 
 Scope boundary:
@@ -691,30 +692,92 @@ foundational instability.
 
 ---
 
-## MVP+10 — practical streaming subset
+## MVP+9.75 — WeaverPDF v1
 
-**Goal:** handle inputs that don't fit in memory, without attempting the
-full XSLT 3.0 streamability analysis (non-goal). Treat this as a second
-execution model with shared semantics, not a bolt-on optimization pass.
+**Goal:** start the Markdown-first PDF lane with a bounded renderer that proves
+the owned document/layout architecture without taking on FO or the whole EzPDF
+feature surface.
+
+Placement note: this increment is intentionally later than the core XSLT
+conformance push and earlier than the streaming execution-model work. If a
+small XSD preflight slice lands in the same band, it should land before this
+increment.
 
 **Scope (in):**
-- Opt-in per stylesheet: `<xsl:stylesheet streaming="forward-only">`
-  (our attribute, not a spec one — documented clearly)
-- Constraints enforced at compile time via the static-analysis pass:
-  no backwards navigation (`parent::`, `preceding::`, `//`-from-root),
-  no `last()`, no multi-pass accumulators
-- Streaming codegen backend that emits a SAX-like state machine instead
-  of a DOM-walking function
-- Violations are compile-time diagnostics with a suggested rewrite when
-  possible
+- Markdown-first input focused on ordinary GitHub-flavored Markdown:
+  headings, paragraphs, emphasis/strong/delete, inline code, fenced code
+  blocks, blockquotes, ordered/unordered lists, links, images, thematic
+  breaks, and GFM tables
+- Engine-owned normalization boundary:
+  - Markdown parser output normalized into a WeaverPDF document AST rather than
+    letting third-party parser nodes become the renderer contract
+  - document AST lowered into a layout IR that captures block flow, text runs,
+    image sizing constraints, and table measurement facts
+- Single-column paged layout v1:
+  - one page size per document
+  - one margin box per document
+  - overflow-driven page breaks
+  - readable default theme for body text, headings, links, code blocks,
+    blockquotes, images, and tables
+- Diagnostics for the bounded slice:
+  - unsupported non-v1 constructs surfaced explicitly during normalization
+  - missing local image resources reported as diagnostics rather than opaque
+    renderer failures
+
+**Scope (out):**
+- WeaverFO / XSL-FO input
+- full EzPDF syntax parity
+- custom block directives and authoring sugar beyond plain Markdown
+- variables, loops, anchors, cross-references, and dynamic placeholders
+- directive tables / YAML-driven advanced tables
+- multi-column layout, foldouts, blank-page parity control, advanced headers
+  and footers, and other page-composition features
 
 **Exit criteria:**
-- [ ] A 1 GB XML input streams through a fixture stylesheet with bounded
-      memory (< 100 MB resident)
-- [ ] Every streaming constraint violation is a compile-time diagnostic,
-      not a runtime surprise
-- [ ] Non-streaming stylesheets are **unaffected** — no perf regression
-      on the existing goldens
+- [ ] A normal GitHub-style README fixture renders cleanly to PDF
+- [ ] A small technical note with lists, code blocks, images, and a GFM table
+      renders predictably across golden fixtures
+- [ ] The implementation owns a document AST and layout IR in-tree; no direct
+      rendering from third-party parser nodes
+- [ ] Unsupported non-v1 constructs produce clear diagnostics rather than ad
+      hoc fallback behavior
+- [ ] At least one public design note documents the WeaverPDF/WeaverFO split,
+      the v1 scope boundary, and the owned AST/IR contracts
+
+Design notes: [WEAVERPDF.md](./WEAVERPDF.md),
+[WEAVERPDF_V1.md](./WEAVERPDF_V1.md), and
+[WEAVERPDF_ARCHITECTURE.md](./WEAVERPDF_ARCHITECTURE.md) define the naming,
+scope, and engine contract for this increment.
+
+---
+
+## Tracked Later — practical streaming subset
+
+Streaming remains a tracked-later design, not a currently committed MVP
+increment.
+
+Why it is tracked:
+
+- it is relevant for very large XML workloads
+- the engine architecture should not preclude it
+- it is a meaningful future differentiator if Weaver can explain streaming
+  violations well
+
+Why it is not on the MVP list right now:
+
+- the semantics are execution-model-heavy and deserve focused design work
+- the first useful slice is narrower than "full streaming support"
+- we do not want to commit to a specific milestone until there is a concrete
+  need and room in the roadmap
+
+Current design direction:
+
+- practical forward-only subset
+- explicit opt-in
+- interpreter-first
+- diagnostics-first
+
+Design note: [STREAMING.md](./STREAMING.md) tracks the current direction.
 
 ---
 

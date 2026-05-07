@@ -33,6 +33,11 @@ codegen backend slice, and the initial typed CLI and extension-function surface.
 - [Differentiators](DIFFERENTIATORS.md) for the product thesis
 - [Architecture](ARCHITECTURE.md) for the pinned design decisions
 - [Roadmap](ROADMAP.md) for milestone scope and exit criteria
+- [WeaverPDF](WEAVERPDF.md) for the Markdown-first PDF lane and its boundary with WeaverFO
+- [WeaverPDF v1](WEAVERPDF_V1.md) for the first bounded implementation target
+- [WeaverPDF Architecture](WEAVERPDF_ARCHITECTURE.md) for the owned document AST and layout IR contracts
+- [Practical Streaming](STREAMING.md) for the tracked-later streaming design direction
+- [XSD Validation Design](XSD_VALIDATION.md) for the proposed preflight-validation boundary and placement
 - [DevTools Checklist](DEVTOOLS_CHECKLIST.md) for manual `.xsl` source-map and breakpoint verification
 - [Progress Artifacts](PROGRESS_ARTIFACTS.md) for public milestone evidence published on `weaverxslt.org`
 - [Errors](ERRORS.md) for the diagnostic model
