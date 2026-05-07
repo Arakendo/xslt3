@@ -430,7 +430,6 @@ function parseLineMappings(mappingsText: string): readonly LineMapping[] {
   const mappings: LineMapping[] = [];
   let previousSourceIndex = 0;
   let previousSourceLine = 0;
-  let previousSourceColumn = 0;
 
   const generatedLines = mappingsText.split(';');
   for (let generatedLineIndex = 0; generatedLineIndex < generatedLines.length; generatedLineIndex += 1) {
@@ -439,7 +438,6 @@ function parseLineMappings(mappingsText: string): readonly LineMapping[] {
       continue;
     }
 
-    let previousGeneratedColumn = 0;
     for (const segment of generatedLine.split(',')) {
       if (segment.length === 0) {
         continue;
@@ -450,10 +448,8 @@ function parseLineMappings(mappingsText: string): readonly LineMapping[] {
         continue;
       }
 
-      previousGeneratedColumn += decoded[0] ?? 0;
       previousSourceIndex += decoded[1] ?? 0;
       previousSourceLine += decoded[2] ?? 0;
-      previousSourceColumn += decoded[3] ?? 0;
 
       if (previousSourceIndex !== 0) {
         continue;
