@@ -13,9 +13,92 @@ export function emitStylesheetModule(
   const typeBlock = createStylesheetTypeBlock(ir);
 
   if (nativePlan !== undefined) {
+    const initialModeGuardStatements = [
+      '  if (ctx.initialMode !== undefined) {',
+      '    throwUnsupportedNativeInitialMode(ctx.initialMode);',
+      '  }',
+    ];
+    const missingInitialTemplateGuardStatements = nativePlan.initialTemplateName !== undefined
+      ? []
+      : [
+          '  if (ctx.initialTemplate !== undefined) {',
+          '    throwMissingNativeInitialTemplate(ctx.initialTemplate, []);',
+          '  }',
+        ];
+    const initialTemplateValueStatements = nativePlan.initialTemplateName === undefined
+      ? []
+      : [
+          '  const requestedInitialTemplate = ctx.initialTemplate === undefined',
+          '    ? undefined',
+          `    : normalizeNativeTemplateName(ctx.initialTemplate, ${JSON.stringify(ir.namespaces)}, ${JSON.stringify(ir.defaultElementNamespace)});`,
+        ];
+    const initialTemplateGuardStatements = nativePlan.initialTemplateName === undefined
+      ? []
+      : [
+          '  if (requestedInitialTemplate !== undefined && requestedInitialTemplate !== ' + JSON.stringify(nativePlan.initialTemplateName) + ') {',
+          '    throwMissingNativeInitialTemplate(ctx.initialTemplate, [' + JSON.stringify(nativePlan.initialTemplateName) + ']);',
+          '  }',
+        ];
+    const defaultBodyStatements = [
+      ...(nativePlan.setupStatements.length === 0 ? ['  void ctx;'] : []),
+      '  const document = createCompiledDocument(sourceXml);',
+      ...nativePlan.setupStatements.map((statement) => `  ${statement}`),
+      ...(nativePlan.needsCurrentNodeBinding
+        ? [`  const currentNode = ${renderTsExpression(nativePlan.currentNodeExpression)};`]
+        : []),
+      ...(nativePlan.currentNodeMayBeNull
+        ? [
+            '  if (currentNode === null) {',
+            '    return { output: "" };',
+            '  }',
+          ]
+        : []),
+      '  return {',
+      '    output:',
+      `      ${renderTsExpression(nativePlan.outputExpression)},`,
+      '  };',
+    ];
+    const wrappedDefaultBodyStatements = nativePlan.initialTemplateEntryTemplate !== undefined
+      ? defaultBodyStatements
+      : nativePlan.initialTemplateName === undefined
+        ? defaultBodyStatements
+        : [
+            '  try {',
+            ...defaultBodyStatements.map((statement) => `  ${statement.slice(2)}`),
+            '  } catch (error) {',
+            `    throw prependNativeInitialTemplateError(error, ${JSON.stringify(nativePlan.initialTemplateName)}, ${JSON.stringify(nativePlan.entryTemplate.location)});`,
+            '  }',
+          ];
+    const initialTemplateBodyStatements = nativePlan.initialTemplateEntryTemplate === undefined
+      ? []
+      : [
+          '  if (requestedInitialTemplate === ' + JSON.stringify(nativePlan.initialTemplateName) + ') {',
+          '    try {',
+          ...((nativePlan.initialTemplateSetupStatements ?? []).length === 0 ? ['      void ctx;'] : []),
+          '      const document = createCompiledDocument(sourceXml);',
+          ...(nativePlan.initialTemplateSetupStatements ?? []).map((statement) => `      ${statement}`),
+          ...((nativePlan.initialTemplateNeedsCurrentNodeBinding ?? false)
+            ? [`      const currentNode = ${renderTsExpression(nativePlan.initialTemplateCurrentNodeExpression!)};`]
+            : []),
+          ...((nativePlan.initialTemplateCurrentNodeMayBeNull ?? false)
+            ? [
+                '      if (currentNode === null) {',
+                '        return { output: "" };',
+                '      }',
+              ]
+            : []),
+          '      return {',
+          '        output:',
+          `          ${renderTsExpression(nativePlan.initialTemplateOutputExpression!)},`,
+          '      };',
+          '    } catch (error) {',
+          `      throw prependNativeInitialTemplateError(error, ${JSON.stringify(nativePlan.initialTemplateName)}, ${JSON.stringify(nativePlan.initialTemplateEntryTemplate.location)});`,
+          '    }',
+          '  }',
+        ];
     return renderTsModule({
       statements: [
-        `import { ${nativePlan.runtimeHelpers.join(', ')} } from ${JSON.stringify(plan.moduleSpecifier)};`,
+        `import { ${[...new Set(['throwMissingNativeInitialTemplate', 'throwUnsupportedNativeInitialMode', ...nativePlan.runtimeHelpers])].join(', ')} } from ${JSON.stringify(plan.moduleSpecifier)};`,
         `import type { TransformContext, TransformResult } from ${JSON.stringify(plan.moduleSpecifier)};`,
         ...typeBlock.importStatements,
         '',
@@ -25,23 +108,12 @@ export function emitStylesheetModule(
         '',
         renderTemplateProvenanceComment(nativePlan.entryTemplate, plan.sourcePath),
         `export function transform(sourceXml: string, ctx: ${typeBlock.transformContextTypeName} = {}): TransformResult {`,
-        ...(nativePlan.setupStatements.length === 0 ? ['  void ctx;'] : []),
-        '  const document = createCompiledDocument(sourceXml);',
-        ...nativePlan.setupStatements.map((statement) => `  ${statement}`),
-        ...(nativePlan.needsCurrentNodeBinding
-          ? [`  const currentNode = ${renderTsExpression(nativePlan.currentNodeExpression)};`]
-          : []),
-        ...(nativePlan.currentNodeMayBeNull
-          ? [
-              '  if (currentNode === null) {',
-              '    return { output: "" };',
-              '  }',
-            ]
-          : []),
-        '  return {',
-        '    output:',
-        `      ${renderTsExpression(nativePlan.outputExpression)},`,
-        '  };',
+        ...initialModeGuardStatements,
+        ...missingInitialTemplateGuardStatements,
+        ...initialTemplateValueStatements,
+        ...initialTemplateGuardStatements,
+        ...initialTemplateBodyStatements,
+        ...wrappedDefaultBodyStatements,
         '}',
         '',
         'export default { source, transform };',

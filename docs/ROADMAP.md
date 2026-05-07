@@ -424,7 +424,7 @@ rebuild that serves stale output or stale diagnostics is a failed increment.
 
 ---
 
-## MVP+6.25 — native backend direct execution
+## MVP+6.25 — native backend direct execution (done)
 
 **Goal:** make the native backend a first-class in-process render path,
 not only the thing that writes `.xsl.ts` files. This is the increment where
@@ -450,6 +450,10 @@ future workbench and embedding surfaces can choose `interpreter`, `native`, or
   - `execution: 'interpreter' | 'native' | 'auto'`
   - `auto` is defined as policy, not vibes: native when the requested slice is
     supported, interpreter otherwise, with a structured reason when relevant
+  - Opportunity target while this increment is active: surface `auto`
+    fallback reasons as first-class warnings/guidance in caller-facing
+    tooling so users notice when native was not used and can simplify toward
+    the documented supported slice
 - Parity fixtures that compare:
   - interpreter execution
   - native direct execution
@@ -466,17 +470,27 @@ future workbench and embedding surfaces can choose `interpreter`, `native`, or
 - Streaming-native execution; that belongs to MVP+10
 - Aggressive auto-selection heuristics for partially supported future features
 
+Scope boundary:
+MVP+6.25 closes when representative positional predicate families are covered
+across interpreter, native direct, and native emitted paths, and unsupported
+native cases are explicit, documented, and actionable. Higher-order nonlinear
+apply-templates predicate arithmetic, including cubic or more general multiplied
+total-position forms, is deferred to a later native-slice expansion increment.
+
 **Exit criteria:**
-- [ ] Current goldens for the supported slice pass under interpreter, native
+- [x] Current goldens for the supported slice pass under interpreter, native
       direct execution, and native emitted execution
-- [ ] Nested `xsl:apply-templates` on the supported slice no longer depend on
+- [x] Nested `xsl:apply-templates` on the supported slice no longer depend on
       ad hoc interpreter fallback inside the native path
-- [ ] Direct native execution and emitted native execution share the same
+- [x] Direct native execution and emitted native execution share the same
       semantic plan contracts and produce the same `DiagnosticReport` shape on
       representative failures
-- [ ] At least one public API surface exposes explicit execution selection with
+- [x] Before closing the increment, run a targeted parity audit for remaining
+  interpreter/native direct/native emitted gaps and close or explicitly
+  track any representative diagnostic or behavior mismatches that remain
+- [x] At least one public API surface exposes explicit execution selection with
       documented `interpreter`, `native`, and `auto` semantics
-- [ ] A small design note captures what "unsupported under native" means so the
+- [x] A small design note captures what "unsupported under native" means so the
       boundary stays explicit instead of drifting into silent fallback
 
 Working checklist: [NATIVE_EXECUTION_CHECKLIST.md](./NATIVE_EXECUTION_CHECKLIST.md)
@@ -501,10 +515,13 @@ consumer of those foundations, not an excuse to build them halfway.
   filesystem assumptions for the core loop:
   - source documents identified by URI + text
   - compile result returns structured diagnostics and any available
-    inspectable artifacts (`generatedTs`, IR handle, source-map handle)
+    inspectable artifacts (`generatedTs`, reusable compiled handle,
+    source-map handle)
   - transform result returns output plus the same `DiagnosticReport` contract
   - execution selection is consumed from the shared engine surface rather than
     invented inside the UI
+  - callers can choose either one-shot `compileAndTransform(...)` or explicit
+    compile-once reuse via `compile(...) -> CompiledStylesheet -> transform(...)`
 - Minimal four-pane workbench shell:
   - editable source XML pane
   - editable XSLT pane
@@ -529,6 +546,8 @@ consumer of those foundations, not an excuse to build them halfway.
       files required for the core loop
 - [ ] Editing either XML or XSLT updates diagnostics and output from the same
       underlying compile/run surfaces used by non-UI entry points
+- [ ] Workbench API supports both one-shot execution and repeated transforms
+  through a reusable compiled handle
 - [ ] Generated TS pane shows the emitted `.xsl.ts` for a successful compile
       and remains read-only
 - [ ] At least one linked-highlighting fixture proves that selecting an

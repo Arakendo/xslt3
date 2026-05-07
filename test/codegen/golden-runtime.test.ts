@@ -8,7 +8,7 @@ import { diagnosticReportFromError } from '../../src/diagnostics/index.js';
 import { XsltProcessor, type TransformOptions } from '../../src/index.js';
 import { captureError } from '../helpers/captureError.js';
 
-import { compileAndLoadGeneratedModule } from './compile.support.js';
+import { NATIVE_DIRECT_PARITY_TAG, compileAndLoadGeneratedModule } from './compile.support.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GOLDEN_DIR = join(__dirname, '..', 'golden');
@@ -49,13 +49,12 @@ const NATIVE_SUPPORTED_GOLDEN_CASES = new Set([
   'hello',
   'value-of-basic',
   'invoice-simple',
-]);
-const NATIVE_UNSUPPORTED_GOLDEN_CASES = new Set([
   'priority-name-over-wildcard',
   'priority-later-template-wins',
 ]);
+const NATIVE_UNSUPPORTED_GOLDEN_CASES = new Set<string>([]);
 
-describe('codegen golden runtime parity', () => {
+describe(`${NATIVE_DIRECT_PARITY_TAG} codegen golden runtime parity`, () => {
   if (cases.length === 0) {
     it.skip('no golden cases yet', () => {
       // Add a folder under test/golden/ with stylesheet.xsl, input.xml, expected.xml.
@@ -130,6 +129,18 @@ describe('codegen golden runtime parity', () => {
           fallbackReason: {
             code: 'unsupported_stylesheet',
             message: 'The current stylesheet is outside the native-supported slice for M6.25.',
+            suggestions: [
+              {
+                kind: 'fix',
+                label: 'retry with execution="native" to get a hard unsupported-native error while simplifying the stylesheet',
+                confidence: 1,
+              },
+              {
+                kind: 'hint',
+                label: 'simplify the select/match shape toward the documented native slice if you want to stay on the native path',
+                confidence: 0.9,
+              },
+            ],
           },
         });
       }

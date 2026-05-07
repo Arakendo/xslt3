@@ -49,9 +49,12 @@ export interface CompileStylesheetOptions {
 }
 
 export function compileStylesheet(stylesheetXml: string, options: CompileStylesheetOptions = {}): StylesheetIR {
-  const stylesheetDocument = parseXml(stylesheetXml);
-  const root = stylesheetDocument.documentElement;
   const stylesheetSourceName = options.sourceName ?? STYLESHEET_SOURCE_NAME;
+  const stylesheetDocument = parseXml(stylesheetXml, {
+    role: 'stylesheet',
+    sourceName: stylesheetSourceName,
+  });
+  const root = stylesheetDocument.documentElement;
 
   if (root === null) {
     throw createXsltStaticError('Stylesheet has no document element.');

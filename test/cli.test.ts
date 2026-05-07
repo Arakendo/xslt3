@@ -353,6 +353,43 @@ describe('CLI', () => {
     }
   });
 
+  it('prints an auto-execution fallback warning when run falls back to the interpreter', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'weaver-cli-'));
+
+    try {
+      const stylesheetPath = join(tempDir, 'fallback-warning.xsl');
+      const inputPath = join(tempDir, 'input.xml');
+      const stylesheet = [
+        '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+        '  <xsl:template match="/root">',
+        '    <out><xsl:apply-templates select="item[position() &lt; (last() div 2) * (last() div 2) * (last() div 2)]"/></out>',
+        '  </xsl:template>',
+        '  <xsl:template match="item">',
+        '    <xsl:value-of select="."/>',
+        '  </xsl:template>',
+        '</xsl:stylesheet>',
+      ].join('\n');
+      const { io, stderr, stdout } = createTestIo();
+
+      writeFileSync(stylesheetPath, stylesheet, 'utf8');
+      writeFileSync(inputPath, '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>', 'utf8');
+
+      const exitCode = await runCli(['run', stylesheetPath, '--input', inputPath, '--execution', 'auto'], io);
+
+      expect(exitCode).toBe(0);
+      expect(stderr).toEqual([[
+        'warning[native-fallback]: The current stylesheet is outside the native-supported slice for M6.25.',
+        '  = fallbackCode: unsupported_stylesheet',
+        '  help: retry with execution="native" to get a hard unsupported-native error while simplifying the stylesheet',
+        '  help: simplify the select/match shape toward the documented native slice if you want to stay on the native path',
+        '',
+      ].join('\n')]);
+      expect(stdout).toEqual(['<out>abcd</out>\n']);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
+  });
+
   it('watches stylesheets, recompiles on change, and removes outputs on delete', async () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'weaver-cli-'));
 
@@ -597,7 +634,7 @@ describe('CLI', () => {
         'Usage:',
         '  weaver-xslt compile <glob> [--sample <xml>]',
         '  weaver-xslt watch <glob> [--sample <xml>]',
-        '  weaver-xslt run <stylesheet> --input <xml>',
+        '  weaver-xslt run <stylesheet> --input <xml> [--execution <interpreter|native|auto>]',
         '  weaver-xslt --help',
       ].join('\n'),
     ]);

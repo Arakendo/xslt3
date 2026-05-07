@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import chokidar from 'chokidar';
 
 import { formatDiagnostics, renderDiagnosticError } from './diagnostics/index.js';
-import { XsltProcessor } from './index.js';
+import { XsltProcessor, type TransformExecutionFallbackReason, type TransformExecutionMode } from './index.js';
 import { compileStylesheetArtifacts, createStylesheetDigest } from './processor/compile.js';
 
 export interface CliIo {
@@ -271,7 +271,7 @@ async function runWatchCommand(args: readonly string[], io: CliIo, options: RunC
 function runTransformCommand(args: readonly string[], io: CliIo): number {
   const parsed = parseRunArguments(args);
   if (parsed === undefined) {
-    io.stderr('Usage: weaver-xslt run <stylesheet> --input <xml>\n');
+    io.stderr('Usage: weaver-xslt run <stylesheet> --input <xml> [--execution <interpreter|native|auto>]\n');
     return 1;
   }
 
@@ -281,7 +281,15 @@ function runTransformCommand(args: readonly string[], io: CliIo): number {
   try {
     const stylesheet = readFileSync(resolvedStylesheetPath, 'utf8');
     const inputXml = readFileSync(resolvedInputPath, 'utf8');
-    const result = new XsltProcessor(stylesheet, { sourceName: basename(resolvedStylesheetPath) }).transform(inputXml);
+    const result = new XsltProcessor(stylesheet, { sourceName: basename(resolvedStylesheetPath) }).transform(
+      inputXml,
+      parsed.execution === undefined ? undefined : { execution: parsed.execution },
+    );
+
+    const fallbackReason = result.execution?.fallbackReason;
+    if (fallbackReason !== undefined) {
+      io.stderr(renderExecutionFallbackWarning(fallbackReason));
+    }
 
     io.stdout(`${result.output}\n`);
     return 0;
@@ -292,17 +300,33 @@ function runTransformCommand(args: readonly string[], io: CliIo): number {
   }
 }
 
-function parseRunArguments(args: readonly string[]): { readonly stylesheetPath: string; readonly inputPath: string } | undefined {
+function parseRunArguments(args: readonly string[]): {
+  readonly stylesheetPath: string;
+  readonly inputPath: string;
+  readonly execution?: TransformExecutionMode;
+} | undefined {
   const [stylesheetPath, ...rest] = args;
   if (stylesheetPath === undefined) {
     return undefined;
   }
 
   let inputPath: string | undefined;
+  let execution: TransformExecutionMode | undefined;
   for (let index = 0; index < rest.length; index += 1) {
     const token = rest[index];
     if (token === '--input') {
       inputPath = rest[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (token === '--execution') {
+      const requestedExecution = rest[index + 1];
+      if (requestedExecution !== 'interpreter' && requestedExecution !== 'native' && requestedExecution !== 'auto') {
+        return undefined;
+      }
+
+      execution = requestedExecution;
       index += 1;
       continue;
     }
@@ -317,7 +341,17 @@ function parseRunArguments(args: readonly string[]): { readonly stylesheetPath: 
   return {
     stylesheetPath,
     inputPath,
+    ...(execution === undefined ? {} : { execution }),
   };
+}
+
+function renderExecutionFallbackWarning(fallbackReason: TransformExecutionFallbackReason): string {
+  return [
+    `warning[native-fallback]: ${fallbackReason.message}`,
+    `  = fallbackCode: ${fallbackReason.code}`,
+    ...(fallbackReason.suggestions ?? []).map((suggestion) => `  help: ${suggestion.label}`),
+    '',
+  ].join('\n');
 }
 
 function renderUsage(): string {
@@ -325,7 +359,7 @@ function renderUsage(): string {
     'Usage:',
     '  weaver-xslt compile <glob> [--sample <xml>]',
     '  weaver-xslt watch <glob> [--sample <xml>]',
-    '  weaver-xslt run <stylesheet> --input <xml>',
+    '  weaver-xslt run <stylesheet> --input <xml> [--execution <interpreter|native|auto>]',
     '  weaver-xslt --help',
   ].join('\n');
 }

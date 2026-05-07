@@ -116,6 +116,17 @@ Use these terms consistently:
 The exact exported function names can still evolve. What matters is the shape
 and separation of concerns.
 
+Current implemented slice:
+
+- `@arakendo/weaver-xslt/workbench` now exports `SourceDocument`,
+  `CompiledStylesheet`, `CompileRequest`, `CompileResult`,
+  `TransformRequest`, `TransformResult`, `CompileAndTransformRequest`,
+  `CompileAndTransformResult`, `compile(...)`, `transform(...)`, and
+  `compileAndTransform(...)`.
+- The first slice now includes a reusable compiled-stylesheet handle for
+  repeated runs while keeping `compileAndTransform(...)` as the one-shot
+  convenience boundary.
+
 ### Source documents
 
 ```ts
@@ -140,42 +151,58 @@ export interface CompileRequest {
   };
 }
 
-export interface CompileResult {
-  ok: boolean;
+export interface CompileSuccessResult {
+  ok: true;
   diagnostics: DiagnosticReport[];
-  stylesheet?: CompiledStylesheet;
+  stylesheet: CompiledStylesheet;
   generatedTs?: string;
   sourceMap?: WeaverSourceMap;
-  ir?: StylesheetIR;
 }
+
+export interface CompileFailureResult {
+  ok: false;
+  diagnostics: DiagnosticReport[];
+}
+
+export type CompileResult = CompileSuccessResult | CompileFailureResult;
 ```
 
 Rules:
 
 - `diagnostics` is always present.
+- Successful compile returns a reusable `CompiledStylesheet` handle.
 - `generatedTs` may be present even when a later transform would fail.
-- `ir` is optional and should remain clearly versioned if exposed.
 
 ### Transform surface
 
 ```ts
+export class CompiledStylesheet {
+  readonly stylesheet: SourceDocument;
+  readonly diagnostics: DiagnosticReport[];
+  readonly generatedTs?: string;
+  readonly sourceMap?: WeaverSourceMap;
+
+  transform(sourceXml: SourceDocument, options?: TransformOptions): TransformResult;
+}
+
 export interface TransformRequest {
-  stylesheet: CompiledStylesheet | SourceDocument;
+  stylesheet: CompiledStylesheet;
   sourceXml: SourceDocument;
   options?: TransformOptions;
 }
 
 export interface TransformResult {
-  ok: boolean;
+  ok: true | false;
   diagnostics: DiagnosticReport[];
   output?: string;
+  execution?: TransformExecutionInfo;
+  notices?: WorkbenchNotice[];
 }
 ```
 
 Rules:
 
-- Passing a `SourceDocument` stylesheet is convenience-only; it must still
-  flow through the same compile path as explicit compilation.
+- Transform-only callers use the compiled handle returned from `compile(...)`.
 - Runtime failures still use `DiagnosticReport`; no special workbench-only
   exception shape is introduced.
 
@@ -193,17 +220,41 @@ export interface CompileAndTransformRequest {
   } & TransformOptions;
 }
 
+export interface WorkbenchNotice {
+  severity: 'warning';
+  code: 'native_fallback';
+  message: string;
+  details: { key: string; value: string }[];
+  suggestions?: {
+    kind: 'fix' | 'hint' | 'alternative';
+    label: string;
+    confidence?: number;
+    replacement?: string;
+  }[];
+}
+
 export interface CompileAndTransformResult {
-  ok: boolean;
+  ok: true | false;
   diagnostics: DiagnosticReport[];
   output?: string;
+  stylesheet?: CompiledStylesheet;
   generatedTs?: string;
   sourceMap?: WeaverSourceMap;
-  stylesheet?: CompiledStylesheet;
+  execution?: TransformExecutionInfo;
+  notices?: WorkbenchNotice[];
 }
 ```
 
 This is a boundary convenience, not a new semantic engine.
+
+On success, `compile(...)` and `compileAndTransform(...)` return the reusable
+compiled handle directly. On failure, callers still receive the same
+`DiagnosticReport[]` contract without a partial stylesheet handle.
+
+For the first implemented slice, `notices` is where caller-facing execution
+warnings belong. In particular, `execution: 'auto'` fallback to the
+interpreter should surface a structured warning notice instead of forcing the
+host to reverse-engineer CLI text formatting.
 
 ### Generated TS inspection
 
@@ -254,6 +305,10 @@ That means:
 - the workbench host should render structure directly where practical
 
 No new workbench-specific diagnostic schema should be introduced.
+
+Non-diagnostic execution warnings still belong in structured data. The current
+example is native fallback under `execution: 'auto'`, which is surfaced as a
+workbench notice alongside the existing `execution.fallbackReason` metadata.
 
 ## Resource loading and identity
 
@@ -307,6 +362,8 @@ For the roadmap slice in this repository, the minimal useful contract is:
 - optional generated TS artifact
 - optional source-map artifact
 - transform result returning output + `DiagnosticReport[]`
+- structured notices for caller-facing execution warnings such as native
+  fallback under `execution: 'auto'`
 - convenience compile-and-transform entry point
 
 That is enough for an external workbench product to build:

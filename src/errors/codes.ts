@@ -61,6 +61,8 @@ export const XTDE1360 = 'XTDE1360'; // current-group outside for-each-group
 
 // Engine-specific XSLT execution diagnostics
 export const WEAVER_XSLT_NATIVE_UNSUPPORTED = 'WEAVER_XSLT_NATIVE_UNSUPPORTED';
+export const WEAVER_XML_SOURCE_PARSE_ERROR = 'WEAVER_XML_SOURCE_PARSE_ERROR';
+export const WEAVER_XML_STYLESHEET_PARSE_ERROR = 'WEAVER_XML_STYLESHEET_PARSE_ERROR';
 
 // Serialization
 export const SENR0001 = 'SENR0001'; // item is attribute or namespace node

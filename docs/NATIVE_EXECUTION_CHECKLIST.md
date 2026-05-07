@@ -7,7 +7,8 @@
 It complements [ARCHITECTURE.md](./ARCHITECTURE.md), especially DEC-005 on the
 IR/plan boundary, [ROADMAP.md](./ROADMAP.md) for increment scope/exit criteria,
 and [XML_NODE_DEBUGGING.md](./XML_NODE_DEBUGGING.md) for why later tracing work
-depends on this increment landing cleanly.
+depends on this increment landing cleanly. The current shared native plan is
+documented in [NATIVE_PLAN_BOUNDARY.md](./NATIVE_PLAN_BOUNDARY.md).
 
 ## Current status
 
@@ -15,8 +16,17 @@ Current progress as of 2026-05-06:
 
 - recursive native `xsl:apply-templates` planning now covers the supported
       three-hop chain instead of falling back to interpreter emission
+- nested `xsl:apply-templates` coverage now includes matched-child runtime
+      parity, built-in/default behavior, and checked-in emitted TS fixtures
+      that preserve comment/source mapping markers
 - the public transform surface now exposes
       `execution: 'interpreter' | 'native' | 'auto'`
+- the CLI run surface now also accepts `--execution interpreter|native|auto`,
+      and `--execution auto` prints a caller-facing warning when structured
+      fallback metadata reports that native execution was not used
+- the workbench / embedding boundary now also surfaces native fallback as
+      structured `notices`, and supports explicit compile-once reuse via a
+      reusable compiled stylesheet handle
 - supported stylesheets can execute through the direct native path today
 - unsupported native requests stay explicit through structured diagnostics and
       `auto` fallback metadata
@@ -24,20 +34,115 @@ Current progress as of 2026-05-06:
       native behavior together for the supported top-level global-binding slice
 - that targeted parity surface also now covers the current core runtime fixtures
       for conditional logic, relative paths, boolean helpers, and the supported
-      apply-templates cases
-- the first three-way diagnostic parity case now locks XTDE0640 structure and
-      formatter text across interpreter, direct native, and emitted native
+      apply-templates cases, plus malformed source-XML runtime and malformed
+      stylesheet-XML compile failures as first-class typed diagnostics across
+      interpreter, direct native, and emitted native
+- targeted three-way diagnostic parity now locks XTDE0640, XTDE0050,
+      XTDE0040 initialMode, XTSE0010 initialTemplate, and representative
+      XTSE0630/XTSE0650/XTSE0660/XTSE0680/XTSE0690 compile-time failures for
+      structure and formatter text across interpreter, direct native, and
+      emitted native
+- named-only and mixed matched-template plus `initialTemplate` entry now
+      execute natively for the supported slice, and XTDE0700 parity is covered
+      in the native diagnostics harness
+- generated native execution now normalizes prefixed `initialTemplate` QNames
+      against the stylesheet static namespace map before selecting the native
+      entry or reporting an invalid template name
+- generated native root-match plans now also reject stray `initialTemplate`
+      requests up front instead of silently running the default entry
+- public stylesheet diagnostics now also lock XTDE0640, XTDE0050,
+      XTDE0040 initialMode, XTSE0010 initialTemplate, and representative
+      XTSE0630/XTSE0650/XTSE0660/XTSE0680/XTSE0690 compile-time failures under
+      explicit native execution, including the representative typo-suggestion
+      paths
+- required top-level stylesheet params now execute natively when supplied,
+      instead of plan-rejecting the stylesheet up front
+- local `xsl:variable` temporary trees and top-level `xsl:param`/`xsl:variable`
+      sequence-constructor defaults now execute natively for the supported
+      simple-path slice instead of forcing explicit native fallback
+- named-template `xsl:param` defaults and `xsl:with-param` overrides, including
+      the supported temporary-tree parameter slice, now execute natively instead
+      of forcing explicit native fallback
+- matched-template `xsl:apply-templates` calls now keep the supported
+      `xsl:with-param` slice on the native path, including temporary-tree
+      parameter values and defaulted matched-template params
+- the built-in/default `xsl:apply-templates` traversal now preserves supported
+      `position()`/`last()` focus metadata for matched child templates instead
+      of collapsing every native callback to position `1`
+- child-only numeric `xsl:apply-templates` step predicates such as `item[1]`
+      and `item[position() = 1]`, plus the last-position case
+      `item[position() = last()]`, and simple numeric range comparisons such as
+      `item[position() >= 2]` and `item[position() != 1]` now stay on the
+      native path, along with simple modular predicates such as
+      `item[position() mod 2 = 0]` and exact `last()`-offset predicates such as
+      `item[position() = last() - 1]`, plus relative `last()` upper-bound
+      predicates such as `item[position() &lt; last()]`, plus compound
+      positional predicates joined by `and` such as
+      `item[position() > 1 and position() &lt; last()]`, plus simple `or`-joined
+      exact-position predicates such as
+      `item[position() = 1 or position() = last()]`, plus mixed disjunctions of
+      otherwise supported branches such as `item[position() = 1 or position() > 2]`,
+      plus simple boolean negation over supported position comparisons such as
+      `item[position() = 1 or not(position() = last())]`, plus negated modulo
+      predicates such as `item[not(position() mod 2 = 0)]`, plus negated
+      positional disjunctions composed of otherwise supported branches such as
+      `item[not(position() = 1 or position() = last())]` and
+      `item[not(position() mod 2 = 0 or position() = 1)]`, plus modulo-branch
+      intersections such as `item[not(position() mod 2 = 0 or position() mod 3 = 0)]`,
+      plus multi-position exclusions such as `item[not(position() = 1 or position() = 2)]`,
+      plus negated exact `last()`-offset comparisons such as
+      `item[not(position() = last() - 1)]`, plus negated disjunctions across
+      multiple `last()`-offset comparisons such as
+      `item[not(position() = last() - 1 or position() = last() - 2)]`, plus
+      negated relative `last()`-offset range comparisons such as
+      `item[not(position() &lt; last() - 1)]`, plus negated non-equality
+      `last()`-offset comparisons such as `item[not(position() != last() - 1)]`,
+      plus exact absolute/from-last merges such as
+      `item[not(position() != last() - 1 or position() != 1)]`, plus exact
+      absolute with included-from-last combinations such as
+      `item[not(position() != 1 or position() &lt; last() - 1)]`, plus exact
+      absolute with exact `last()` combinations such as
+      `item[not(position() != last() or position() != 1)]`, plus direct
+      `last()` inequality comparisons such as `item[position() != last()]`,
+      plus direct lower-bound `last()`-offset comparisons such as
+      `item[position() > last() - 1]`, plus direct non-equality
+      `last()`-offset comparisons such as `item[position() != last() - 1]`,
+      plus computed positional arithmetic equalities and non-equalities such as
+      `item[position() = last() div 2]`, `item[position() != last() div 2]`,
+      `item[not(position() = last() div 2)]`, `item[position() &lt; last() div 2]`,
+      `item[not(position() &lt; last() div 2)]`, `item[position() = last() div 2 + 1]`,
+      `item[position() != last() div 2 + 1]`,
+      `item[not(position() = last() div 2 + 1)]`, `item[position() &lt; last() div 2 + 1]`,
+      `item[not(position() &lt; last() div 2 + 1)]`,
+      `item[position() = last() div 2 + last() div 4]`,
+      `item[position() = (last() div 2) * 2]`,
+      `item[position() = (last() div 2) * (last() div 2)]`,
+      `item[position() != last() div 2 + last() div 4]`,
+      `item[position() != (last() div 2) * (last() div 2)]`,
+      `item[not(position() = last() div 2 + last() div 4)]`,
+      `item[not(position() = (last() div 2) * (last() div 2))]`,
+      `item[position() &lt; last() div 2 + last() div 4]`, and
+      `item[not(position() &lt; last() div 2 + last() div 4)]`,
+      `item[position() &lt; (last() div 2) * (last() div 2)]`, and
+      `item[not(position() &lt; (last() div 2) * (last() div 2))]`, while higher-order
+      nonlinear computed arithmetic ranges such as
+      `item[position() &lt; (last() div 2) * (last() div 2) * (last() div 2)]`
+      remain outside the current supported slice
 - the first golden subset now under three-way parity is `hello`,
       `value-of-basic`, and `invoice-simple`
-- the remaining current goldens now also lock the unsupported-native contract:
-      explicit `native` rejection plus `auto` fallback metadata
+- the current golden runtime set now runs under interpreter, direct native,
+      and emitted native, including duplicate-priority and wildcard-vs-specific
+      template selection
+- the current shared native plan boundary is now documented in
+      [NATIVE_PLAN_BOUNDARY.md](./NATIVE_PLAN_BOUNDARY.md)
+- the final M6.25 closeout suite is green:
+      `npx vitest run test/codegen/golden-runtime.test.ts test/codegen/compile.native-runtime.test.ts test/codegen/compile.apply-templates-nested-match-fixtures.test.ts test/codegen/diagnostics.test.ts test/xslt/diagnostics/stylesheet.test.ts test/smoke.test.ts test/cli.test.ts test/workbench.test.ts`
+      (`8` files, `275` tests)
 
 Still open:
 
-- shared plan-boundary documentation is still thinner than it should be
-- parity is still focused on targeted tests rather than the broader goldens
-- unsupported-native policy needed a dedicated design note, which now lives in
-      [NATIVE_EXECUTION_BOUNDARY.md](./NATIVE_EXECUTION_BOUNDARY.md)
+- broader-than-representative diagnostic failure-matrix expansion is deferred;
+      M6.25 closeout is now covered by the targeted parity audit commands below
 
 ## Why this doc exists
 
@@ -88,8 +193,10 @@ fuzzy, the rest of the increment becomes surface churn over divergent engines.
       - native emitted
 - [x] Add one intentionally failing fixture that demonstrates the current
       nested `xsl:apply-templates` native limitation
-- [ ] Decide and document the temporary test label/tag for "native-direct"
+- [x] Decide and document the temporary test label/tag for "native-direct"
       so parity results stay grep-able
+
+Current temporary tag: `[native-direct]`
 
 Outcome:
 
@@ -98,12 +205,12 @@ Outcome:
 
 ### 1. Define the shared native plan boundary
 
-- [ ] Name the shared plan object that both direct native execution and emitted
+- [x] Name the shared plan object that both direct native execution and emitted
       native execution consume
-- [ ] Verify that execution-only caches/helpers stay out of the IR contract
-- [ ] Verify that emit-only naming/import/hoisting state stays out of the
+- [x] Verify that execution-only caches/helpers stay out of the IR contract
+- [x] Verify that emit-only naming/import/hoisting state stays out of the
       shared runtime plan
-- [ ] Write down, in code or doc comments, which data is:
+- [x] Write down, in code or doc comments, which data is:
       - IR contract
       - shared native plan
       - direct-runtime helper state
@@ -120,7 +227,7 @@ Outcome:
       interpreter behavior
 - [x] Replace root-only/native-special planning with intentional recursive
       planning for the supported slice
-- [ ] Add coverage for at least these nested cases:
+- [x] Add coverage for at least these nested cases:
       - nested `apply-templates` inside a matched child template
       - nested `apply-templates` with built-in-template/default behavior
       - nested `apply-templates` that still preserves provenance/comments/source
@@ -148,11 +255,20 @@ Outcome:
 ### 4. Prove semantic parity
 
 - [x] Compare output parity on the supported goldens
-- [ ] Compare `DiagnosticReport` parity on representative failures
-- [ ] Confirm that direct native execution does not invent a second
+- [x] Compare `DiagnosticReport` parity on representative failures
+- [x] Run the roadmap closeout parity audit and either close or explicitly
+      track the remaining representative interpreter/native direct/native
+      emitted mismatches
+- [x] Confirm that direct native execution does not invent a second
       diagnostics/provenance dialect
-- [x] Add at least one representative failure where all three strategies are
+- [x] Add representative failures where all three strategies are
       asserted on structure first and formatter text second
+
+Current focused audit status (2026-05-06):
+
+- `npx vitest run test/codegen/golden-runtime.test.ts test/codegen/compile.native-runtime.test.ts test/codegen/compile.apply-templates-nested-match-fixtures.test.ts test/codegen/diagnostics.test.ts test/xslt/diagnostics/stylesheet.test.ts test/smoke.test.ts`
+  passed with 257 tests across goldens, nested emitted fixtures, runtime parity,
+  representative diagnostics, and execution-selection coverage
 
 Outcome:
 
@@ -162,13 +278,30 @@ Outcome:
 
 - [x] Add the small design note the roadmap asks for: what exactly
       "unsupported under native" means
-- [ ] Update public docs/API examples only after the behavior is real
-- [ ] Re-read roadmap exit criteria and ensure each one maps to an executable
+- [x] Update public docs/API examples only after the behavior is real
+- [x] Re-read roadmap exit criteria and ensure each one maps to an executable
       validation or named doc artifact
 
 Outcome:
 
 - M6.25 has a clear done boundary instead of a vague "native feels real now"
+
+Roadmap exit-criteria map:
+
+- current supported goldens under interpreter, native direct, and native
+      emitted: `npx vitest run test/codegen/golden-runtime.test.ts`
+- nested `xsl:apply-templates` without ad hoc native fallback:
+      `npx vitest run test/codegen/compile.native-runtime.test.ts` plus
+      `npx vitest run test/codegen/compile.apply-templates-nested-match-fixtures.test.ts`
+- shared semantic plan contract and representative `DiagnosticReport` parity:
+      [NATIVE_PLAN_BOUNDARY.md](./NATIVE_PLAN_BOUNDARY.md),
+      `npx vitest run test/codegen/diagnostics.test.ts`, and
+      `npx vitest run test/xslt/diagnostics/stylesheet.test.ts`
+- explicit execution selection semantics:
+      [NATIVE_EXECUTION_BOUNDARY.md](./NATIVE_EXECUTION_BOUNDARY.md),
+      [ROADMAP.md](./ROADMAP.md), and `npx vitest run test/smoke.test.ts`
+- explicit unsupported-native boundary note:
+      [NATIVE_EXECUTION_BOUNDARY.md](./NATIVE_EXECUTION_BOUNDARY.md)
 
 ## Suggested file targets
 

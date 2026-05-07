@@ -1,9 +1,11 @@
 import type { Node } from '@xmldom/xmldom';
 
 import type { TransformOptions, TransformResult } from '../processor/types.js';
-import { XTDE0640 } from '../errors/codes.js';
-import { XdmError, XsltError, type ErrorFrame, type RelatedLocation, type SourceLocation } from '../errors/index.js';
+import { XTDE0040, XTDE0050, XTDE0640, XTDE0700, XTSE0010 } from '../errors/codes.js';
+import { XdmError, XsltError, type ErrorFrame, type ErrorSuggestion, type RelatedLocation, type SourceLocation } from '../errors/index.js';
 import { parseXml, type Document } from '../xml/parse.js';
+import { computeLevenshteinDistance } from '../xslt/diagnostics.js';
+import { normalizeTemplateName } from '../xslt/eval/templateDispatch.js';
 import { runTransform } from '../xslt/eval/transform.js';
 import type { StylesheetIR } from '../xslt/compile/ir.js';
 
@@ -12,7 +14,23 @@ export type TransformContext = TransformOptions;
 export type { TransformOptions, TransformResult, StylesheetIR };
 
 export function createCompiledDocument(sourceXml: string): Document {
-  return parseXml(sourceXml);
+  return parseXml(sourceXml, { role: 'source-document', sourceName: '<source-xml>' });
+}
+
+export function createTemporaryTreeNode(serializedContent: string): Node {
+  const temporaryDocument = parseXml(`<temporary-root>${serializedContent}</temporary-root>`);
+  const fragment = temporaryDocument.createDocumentFragment();
+  const wrapper = temporaryDocument.documentElement;
+
+  if (wrapper === null) {
+    return fragment;
+  }
+
+  while (wrapper.firstChild !== null) {
+    fragment.appendChild(wrapper.firstChild);
+  }
+
+  return fragment;
 }
 
 export function selectSimplePathNode(startNode: Node, path: readonly string[]): Node | null {
@@ -44,7 +62,7 @@ export function selectSimplePathNodes(startNode: Node, path: readonly string[]):
         }
 
         const childLocalName = child.localName ?? child.nodeName;
-        if (childLocalName === segment && (child.namespaceURI ?? '') === '') {
+        if ((segment === '*' || childLocalName === segment) && (child.namespaceURI ?? '') === '') {
           nextNodes.push(child);
         }
       }
@@ -60,16 +78,307 @@ export function selectSimplePathNodes(startNode: Node, path: readonly string[]):
   return currentNodes;
 }
 
+type SimplePathStepPositionPlan = {
+  readonly position?: number | 'last';
+  readonly positionTotalDivisor?: number;
+  readonly positionTotalNumerator?: number;
+  readonly positionTotalOffset?: number;
+  readonly positionTotalPolynomialDenominator?: number;
+  readonly positionTotalPolynomialQuadraticNumerator?: number;
+  readonly positionTotalPolynomialLinearNumerator?: number;
+  readonly positionTotalPolynomialConstantNumerator?: number;
+  readonly excludedPositionTotalDivisors?: readonly number[];
+  readonly excludedPositionTotalDivisorOffsets?: readonly ({ readonly divisor: number; readonly offset: number })[];
+  readonly excludedPositionTotalFractions?: readonly ({ readonly denominator: number; readonly numerator: number; readonly offset: number })[];
+  readonly excludedPositionTotalPolynomials?: readonly ({ readonly denominator: number; readonly quadraticNumerator: number; readonly linearNumerator: number; readonly constantNumerator: number })[];
+  readonly maximumPositionExclusiveTotalDivisors?: readonly number[];
+  readonly maximumPositionExclusiveTotalDivisorOffsets?: readonly ({ readonly divisor: number; readonly offset: number })[];
+  readonly maximumPositionExclusiveTotalFractions?: readonly ({ readonly denominator: number; readonly numerator: number; readonly offset: number })[];
+  readonly maximumPositionExclusiveTotalPolynomials?: readonly ({ readonly denominator: number; readonly quadraticNumerator: number; readonly linearNumerator: number; readonly constantNumerator: number })[];
+  readonly maximumPositionInclusiveTotalDivisors?: readonly number[];
+  readonly maximumPositionInclusiveTotalDivisorOffsets?: readonly ({ readonly divisor: number; readonly offset: number })[];
+  readonly maximumPositionInclusiveTotalFractions?: readonly ({ readonly denominator: number; readonly numerator: number; readonly offset: number })[];
+  readonly maximumPositionInclusiveTotalPolynomials?: readonly ({ readonly denominator: number; readonly quadraticNumerator: number; readonly linearNumerator: number; readonly constantNumerator: number })[];
+  readonly minimumPositionExclusiveTotalDivisors?: readonly number[];
+  readonly minimumPositionExclusiveTotalDivisorOffsets?: readonly ({ readonly divisor: number; readonly offset: number })[];
+  readonly minimumPositionExclusiveTotalFractions?: readonly ({ readonly denominator: number; readonly numerator: number; readonly offset: number })[];
+  readonly minimumPositionExclusiveTotalPolynomials?: readonly ({ readonly denominator: number; readonly quadraticNumerator: number; readonly linearNumerator: number; readonly constantNumerator: number })[];
+  readonly minimumPositionInclusiveTotalDivisors?: readonly number[];
+  readonly minimumPositionInclusiveTotalDivisorOffsets?: readonly ({ readonly divisor: number; readonly offset: number })[];
+  readonly minimumPositionInclusiveTotalFractions?: readonly ({ readonly denominator: number; readonly numerator: number; readonly offset: number })[];
+  readonly minimumPositionInclusiveTotalPolynomials?: readonly ({ readonly denominator: number; readonly quadraticNumerator: number; readonly linearNumerator: number; readonly constantNumerator: number })[];
+  readonly positionFromLastOffset?: number;
+  readonly includedPositions?: readonly number[];
+  readonly includedPositionFromLastOffsets?: readonly number[];
+  readonly maximumPositionFromLastOffset?: number;
+  readonly minimumPosition?: number;
+  readonly maximumPosition?: number;
+  readonly excludedPosition?: number;
+  readonly excludedPositions?: readonly number[];
+  readonly positionModuloDivisor?: number;
+  readonly positionModuloRemainder?: number;
+  readonly alternatives?: readonly SimplePathStepPositionPlan[];
+};
+
+export function selectSimplePathNodesByStepPlan(
+  startNode: Node,
+  path: readonly ({ readonly name: string } & SimplePathStepPositionPlan)[],
+): readonly Node[] {
+  let currentNodes: Node[] = [startNode];
+
+  for (const step of path) {
+    const nextNodes: Node[] = [];
+
+    for (const currentNode of currentNodes) {
+      const matchingChildren: Node[] = [];
+
+      for (let index = 0; index < currentNode.childNodes.length; index += 1) {
+        const child = currentNode.childNodes.item(index);
+        if (child === null || child.nodeType !== child.ELEMENT_NODE) {
+          continue;
+        }
+
+        const childLocalName = child.localName ?? child.nodeName;
+        if ((step.name === '*' || childLocalName === step.name) && (child.namespaceURI ?? '') === '') {
+          matchingChildren.push(child);
+        }
+      }
+
+      if (!hasSimplePathStepPositionConstraints(step)) {
+        nextNodes.push(...matchingChildren);
+        continue;
+      }
+
+      nextNodes.push(
+        ...matchingChildren.filter((_, index) => matchesSimplePathStepPositionPlan(step, index + 1, matchingChildren.length)),
+      );
+    }
+
+    if (nextNodes.length === 0) {
+      return [];
+    }
+
+    currentNodes = nextNodes;
+  }
+
+  return currentNodes;
+}
+
+function hasSimplePathStepPositionConstraints(plan: SimplePathStepPositionPlan): boolean {
+  return plan.position !== undefined
+    || plan.positionTotalDivisor !== undefined
+    || plan.positionTotalNumerator !== undefined
+    || plan.positionTotalOffset !== undefined
+    || plan.positionTotalPolynomialDenominator !== undefined
+    || plan.positionTotalPolynomialQuadraticNumerator !== undefined
+    || plan.positionTotalPolynomialLinearNumerator !== undefined
+    || plan.positionTotalPolynomialConstantNumerator !== undefined
+    || plan.excludedPositionTotalDivisors !== undefined
+    || plan.excludedPositionTotalDivisorOffsets !== undefined
+    || plan.excludedPositionTotalFractions !== undefined
+    || plan.excludedPositionTotalPolynomials !== undefined
+    || plan.maximumPositionExclusiveTotalDivisors !== undefined
+    || plan.maximumPositionExclusiveTotalDivisorOffsets !== undefined
+    || plan.maximumPositionExclusiveTotalFractions !== undefined
+    || plan.maximumPositionExclusiveTotalPolynomials !== undefined
+    || plan.maximumPositionInclusiveTotalDivisors !== undefined
+    || plan.maximumPositionInclusiveTotalDivisorOffsets !== undefined
+    || plan.maximumPositionInclusiveTotalFractions !== undefined
+    || plan.maximumPositionInclusiveTotalPolynomials !== undefined
+    || plan.minimumPositionExclusiveTotalDivisors !== undefined
+    || plan.minimumPositionExclusiveTotalDivisorOffsets !== undefined
+    || plan.minimumPositionExclusiveTotalFractions !== undefined
+    || plan.minimumPositionExclusiveTotalPolynomials !== undefined
+    || plan.minimumPositionInclusiveTotalDivisors !== undefined
+    || plan.minimumPositionInclusiveTotalDivisorOffsets !== undefined
+    || plan.minimumPositionInclusiveTotalFractions !== undefined
+    || plan.minimumPositionInclusiveTotalPolynomials !== undefined
+    || plan.positionFromLastOffset !== undefined
+    || plan.includedPositions !== undefined
+    || plan.includedPositionFromLastOffsets !== undefined
+    || plan.maximumPositionFromLastOffset !== undefined
+    || plan.minimumPosition !== undefined
+    || plan.maximumPosition !== undefined
+    || plan.excludedPosition !== undefined
+    || plan.excludedPositions !== undefined
+    || plan.positionModuloDivisor !== undefined
+    || plan.positionModuloRemainder !== undefined
+    || plan.alternatives !== undefined;
+}
+
+function matchesSimplePathStepPositionPlan(
+  plan: SimplePathStepPositionPlan,
+  position: number,
+  totalPositions: number,
+): boolean {
+  if (plan.alternatives !== undefined) {
+    return plan.alternatives.some((alternative) => matchesSimplePathStepPositionPlan(alternative, position, totalPositions));
+  }
+
+  const maximumPosition = Math.min(
+    plan.maximumPosition ?? totalPositions,
+    plan.maximumPositionFromLastOffset === undefined
+      ? totalPositions
+      : totalPositions - plan.maximumPositionFromLastOffset,
+  );
+  const matchesExactPosition = plan.position === undefined
+    ? true
+    : plan.position === 'last'
+      ? position === totalPositions
+      : position === plan.position;
+  const positionTotalNumerator = plan.positionTotalNumerator ?? (plan.positionTotalDivisor === undefined ? undefined : 1);
+  const matchesPositionTotalDivisor = plan.positionTotalDivisor === undefined
+    ? true
+    : positionTotalNumerator !== undefined
+      && position * plan.positionTotalDivisor === (totalPositions * positionTotalNumerator) + ((plan.positionTotalOffset ?? 0) * plan.positionTotalDivisor);
+  const matchesPositionTotalPolynomial = plan.positionTotalPolynomialDenominator === undefined
+    ? true
+    : position * plan.positionTotalPolynomialDenominator === (totalPositions * totalPositions * (plan.positionTotalPolynomialQuadraticNumerator ?? 0))
+      + (totalPositions * (plan.positionTotalPolynomialLinearNumerator ?? 0))
+      + (plan.positionTotalPolynomialConstantNumerator ?? 0);
+  const matchesPositionFromLastOffset = plan.positionFromLastOffset === undefined
+    ? true
+    : position === totalPositions - plan.positionFromLastOffset;
+  const matchesIncludedPositions = plan.includedPositions === undefined && plan.includedPositionFromLastOffsets === undefined
+    ? true
+    : (plan.includedPositions?.includes(position) ?? false)
+      || (plan.includedPositionFromLastOffsets?.some((offset) => position === totalPositions - offset) ?? false);
+  const matchesExcludedPositionTotalDivisors = !(plan.excludedPositionTotalDivisors?.some(
+    (divisor) => position * divisor === totalPositions,
+  ) ?? false);
+  const matchesExcludedPositionTotalDivisorOffsets = !(plan.excludedPositionTotalDivisorOffsets?.some(
+    ({ divisor, offset }) => position * divisor === totalPositions + (offset * divisor),
+  ) ?? false);
+  const matchesExcludedPositionTotalFractions = !(plan.excludedPositionTotalFractions?.some(
+    ({ denominator, numerator, offset }) => position * denominator === (totalPositions * numerator) + (offset * denominator),
+  ) ?? false);
+  const matchesExcludedPositionTotalPolynomials = !(plan.excludedPositionTotalPolynomials?.some(
+    ({ denominator, quadraticNumerator, linearNumerator, constantNumerator }) => position * denominator === (totalPositions * totalPositions * quadraticNumerator)
+      + (totalPositions * linearNumerator)
+      + constantNumerator,
+  ) ?? false);
+  const matchesMaximumPositionExclusiveTotalDivisors = plan.maximumPositionExclusiveTotalDivisors?.every(
+    (divisor) => position * divisor < totalPositions,
+  ) ?? true;
+  const matchesMaximumPositionExclusiveTotalDivisorOffsets = plan.maximumPositionExclusiveTotalDivisorOffsets?.every(
+    ({ divisor, offset }) => position * divisor < totalPositions + (offset * divisor),
+  ) ?? true;
+  const matchesMaximumPositionExclusiveTotalFractions = plan.maximumPositionExclusiveTotalFractions?.every(
+    ({ denominator, numerator, offset }) => position * denominator < (totalPositions * numerator) + (offset * denominator),
+  ) ?? true;
+  const matchesMaximumPositionExclusiveTotalPolynomials = plan.maximumPositionExclusiveTotalPolynomials?.every(
+    ({ denominator, quadraticNumerator, linearNumerator, constantNumerator }) => position * denominator < (totalPositions * totalPositions * quadraticNumerator)
+      + (totalPositions * linearNumerator)
+      + constantNumerator,
+  ) ?? true;
+  const matchesMaximumPositionInclusiveTotalDivisors = plan.maximumPositionInclusiveTotalDivisors?.every(
+    (divisor) => position * divisor <= totalPositions,
+  ) ?? true;
+  const matchesMaximumPositionInclusiveTotalDivisorOffsets = plan.maximumPositionInclusiveTotalDivisorOffsets?.every(
+    ({ divisor, offset }) => position * divisor <= totalPositions + (offset * divisor),
+  ) ?? true;
+  const matchesMaximumPositionInclusiveTotalFractions = plan.maximumPositionInclusiveTotalFractions?.every(
+    ({ denominator, numerator, offset }) => position * denominator <= (totalPositions * numerator) + (offset * denominator),
+  ) ?? true;
+  const matchesMaximumPositionInclusiveTotalPolynomials = plan.maximumPositionInclusiveTotalPolynomials?.every(
+    ({ denominator, quadraticNumerator, linearNumerator, constantNumerator }) => position * denominator <= (totalPositions * totalPositions * quadraticNumerator)
+      + (totalPositions * linearNumerator)
+      + constantNumerator,
+  ) ?? true;
+  const matchesMinimumPositionExclusiveTotalDivisors = plan.minimumPositionExclusiveTotalDivisors?.every(
+    (divisor) => position * divisor > totalPositions,
+  ) ?? true;
+  const matchesMinimumPositionExclusiveTotalDivisorOffsets = plan.minimumPositionExclusiveTotalDivisorOffsets?.every(
+    ({ divisor, offset }) => position * divisor > totalPositions + (offset * divisor),
+  ) ?? true;
+  const matchesMinimumPositionExclusiveTotalFractions = plan.minimumPositionExclusiveTotalFractions?.every(
+    ({ denominator, numerator, offset }) => position * denominator > (totalPositions * numerator) + (offset * denominator),
+  ) ?? true;
+  const matchesMinimumPositionExclusiveTotalPolynomials = plan.minimumPositionExclusiveTotalPolynomials?.every(
+    ({ denominator, quadraticNumerator, linearNumerator, constantNumerator }) => position * denominator > (totalPositions * totalPositions * quadraticNumerator)
+      + (totalPositions * linearNumerator)
+      + constantNumerator,
+  ) ?? true;
+  const matchesMinimumPositionInclusiveTotalDivisors = plan.minimumPositionInclusiveTotalDivisors?.every(
+    (divisor) => position * divisor >= totalPositions,
+  ) ?? true;
+  const matchesMinimumPositionInclusiveTotalDivisorOffsets = plan.minimumPositionInclusiveTotalDivisorOffsets?.every(
+    ({ divisor, offset }) => position * divisor >= totalPositions + (offset * divisor),
+  ) ?? true;
+  const matchesMinimumPositionInclusiveTotalFractions = plan.minimumPositionInclusiveTotalFractions?.every(
+    ({ denominator, numerator, offset }) => position * denominator >= (totalPositions * numerator) + (offset * denominator),
+  ) ?? true;
+  const matchesMinimumPositionInclusiveTotalPolynomials = plan.minimumPositionInclusiveTotalPolynomials?.every(
+    ({ denominator, quadraticNumerator, linearNumerator, constantNumerator }) => position * denominator >= (totalPositions * totalPositions * quadraticNumerator)
+      + (totalPositions * linearNumerator)
+      + constantNumerator,
+  ) ?? true;
+  const matchesModulo = plan.positionModuloDivisor === undefined || plan.positionModuloRemainder === undefined
+    ? true
+    : position % plan.positionModuloDivisor === plan.positionModuloRemainder;
+
+  return matchesExactPosition
+    && matchesPositionTotalDivisor
+    && matchesPositionTotalPolynomial
+    && matchesPositionFromLastOffset
+    && position >= (plan.minimumPosition ?? 1)
+    && position <= maximumPosition
+    && matchesIncludedPositions
+    && matchesExcludedPositionTotalDivisors
+    && matchesExcludedPositionTotalDivisorOffsets
+    && matchesExcludedPositionTotalFractions
+    && matchesExcludedPositionTotalPolynomials
+    && matchesMaximumPositionExclusiveTotalDivisors
+    && matchesMaximumPositionExclusiveTotalDivisorOffsets
+    && matchesMaximumPositionExclusiveTotalFractions
+    && matchesMaximumPositionExclusiveTotalPolynomials
+    && matchesMaximumPositionInclusiveTotalDivisors
+    && matchesMaximumPositionInclusiveTotalDivisorOffsets
+    && matchesMaximumPositionInclusiveTotalFractions
+    && matchesMaximumPositionInclusiveTotalPolynomials
+    && matchesMinimumPositionExclusiveTotalDivisors
+    && matchesMinimumPositionExclusiveTotalDivisorOffsets
+    && matchesMinimumPositionExclusiveTotalFractions
+    && matchesMinimumPositionExclusiveTotalPolynomials
+    && matchesMinimumPositionInclusiveTotalDivisors
+    && matchesMinimumPositionInclusiveTotalDivisorOffsets
+    && matchesMinimumPositionInclusiveTotalFractions
+    && matchesMinimumPositionInclusiveTotalPolynomials
+    && position !== plan.excludedPosition
+    && !(plan.excludedPositions?.includes(position) ?? false)
+    && matchesModulo;
+}
+
 export function selectDescendantElementsByName(startNode: Node, localName: string): readonly Node[] {
   const matches: Node[] = [];
   collectDescendantElementsByName(startNode, localName, matches);
   return matches;
 }
 
+export function matchesTemplatePath(node: Node, path: readonly string[], absolute = false): boolean {
+  let current: Node | null = node;
+
+  for (let index = path.length - 1; index >= 0; index -= 1) {
+    if (current === null || current.nodeType !== current.ELEMENT_NODE) {
+      return false;
+    }
+
+    const segment = path[index];
+    const currentLocalName = current.localName ?? current.nodeName;
+    if (segment !== '*' && (currentLocalName !== segment || (current.namespaceURI ?? '') !== '')) {
+      return false;
+    }
+
+    current = current.parentNode;
+  }
+
+  return !absolute || current?.nodeType === node.DOCUMENT_NODE;
+}
+
 export function applyBuiltInTemplatesByPath(
   startNode: Node,
   path: readonly string[],
-  renderMatchedNode: (node: Node) => string,
+  renderMatchedNode: (node: Node, index: number, nodes: readonly Node[]) => string,
   absolute = false,
 ): string {
   if (path.length === 0) {
@@ -94,6 +403,18 @@ export function selectSimplePathExists(startNode: Node, path: readonly string[])
 
 export function stringValueOfNode(node: Node): string {
   return collectStringValue(node);
+}
+
+export function stringValueOfNativeValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  if (typeof value === 'object' && 'nodeType' in value) {
+    return stringValueOfNode(value as Node);
+  }
+
+  return String(value);
 }
 
 export function nameOfNode(node: Node | null): string {
@@ -127,6 +448,17 @@ export function transformCompiledStylesheet(
   return runTransform(ir, sourceXml, context);
 }
 
+export function normalizeNativeTemplateName(
+  templateName: string,
+  namespaces: Readonly<Record<string, string>>,
+  defaultElementNamespace = '',
+): string {
+  return normalizeTemplateName(templateName, {
+    namespaces: new Map(Object.entries(namespaces)),
+    defaultElementNamespace,
+  });
+}
+
 export function throwCircularNativeGlobalBinding(
   bindingKind: 'param' | 'variable',
   variableName: string,
@@ -138,6 +470,178 @@ export function throwCircularNativeGlobalBinding(
     location,
     { variableName },
   );
+}
+
+export function throwMissingNativeStylesheetParameter(
+  parameterName: string,
+  providedNames: readonly string[] = [],
+  location?: SourceLocation,
+): never {
+  const suggestion = createMissingStylesheetParameterSuggestion(parameterName, providedNames);
+  throw new XsltError(
+    XTDE0050,
+    `Required stylesheet parameter $${parameterName} was not supplied.`,
+    location,
+    { parameterName },
+    suggestion === undefined ? undefined : { suggestions: [suggestion] },
+  );
+}
+
+export function throwMissingNativeTemplateParameter(
+  parameterName: string,
+  providedNames: readonly string[] = [],
+  location?: SourceLocation,
+): never {
+  const suggestion = createMissingTemplateParameterSuggestion(parameterName, providedNames);
+  throw new XsltError(
+    XTDE0700,
+    `Required template parameter $${parameterName} was not supplied.`,
+    location,
+    { parameterName },
+    suggestion === undefined ? undefined : { suggestions: [suggestion] },
+  );
+}
+
+export function throwMissingNativeInitialTemplate(
+  templateName: string,
+  availableNames: readonly string[] = [],
+): never {
+  const suggestion = createMissingInitialTemplateSuggestion(templateName, availableNames);
+  throw new XsltError(
+    XTSE0010,
+    `Initial template ${templateName} is not declared in the current stylesheet.`,
+    undefined,
+    { initialTemplate: templateName },
+    suggestion === undefined
+      ? {
+          suggestions: [{
+            kind: 'fix',
+            label: `declare xsl:template name="${templateName}" or omit initialTemplate`,
+            confidence: 1,
+          }],
+        }
+      : { suggestions: [suggestion] },
+  );
+}
+
+export function throwUnsupportedNativeInitialMode(mode: string): never {
+  throw new XsltError(
+    XTDE0040,
+    'Initial modes are not yet implemented in the current MVP+3 slice.',
+    undefined,
+    { mode },
+    {
+      suggestions: [{
+        kind: 'fix',
+        label: 'omit initialMode and use the default mode in the current MVP+3 slice',
+        confidence: 1,
+      }],
+    },
+  );
+}
+
+export function prependNativeInitialTemplateError(
+  error: unknown,
+  templateName: string,
+  location?: SourceLocation,
+): unknown {
+  if (!(error instanceof XdmError)) {
+    return error;
+  }
+
+  const frame: ErrorFrame = {
+    kind: 'template',
+    label: `name="${templateName}"`,
+    ...(location === undefined ? {} : { location }),
+  };
+  const related: RelatedLocation | undefined = location === undefined
+    ? undefined
+    : {
+        label: 'initial template',
+        location,
+      };
+
+  return new XsltError(
+    error.code,
+    error.detailMessage,
+    error.location,
+    error.details,
+    {
+      related: related === undefined ? error.related : [related, ...error.related],
+      frames: [frame, ...error.frames],
+      suggestions: error.suggestions,
+      causes: error.causes.length === 0 ? [error] : error.causes,
+    },
+  );
+}
+
+function createMissingStylesheetParameterSuggestion(
+  expectedName: string,
+  providedNames: readonly string[],
+): ErrorSuggestion | undefined {
+  const nearest = providedNames
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(expectedName, candidate),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean to pass parameters["${expectedName}"]?`,
+    replacement: expectedName,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / expectedName.length),
+  };
+}
+
+function createMissingTemplateParameterSuggestion(
+  expectedName: string,
+  providedNames: readonly string[],
+): ErrorSuggestion | undefined {
+  const nearest = providedNames
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(expectedName, candidate),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean xsl:with-param name="${expectedName}"?`,
+    replacement: expectedName,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / expectedName.length),
+  };
+}
+
+function createMissingInitialTemplateSuggestion(
+  expectedName: string,
+  availableNames: readonly string[],
+): ErrorSuggestion | undefined {
+  const nearest = availableNames
+    .map((candidate) => ({
+      candidate,
+      distance: computeLevenshteinDistance(expectedName, candidate),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest === undefined || nearest.distance > 2) {
+    return undefined;
+  }
+
+  return {
+    kind: 'fix',
+    label: `did you mean initialTemplate "${nearest.candidate}"?`,
+    replacement: nearest.candidate,
+    confidence: nearest.distance === 0 ? 1 : 1 - (nearest.distance / nearest.candidate.length),
+  };
 }
 
 export function prependNativeGlobalBindingError(
@@ -214,22 +718,29 @@ function collectDescendantElementsByName(node: Node, localName: string, matches:
 function renderBuiltInTemplateChildren(
   node: Node,
   path: readonly string[],
-  renderMatchedNode: (node: Node) => string,
+  renderMatchedNode: (node: Node, index: number, nodes: readonly Node[]) => string,
   absolute: boolean,
 ): string {
-  let output = '';
-
+  const childNodes: Node[] = [];
   for (let index = 0; index < node.childNodes.length; index += 1) {
     const child = node.childNodes.item(index);
-    if (child === null || child.nodeType !== child.ELEMENT_NODE) {
+    if (child !== null) {
+      childNodes.push(child);
+    }
+  }
+
+  let output = '';
+
+  for (const [index, child] of childNodes.entries()) {
+    if (child.nodeType !== child.ELEMENT_NODE) {
       if (child !== null) {
-        output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute);
+        output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute, index, childNodes);
       }
 
       continue;
     }
 
-    output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute);
+    output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute, index, childNodes);
   }
 
   return output;
@@ -238,11 +749,13 @@ function renderBuiltInTemplateChildren(
 function renderBuiltInTemplateNode(
   node: Node,
   path: readonly string[],
-  renderMatchedNode: (node: Node) => string,
+  renderMatchedNode: (node: Node, index: number, nodes: readonly Node[]) => string,
   absolute: boolean,
+  index: number,
+  nodes: readonly Node[],
 ): string {
   if (matchesSimplePath(node, path, absolute)) {
-    return renderMatchedNode(node);
+    return renderMatchedNode(node, index, nodes);
   }
 
   if (node.nodeType === node.DOCUMENT_NODE || node.nodeType === node.ELEMENT_NODE) {

@@ -23,6 +23,10 @@ export interface CompileStylesheetArtifacts {
   readonly diagnostics: readonly DiagnosticReport[];
 }
 
+export interface CompileStylesheetRuntimeArtifacts extends CompileStylesheetArtifacts {
+  readonly ir: ReturnType<typeof compileStylesheet>;
+}
+
 export interface CompileStylesheetArtifactsFromFileOptions {
   readonly runtimeModuleSpecifier?: string;
   readonly sampleDocumentPath?: string;
@@ -46,6 +50,14 @@ export function compileStylesheetArtifacts(
   stylesheetSource: string,
   options: CompileStylesheetToTsOptions = {},
 ): CompileStylesheetArtifacts {
+  const { ir: _ir, ...artifacts } = compileStylesheetRuntimeArtifacts(stylesheetSource, options);
+  return artifacts;
+}
+
+export function compileStylesheetRuntimeArtifacts(
+  stylesheetSource: string,
+  options: CompileStylesheetToTsOptions = {},
+): CompileStylesheetRuntimeArtifacts {
   const digest = createStylesheetDigest(stylesheetSource);
   const sourcePath = options.path ?? '<stylesheet>';
   const ir = compileStylesheet(stylesheetSource, {
@@ -71,6 +83,7 @@ export function compileStylesheetArtifacts(
   }));
 
   return {
+    ir,
     module,
     declaration: emitStylesheetDeclarationModule(ir, emitOptions),
     digest,

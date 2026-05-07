@@ -1,3 +1,5 @@
+import type { ErrorSuggestion } from '../errors/index.js';
+
 /**
  * Options accepted by {@link XsltProcessor.transform}.
  */
@@ -10,6 +12,8 @@ export interface TransformExecutionFallbackReason {
   code: TransformExecutionFallbackReasonCode;
   /** Human-readable explanation of why native execution was not used. */
   message: string;
+  /** Optional remediation hints for callers that want to surface fallback guidance. */
+  suggestions?: readonly ErrorSuggestion[];
 }
 
 export interface TransformExecutionInfo {

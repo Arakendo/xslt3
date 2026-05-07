@@ -4,7 +4,7 @@ import { transformCompiledStylesheet } from '../../src/runtime/index.js';
 import { compileStylesheet } from '../../src/xslt/compile/compiler.js';
 import { XsltProcessor } from '../../src/index.js';
 
-import { compileAndLoadGeneratedModule, expectNativeRuntimeParity, expectRuntimeModuleToMatchInterpreter } from './compile.support.js';
+import { NATIVE_DIRECT_PARITY_TAG, compileAndLoadGeneratedModule, expectNativeRuntimeParity, expectRuntimeModuleToMatchInterpreter } from './compile.support.js';
 
 const HELLO_FIXTURE_STYLESHEET = `
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -85,7 +85,7 @@ describe('XSLT codegen core runtime surface', () => {
   }
 
   for (const { name, path, stylesheet, sourceXml } of NATIVE_RUNTIME_CASES) {
-    it(`preserves interpreter/direct-native/emitted parity for ${name}`, () => {
+    it(`${NATIVE_DIRECT_PARITY_TAG} preserves interpreter/direct-native/emitted parity for ${name}`, () => {
       expectNativeRuntimeParity(stylesheet, path, sourceXml);
     });
   }

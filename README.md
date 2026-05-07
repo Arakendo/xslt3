@@ -6,7 +6,7 @@ debuggers, and generated-artifact workflows.
 
 <sub>package: `@arakendo/weaver-xslt` · repo: `weaver-xslt`</sub>
 
-> Status: **MVP+6 complete** — typed params, typed extension functions, CLI compile/run/watch, source maps, diagnostics v2, watch invalidation coverage, static analysis, and thin Vite/esbuild plugin wrappers are in place. Next planned increments are native direct execution and the live workbench boundary.
+> Status: **MVP+6.5 in progress** — the native direct-execution slice is closed, and the live workbench / embedding boundary is now landing on top of that surface.
 
 > **Open source, closed contributions.** This project is MIT licensed — fork
 > and use it however you like. External pull requests and issues are not
@@ -58,6 +58,87 @@ console.log(result.output);
 // <hello>world</hello>
 ```
 
+When you want to choose the execution strategy explicitly, use the `execution`
+option:
+
+```ts
+import { XsltProcessor } from '@arakendo/weaver-xslt';
+
+const stylesheet = `
+  <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+    <xsl:param name="greeting" select="'hello'"/>
+    <xsl:template match="/root">
+      <out><xsl:value-of select="$greeting"/></out>
+    </xsl:template>
+  </xsl:stylesheet>
+`;
+
+const processor = new XsltProcessor(stylesheet);
+
+const nativeResult = processor.transform('<root/>', { execution: 'native' });
+console.log(nativeResult.execution);
+// { requested: 'native', resolved: 'native' }
+
+const autoResult = processor.transform('<root/>', {
+  execution: 'auto',
+  parameters: { greeting: 'hi' },
+});
+console.log(autoResult.output);
+// <out>hi</out>
+console.log(autoResult.execution);
+// { requested: 'auto', resolved: 'native' }
+```
+
+Use `execution: 'native'` when the current stylesheet must stay on the native
+path. Use `execution: 'auto'` when native is preferred but structured
+interpreter fallback is acceptable while the supported slice is still widening.
+
+When you want to compile once and reuse the compiled stylesheet across
+multiple source documents, use the workbench boundary explicitly:
+
+```ts
+import { compile, transform } from '@arakendo/weaver-xslt/workbench';
+
+const compiled = compile({
+  stylesheet: {
+    uri: 'memory:/hello.xsl',
+    text: `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/">
+          <hello><xsl:value-of select="/root/name"/></hello>
+        </xsl:template>
+      </xsl:stylesheet>
+    `,
+  },
+});
+
+if (!compiled.ok) {
+  throw new Error('stylesheet did not compile');
+}
+
+const first = transform({
+  stylesheet: compiled.stylesheet,
+  sourceXml: {
+    uri: 'memory:/first.xml',
+    text: '<root><name>alpha</name></root>',
+  },
+});
+
+const second = compiled.stylesheet.transform({
+  uri: 'memory:/second.xml',
+  text: '<root><name>beta</name></root>',
+});
+
+console.log(first.output);
+// <hello>alpha</hello>
+console.log(second.output);
+// <hello>beta</hello>
+```
+
+That keeps the compile/run split explicit for embedders that want to compile a
+stylesheet once, inspect generated TS or source maps, and reuse the same
+compiled handle as often as they want.
+
 ## CLI
 
 From a local checkout, build the package and run the compiled CLI entrypoint.
@@ -84,6 +165,17 @@ You can also run a stylesheet directly through the interpreter:
 ```bash
 node dist/cli.js run ./hello.xsl --input ./input.xml
 ```
+
+When you want the CLI to participate in execution selection, pass
+`--execution interpreter`, `--execution native`, or `--execution auto`:
+
+```bash
+node dist/cli.js run ./hello.xsl --input ./input.xml --execution auto
+```
+
+If `--execution auto` falls back to the interpreter because the stylesheet is
+outside the current native slice, the CLI prints the structured fallback reason
+as a warning on stderr while still returning the transform output on stdout.
 
 And the CLI exposes built-in usage text:
 
@@ -199,7 +291,7 @@ plan with scope and exit criteria per increment. High-level milestones:
 - [x] M4 — **Codegen backend v1** (IR → readable TypeScript)
 - [x] M5 — Typed params, typed extension functions, CLI
 - [x] M6 — Watch mode, source maps, static-analysis diagnostics v2, bundler polish
-- [ ] M6.25 — Native backend direct execution
+- [x] M6.25 — Native backend direct execution
 - [ ] M6.5 — Live workbench / playground
 - [ ] M6.75 — XML node trace debugging
 - [ ] M7 — XPath type system, maps/arrays, higher-order functions

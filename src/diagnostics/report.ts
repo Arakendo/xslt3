@@ -142,6 +142,12 @@ const REQUIRED_DETAIL_KEYS: Readonly<Record<string, readonly string[]>> = {
 };
 
 function classifyPhase(code: string): DiagnosticPhase {
+  if (code === 'WEAVER_XML_STYLESHEET_PARSE_ERROR') {
+    return 'compile';
+  }
+  if (code === 'WEAVER_XML_SOURCE_PARSE_ERROR') {
+    return 'runtime';
+  }
   if (code.startsWith('XPST') || code.startsWith('XTSE')) {
     return 'compile';
   }
@@ -161,6 +167,9 @@ function classifyPhase(code: string): DiagnosticPhase {
 }
 
 function classifyCategory(code: string): DiagnosticCategory {
+  if (code === 'WEAVER_XML_STYLESHEET_PARSE_ERROR' || code === 'WEAVER_XML_SOURCE_PARSE_ERROR') {
+    return 'syntax';
+  }
   if (code === 'XPST0008') {
     return 'resolution';
   }

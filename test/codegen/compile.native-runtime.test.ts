@@ -3,9 +3,44 @@ import { describe, expect, it } from 'vitest';
 import { compileStylesheetToTs } from '../../src/compile.js';
 import { XsltProcessor } from '../../src/index.js';
 
-import { compileAndLoadGeneratedModule, expectNativeRuntimeParity } from './compile.support.js';
+import { NATIVE_DIRECT_PARITY_TAG, compileAndLoadGeneratedModule, expectNativeRuntimeParity } from './compile.support.js';
 
 describe('XSLT codegen MVP4 slice', () => {
+  it('executes native temporary-tree local variable bindings through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out>
+            <xsl:variable name="tree">
+              <label><xsl:value-of select="name()"/></label>
+            </xsl:variable>
+            <xsl:value-of select="$tree/label"/>
+          </out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'temporary-tree-local-variable.xsl', '<root/>');
+  });
+
+  it('executes native temporary-tree top-level bindings through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:param name="tree">
+          <label>default</label>
+        </xsl:param>
+        <xsl:variable name="outer">
+          <value><xsl:value-of select="$tree/label"/></value>
+        </xsl:variable>
+        <xsl:template match="/root">
+          <out><xsl:value-of select="$outer/value"/></out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'temporary-tree-top-level-bindings.xsl', '<root/>');
+  });
+
   it('emits native code for a single-focus position() test', () => {
     const stylesheet = `
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -345,6 +380,742 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
   });
 
+  it('executes native named templates with xsl:param defaults and xsl:with-param overrides through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out>
+            <xsl:call-template name="emit"/>
+            <xsl:for-each select="item">
+              <xsl:call-template name="emit">
+                <xsl:with-param name="label" select="."/>
+              </xsl:call-template>
+            </xsl:for-each>
+          </out>
+        </xsl:template>
+        <xsl:template name="emit">
+          <xsl:param name="label" select="name()"/>
+          <entry><xsl:value-of select="$label"/></entry>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'named-template-with-param.xsl', '<root><item>a</item><item>b</item></root>');
+  });
+
+  it('executes native named templates with temporary-tree params through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out>
+            <xsl:call-template name="emit"/>
+            <xsl:call-template name="emit">
+              <xsl:with-param name="tree">
+                <label>override</label>
+              </xsl:with-param>
+            </xsl:call-template>
+          </out>
+        </xsl:template>
+        <xsl:template name="emit">
+          <xsl:param name="tree">
+            <label>default</label>
+          </xsl:param>
+          <entry><xsl:value-of select="$tree/label"/></entry>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'named-template-with-param-temporary-tree.xsl', '<root/>');
+  });
+
+  it('executes native xsl:apply-templates with temporary-tree params through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out>
+            <xsl:variable name="tree">
+              <label><xsl:value-of select="item"/></label>
+            </xsl:variable>
+            <xsl:apply-templates select="item">
+              <xsl:with-param name="tree" select="$tree"/>
+            </xsl:apply-templates>
+          </out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:param name="tree"/>
+          <xsl:param name="suffix">default</xsl:param>
+          <entry>
+            <xsl:value-of select="$tree/label"/>
+            <xsl:text>, </xsl:text>
+            <xsl:value-of select="$suffix"/>
+          </entry>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-with-param-temporary-tree.xsl', '<root><item>test</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[1]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[1]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-first-position.xsl', '<root><item>a</item><item>b</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = 1]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = 1]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-first-position-function.xsl', '<root><item>a</item><item>b</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = last()]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = last()]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-last-position-function.xsl', '<root><item>a</item><item>b</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() >= 2]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() >= 2]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-greater-equal-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() != 1]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() != 1]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-equal-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() mod 2 = 0]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() mod 2 = 0]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-mod-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = last() - 1]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = last() - 1]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-last-minus-one-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() &lt; last()]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() &lt; last()]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-less-than-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() > 1 and position() &lt; last()]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() > 1 and position() &lt; last()]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-between-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = 1 or position() = last()]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = 1 or position() = last()]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-first-or-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = 1 or position() > 2]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = 1 or position() > 2]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-first-or-after-second-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = 1 or not(position() = last())]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = 1 or not(position() = last())]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-first-or-not-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() mod 2 = 0)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() mod 2 = 0)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-even-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() mod 2 = 0 or position() = 1)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() mod 2 = 0 or position() = 1)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-even-or-first-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() mod 2 = 0 or position() mod 3 = 0)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() mod 2 = 0 or position() mod 3 = 0)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-even-or-third-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item><item>e</item><item>f</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() = 1 or position() = 2)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() = 1 or position() = 2)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-first-or-second-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() = last() - 1)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() = last() - 1)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-second-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() = last() - 1 or position() = last() - 2)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() = last() - 1 or position() = last() - 2)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-second-or-third-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item><item>e</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() &lt; last() - 1)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() &lt; last() - 1)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-before-second-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() != last() - 1)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() != last() - 1)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-not-second-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() != last() - 1 or position() != 1)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() != last() - 1 or position() != 1)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-not-second-last-or-not-first-position-function.xsl', '<root><item>a</item><item>b</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() != 1 or position() &lt; last() - 1)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() != 1 or position() &lt; last() - 1)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-not-first-or-before-second-last-position-function.xsl', '<root><item>a</item><item>b</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() != last()]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() != last()]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() > last() - 1]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() > last() - 1]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-after-second-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() != last() - 1]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() != last() - 1]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-second-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = last() div 2]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = last() div 2]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-middle-by-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() != last() div 2]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() != last() div 2]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-middle-by-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() &lt; last() div 2]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() &lt; last() div 2]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-before-middle-by-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() &lt; last() div 2)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() &lt; last() div 2)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-before-middle-by-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = last() div 2 + 1]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = last() div 2 + 1]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-middle-plus-one-by-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() &lt; last() div 2 + 1]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() &lt; last() div 2 + 1]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-before-middle-plus-one-by-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = last() div 2 + last() div 4]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = last() div 2 + last() div 4]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-middle-by-summed-last-divisors-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() &lt; last() div 2 + last() div 4]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() &lt; last() div 2 + last() div 4]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-before-middle-by-summed-last-divisors-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() &lt; last() div 2 + last() div 4)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() &lt; last() div 2 + last() div 4)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-before-middle-by-summed-last-divisors-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = (last() div 2) * 2]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = (last() div 2) * 2]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-end-by-scaled-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() = (last() div 2) * (last() div 2)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() = (last() div 2) * (last() div 2)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-end-by-squared-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() != (last() div 2) * (last() div 2)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() != (last() div 2) * (last() div 2)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-end-by-squared-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() &lt; (last() div 2) * (last() div 2)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() &lt; (last() div 2) * (last() div 2)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-before-end-by-squared-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() &lt; (last() div 2) * (last() div 2))]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() &lt; (last() div 2) * (last() div 2))]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-before-end-by-squared-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() != last() div 2 + last() div 4]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() != last() div 2 + last() div 4]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-middle-by-summed-last-divisors-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() &lt; last() div 2 + 1)]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() &lt; last() div 2 + 1)]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-before-middle-plus-one-by-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[position() != last() div 2 + 1]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[position() != last() div 2 + 1]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-middle-plus-one-by-last-divisor-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item><item>d</item></root>');
+  });
+
+  it('executes native xsl:apply-templates select="item[not(position() = 1 or position() = last())]" through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates select="item[not(position() = 1 or position() = last())]"/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="."/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-not-first-or-last-position-function.xsl', '<root><item>a</item><item>b</item><item>c</item></root>');
+  });
+
+  it('executes native default-select xsl:apply-templates position() through the runtime surface', () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root">
+          <out><xsl:apply-templates/></out>
+        </xsl:template>
+        <xsl:template match="item">
+          <xsl:value-of select="position()"/>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-default-select-position.xsl', '<root><item/><item/></root>');
+  });
+
   it('emits native code for xsl:comment', () => {
     const stylesheet = `
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -474,7 +1245,7 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
-  it('executes native code for a top-level xsl:param default and runtime parameter override through the generated module surface', () => {
+  it(`${NATIVE_DIRECT_PARITY_TAG} executes native code for a top-level xsl:param default and runtime parameter override through the generated module surface`, () => {
     const stylesheet = `
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
         <xsl:param name="greeting" select="'hello'"/>
@@ -491,7 +1262,24 @@ describe('XSLT codegen MVP4 slice', () => {
     });
   });
 
-  it('executes native code for a top-level xsl:variable select binding through the generated module surface', () => {
+  it(`${NATIVE_DIRECT_PARITY_TAG} executes native code for a required top-level xsl:param when supplied through the generated module surface`, () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:param name="greeting" required="yes"/>
+        <xsl:template match="/root">
+          <out><xsl:value-of select="$greeting"/></out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+    const sourceXml = '<root/>';
+    expectNativeRuntimeParity(stylesheet, 'global-required-param-native-runtime.xsl', sourceXml, {
+      parameters: {
+        greeting: 'hi',
+      },
+    });
+  });
+
+  it(`${NATIVE_DIRECT_PARITY_TAG} executes native code for a top-level xsl:variable select binding through the generated module surface`, () => {
     const stylesheet = `
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
         <xsl:variable name="greeting" select="'hello'"/>
@@ -523,7 +1311,7 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
-  it('executes native code for forward-referenced top-level xsl:variable bindings through the generated module surface', () => {
+  it(`${NATIVE_DIRECT_PARITY_TAG} executes native code for forward-referenced top-level xsl:variable bindings through the generated module surface`, () => {
     const stylesheet = `
       <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
         <xsl:variable name="b" select="$a"/>
@@ -568,5 +1356,77 @@ describe('XSLT codegen MVP4 slice', () => {
     const interpreterResult = new XsltProcessor(stylesheet).transform(sourceXml);
 
     expect(generatedModule.transform(sourceXml)).toEqual(interpreterResult);
+  });
+
+  it(`${NATIVE_DIRECT_PARITY_TAG} preserves nested apply-templates default behavior through matched child templates`, () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/">
+          <items><xsl:apply-templates/></items>
+        </xsl:template>
+        <xsl:template match="section/item">
+          <item>
+            <xsl:value-of select="name"/>
+            <details>
+              <xsl:for-each select="group">
+                <xsl:apply-templates/>
+              </xsl:for-each>
+            </details>
+          </item>
+        </xsl:template>
+        <xsl:template match="detail">
+          <detail><xsl:value-of select="."/></detail>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+    const sourceXml = '<root><section><item><name>alpha</name><group><detail>one</detail><detail>two</detail></group></item></section></root>';
+
+    expectNativeRuntimeParity(stylesheet, 'apply-templates-nested-default-runtime.xsl', sourceXml);
+  });
+
+  it(`${NATIVE_DIRECT_PARITY_TAG} executes native code for named-only initial templates through the generated module surface`, () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template name="main">
+          <out><xsl:value-of select="count(/root/item)"/></out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+    const sourceXml = '<root><item/><item/></root>';
+
+    expectNativeRuntimeParity(stylesheet, 'initial-template-native-runtime.xsl', sourceXml, {
+      initialTemplate: 'main',
+    });
+  });
+
+  it(`${NATIVE_DIRECT_PARITY_TAG} executes native code for mixed matched and named initial templates through the generated module surface`, () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+        <xsl:template match="/root"><wrong/></xsl:template>
+        <xsl:template name="main">
+          <out><xsl:value-of select="count(/root/item)"/></out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+    const sourceXml = '<root><item/><item/></root>';
+
+    expectNativeRuntimeParity(stylesheet, 'mixed-initial-template-native-runtime.xsl', sourceXml, {
+      initialTemplate: 'main',
+    });
+  });
+
+  it(`${NATIVE_DIRECT_PARITY_TAG} normalizes prefixed initialTemplate names through the generated module surface`, () => {
+    const stylesheet = `
+      <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:t="urn:test">
+        <xsl:template name="t:main">
+          <out>ok</out>
+        </xsl:template>
+      </xsl:stylesheet>
+    `;
+    const sourceXml = '<root/>';
+
+    expectNativeRuntimeParity(stylesheet, 'initial-template-prefixed-name-native-runtime.xsl', sourceXml, {
+      initialTemplate: 't:main',
+    });
   });
 });

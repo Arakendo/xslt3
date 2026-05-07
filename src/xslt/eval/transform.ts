@@ -56,7 +56,7 @@ export function runTransform(
     );
   }
 
-  const sourceDocument = parseXml(sourceXml);
+  const sourceDocument = parseXml(sourceXml, { role: 'source-document', sourceName: '<source-xml>' });
   const staticContext = createStaticContext(ir, options);
   const globalVariables = evaluateGlobalBindings(
     ir,

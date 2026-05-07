@@ -1043,7 +1043,7 @@ function collectSampleDocumentNameDiagnostics(
 }
 
 function collectSampleDocumentNames(sampleDocument: string): SampleDocumentNameModel {
-  const document = parseXml(sampleDocument);
+  const document = parseXml(sampleDocument, { role: 'source-document', sourceName: '<sample-document>' });
   const elementNames = new Map<string, Set<string>>();
   const attributeNames = new Map<string, Set<string>>();
 
