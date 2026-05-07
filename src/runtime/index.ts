@@ -355,6 +355,15 @@ export function selectDescendantElementsByName(startNode: Node, localName: strin
   return matches;
 }
 
+export function selectDescendantElementTextByName(startNode: Node, localName: string): string {
+  const node = selectDescendantElementsByName(startNode, localName)[0];
+  if (node === undefined) {
+    return '';
+  }
+
+  return collectStringValue(node);
+}
+
 export function matchesTemplatePath(node: Node, path: readonly string[], absolute = false): boolean {
   let current: Node | null = node;
 

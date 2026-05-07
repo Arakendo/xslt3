@@ -212,6 +212,39 @@ describe('workbench boundary', () => {
     });
     expect(result.generatedTs).toContain('export function transform(');
   });
+
+  it('keeps simple descendant-name value-of selections on the native path', () => {
+    const result = compileAndTransform({
+      stylesheet: {
+        uri: 'memory:/descendant-native.xsl',
+        text: [
+          '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+          '  <xsl:template match="/">',
+          '    <hello><xsl:value-of select="//name"/></hello>',
+          '  </xsl:template>',
+          '</xsl:stylesheet>',
+        ].join('\n'),
+      },
+      sourceXml: {
+        uri: 'memory:/descendant-input.xml',
+        text: '<root><wrapper><name>world</name></wrapper></root>',
+      },
+      options: {
+        execution: 'auto',
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      diagnostics: [],
+      output: '<hello>world</hello>',
+      execution: {
+        requested: 'auto',
+        resolved: 'native',
+      },
+    });
+    expect(result.generatedTs).toContain('selectDescendantElementTextByName');
+  });
 });
 
 function findSpan(document: { readonly uri: string; readonly text: string }, needle: string): SourceSpan {

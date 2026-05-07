@@ -1075,19 +1075,18 @@ function emitInstruction(
         return undefined;
       }
 
-      const simplePath = tryResolveSimpleChildPath(instruction.select, contextNodeIdentifier, options.variableBindings);
-      if (simplePath === undefined) {
+      const pathValue = emitPathStringValueExpression(
+        instruction.select,
+        runtimeHelpers,
+        contextNodeIdentifier,
+        options.variableBindings,
+      );
+      if (pathValue === undefined) {
         return undefined;
       }
 
       runtimeHelpers.add('escapeText');
-      runtimeHelpers.add('selectSimplePathText');
-      return annotateInstruction(tsCallExpression('escapeText', [
-        tsCallExpression('selectSimplePathText', [
-          simplePath.startNodeExpression,
-          tsRawExpression(JSON.stringify(simplePath.segments)),
-        ]),
-      ]));
+      return annotateInstruction(tsCallExpression('escapeText', [pathValue]));
     }
     case 'if': {
       const testExpression = emitTestExpression(
@@ -1373,19 +1372,14 @@ function emitComparisonOperand(
         expression: tsStringLiteral(ast.value),
       };
     case 'path': {
-      const simplePath = tryGetSimpleChildPath(ast);
-      if (simplePath === undefined) {
+      const pathValue = emitPathStringValueExpression(ast, runtimeHelpers, contextNodeIdentifier);
+      if (pathValue === undefined) {
         return undefined;
       }
 
-      runtimeHelpers.add('selectSimplePathText');
-      const startNode = simplePath.absolute ? 'document' : contextNodeIdentifier;
       return {
         kind: 'string',
-        expression: tsCallExpression('selectSimplePathText', [
-          tsRawExpression(startNode),
-          tsRawExpression(JSON.stringify(simplePath.segments)),
-        ]),
+        expression: pathValue,
       };
     }
     case 'functionCall':
@@ -1543,6 +1537,75 @@ function tryGetSimpleChildSegments(ast: PathExpression): readonly string[] | und
   return names;
 }
 
+function emitPathStringValueExpression(
+  ast: PathExpression,
+  runtimeHelpers: Set<string>,
+  contextNodeIdentifier: string,
+  variableBindings?: ReadonlyMap<string, TsExpression>,
+): TsExpression | undefined {
+  if (variableBindings === undefined) {
+    const simplePath = tryGetSimpleChildPath(ast);
+    if (simplePath !== undefined) {
+      runtimeHelpers.add('selectSimplePathText');
+      return tsCallExpression('selectSimplePathText', [
+        tsRawExpression(simplePath.absolute ? 'document' : contextNodeIdentifier),
+        tsRawExpression(JSON.stringify(simplePath.segments)),
+      ]);
+    }
+  } else {
+    const simplePath = tryResolveSimpleChildPath(ast, contextNodeIdentifier, variableBindings);
+    if (simplePath !== undefined) {
+      runtimeHelpers.add('selectSimplePathText');
+      return tsCallExpression('selectSimplePathText', [
+        simplePath.startNodeExpression,
+        tsRawExpression(JSON.stringify(simplePath.segments)),
+      ]);
+    }
+  }
+
+  const descendantPath = tryGetSimpleDescendantNamePath(ast);
+  if (descendantPath === undefined) {
+    return undefined;
+  }
+
+  runtimeHelpers.add('selectDescendantElementTextByName');
+  return tsCallExpression('selectDescendantElementTextByName', [
+    tsRawExpression(descendantPath.absolute ? 'document' : contextNodeIdentifier),
+    tsStringLiteral(descendantPath.localName),
+  ]);
+}
+
+function tryGetSimpleDescendantNamePath(
+  ast: PathExpression,
+): { readonly absolute: boolean; readonly localName: string } | undefined {
+  if (ast.base !== undefined || ast.steps.length !== 2) {
+    return undefined;
+  }
+
+  const [leadingStep, terminalStep] = ast.steps;
+  if (
+    leadingStep === undefined
+    || leadingStep.kind !== 'step'
+    || leadingStep.axis !== 'descendant-or-self'
+    || leadingStep.predicates.length > 0
+    || leadingStep.nodeTest.kind !== 'kindTest'
+    || leadingStep.nodeTest.name !== 'node'
+    || terminalStep === undefined
+    || terminalStep.kind !== 'step'
+    || terminalStep.axis !== 'child'
+    || terminalStep.predicates.length > 0
+    || terminalStep.nodeTest.kind !== 'nameTest'
+    || terminalStep.nodeTest.name.includes(':')
+  ) {
+    return undefined;
+  }
+
+  return {
+    absolute: ast.absolute,
+    localName: terminalStep.nodeTest.name,
+  };
+}
+
 function escapeTextLiteral(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -1621,17 +1684,12 @@ function emitVariableValueExpression(
     case 'variable':
       return resolveVariableBindingExpression(ast.name, options.variableBindings);
     case 'path': {
-      const simplePath = tryGetSimpleChildPath(ast);
-      if (simplePath === undefined) {
+      const pathValue = emitPathStringValueExpression(ast, runtimeHelpers, contextNodeIdentifier);
+      if (pathValue === undefined) {
         return undefined;
       }
 
-      runtimeHelpers.add('selectSimplePathText');
-      const startNode = simplePath.absolute ? 'document' : contextNodeIdentifier;
-      return tsCallExpression('selectSimplePathText', [
-        tsRawExpression(startNode),
-        tsRawExpression(JSON.stringify(simplePath.segments)),
-      ]);
+      return pathValue;
     }
     case 'functionCall': {
       if (ast.arguments.length === 0) {
