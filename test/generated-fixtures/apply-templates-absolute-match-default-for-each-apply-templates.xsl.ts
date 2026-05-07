@@ -1,10 +1,16 @@
-import { applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathNodes, selectSimplePathText, stringValueOfNode } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathNodes, selectSimplePathNodesByStepPlan, selectSimplePathText, stringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "apply-templates-absolute-match-default-for-each-apply-templates.xsl", digest: "799c271b" } as const;
 
 /** match="/" (apply-templates-absolute-match-default-for-each-apply-templates.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  if (ctx.initialMode !== undefined) {
+    throwUnsupportedNativeInitialMode(ctx.initialMode);
+  }
+  if (ctx.initialTemplate !== undefined) {
+    throwMissingNativeInitialTemplate(ctx.initialTemplate, []);
+  }
   void ctx;
   const document = createCompiledDocument(sourceXml);
   return {
@@ -14,7 +20,7 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   "<items>" +
     (
   /** xsl:apply-templates (apply-templates-absolute-match-default-for-each-apply-templates.xsl:1) */
-  applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode) => (
+  applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) => (
   /** match="/root/item" (apply-templates-absolute-match-default-for-each-apply-templates.xsl:1) */
   (
   /** literal item (apply-templates-absolute-match-default-for-each-apply-templates.xsl:1) */
@@ -30,7 +36,7 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   /** xsl:for-each (apply-templates-absolute-match-default-for-each-apply-templates.xsl:1) */
   selectSimplePathNodes(templateNode, ["group"]).map((currentNode) => (
   /** xsl:apply-templates (apply-templates-absolute-match-default-for-each-apply-templates.xsl:1) */
-  selectSimplePathNodes(currentNode, ["detail"]).map((templateNode) => (
+  selectSimplePathNodesByStepPlan(currentNode, [{"name":"detail"}]).map((templateNode, templateIndex, templateNodes) => (
   /** match="detail" (apply-templates-absolute-match-default-for-each-apply-templates.xsl:1) */
   (
   /** literal detail (apply-templates-absolute-match-default-for-each-apply-templates.xsl:1) */

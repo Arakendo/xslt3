@@ -1,10 +1,16 @@
-import { createCompiledDocument, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, createCompiledDocument, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "conditional.xsl", digest: "8ff84c60" } as const;
 
 /** match="/" (conditional.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  if (ctx.initialMode !== undefined) {
+    throwUnsupportedNativeInitialMode(ctx.initialMode);
+  }
+  if (ctx.initialTemplate !== undefined) {
+    throwMissingNativeInitialTemplate(ctx.initialTemplate, []);
+  }
   void ctx;
   const document = createCompiledDocument(sourceXml);
   return {

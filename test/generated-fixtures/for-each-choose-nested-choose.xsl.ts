@@ -1,10 +1,16 @@
-import { createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNodes, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNodes, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "for-each-choose-nested-choose.xsl", digest: "eea4884a" } as const;
 
 /** match="/" (for-each-choose-nested-choose.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  if (ctx.initialMode !== undefined) {
+    throwUnsupportedNativeInitialMode(ctx.initialMode);
+  }
+  if (ctx.initialTemplate !== undefined) {
+    throwMissingNativeInitialTemplate(ctx.initialTemplate, []);
+  }
   void ctx;
   const document = createCompiledDocument(sourceXml);
   const currentNode = document;

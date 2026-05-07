@@ -300,7 +300,7 @@ function executeNativeTransformPlan(
     : `const { ${plan.runtimeHelpers.join(', ')} } = helpers;`;
   const nativeBodyStatements = [
     ...(activeSetupStatements.length === 0 ? ['void ctx;'] : []),
-    'const document = createCompiledDocument(sourceXml);',
+    ...(plan.needsDocumentBinding ? ['const document = createCompiledDocument(sourceXml);'] : ['createCompiledDocument(sourceXml);']),
     ...activeSetupStatements,
     ...(activeNeedsCurrentNodeBinding
       ? [`const currentNode = ${activeCurrentNodeExpression.code};`]

@@ -1,10 +1,16 @@
-import { applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNodes, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNodes, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "apply-templates-absolute-match-default-for-each-choose-multi-when.xsl", digest: "425c79b3" } as const;
 
 /** match="/" (apply-templates-absolute-match-default-for-each-choose-multi-when.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  if (ctx.initialMode !== undefined) {
+    throwUnsupportedNativeInitialMode(ctx.initialMode);
+  }
+  if (ctx.initialTemplate !== undefined) {
+    throwMissingNativeInitialTemplate(ctx.initialTemplate, []);
+  }
   void ctx;
   const document = createCompiledDocument(sourceXml);
   return {
@@ -14,7 +20,7 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   "<items>" +
     (
   /** xsl:apply-templates (apply-templates-absolute-match-default-for-each-choose-multi-when.xsl:1) */
-  applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode) => (
+  applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) => (
   /** match="/root/item" (apply-templates-absolute-match-default-for-each-choose-multi-when.xsl:1) */
   (
   /** literal item (apply-templates-absolute-match-default-for-each-choose-multi-when.xsl:1) */

@@ -1224,7 +1224,7 @@ describe('XSLT codegen MVP4 slice', () => {
 
     expect(emitted).toContain('const raw_global_param_greeting_0 = ctx.parameters?.["greeting"] ?? ctx.parameters?.["{}greeting"];');
     expect(emitted).toContain('function get_global_param_greeting_0() {');
-    expect(emitted).toContain('global_param_greeting_0_cache = raw_global_param_greeting_0 === undefined ? "hello" : String(raw_global_param_greeting_0);');
+    expect(emitted).toContain('global_param_greeting_0_cache.set("value", raw_global_param_greeting_0 === undefined ? "hello" : String(raw_global_param_greeting_0));');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -1241,7 +1241,7 @@ describe('XSLT codegen MVP4 slice', () => {
     const emitted = compileStylesheetToTs(stylesheet, { path: 'global-variable-native.xsl' });
 
     expect(emitted).toContain('function get_global_variable_greeting_0() {');
-    expect(emitted).toContain('global_variable_greeting_0_cache = "hello";');
+    expect(emitted).toContain('global_variable_greeting_0_cache.set("value", "hello");');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -1307,7 +1307,7 @@ describe('XSLT codegen MVP4 slice', () => {
 
     expect(emitted).toContain('function get_global_variable_b_0() {');
     expect(emitted).toContain('function get_global_variable_a_1() {');
-    expect(emitted).toContain('return global_variable_a_1_cache;');
+    expect(emitted).toContain('return global_variable_a_1_cache.get("value");');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 

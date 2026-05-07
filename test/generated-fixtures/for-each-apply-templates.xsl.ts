@@ -1,10 +1,16 @@
-import { createCompiledDocument, escapeText, selectSimplePathNodes, selectSimplePathText, stringValueOfNode } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, createCompiledDocument, escapeText, selectSimplePathNodes, selectSimplePathNodesByStepPlan, selectSimplePathText, stringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "for-each-apply-templates.xsl", digest: "48d2d6c1" } as const;
 
 /** match="/" (for-each-apply-templates.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  if (ctx.initialMode !== undefined) {
+    throwUnsupportedNativeInitialMode(ctx.initialMode);
+  }
+  if (ctx.initialTemplate !== undefined) {
+    throwMissingNativeInitialTemplate(ctx.initialTemplate, []);
+  }
   void ctx;
   const document = createCompiledDocument(sourceXml);
   return {
@@ -26,7 +32,7 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   "<details>" +
     (
   /** xsl:apply-templates (for-each-apply-templates.xsl:1) */
-  selectSimplePathNodes(currentNode, ["detail"]).map((templateNode) => (
+  selectSimplePathNodesByStepPlan(currentNode, [{"name":"detail"}]).map((templateNode, templateIndex, templateNodes) => (
   /** match="detail" (for-each-apply-templates.xsl:1) */
   (
   /** literal detail (for-each-apply-templates.xsl:1) */

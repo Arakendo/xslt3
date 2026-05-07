@@ -1,10 +1,16 @@
-import { createCompiledDocument, escapeText, selectSimplePathNode, selectSimplePathNodes, selectSimplePathText, stringValueOfNode } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, createCompiledDocument, escapeText, selectSimplePathNode, selectSimplePathNodes, selectSimplePathNodesByStepPlan, selectSimplePathText, stringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "matched-nested-root-for-each-apply-templates.xsl", digest: "5987f7cb" } as const;
 
 /** match="/root/section" (matched-nested-root-for-each-apply-templates.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  if (ctx.initialMode !== undefined) {
+    throwUnsupportedNativeInitialMode(ctx.initialMode);
+  }
+  if (ctx.initialTemplate !== undefined) {
+    throwMissingNativeInitialTemplate(ctx.initialTemplate, []);
+  }
   void ctx;
   const document = createCompiledDocument(sourceXml);
   const currentNode = selectSimplePathNode(document, ["root","section"]);
@@ -30,7 +36,7 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   "<details>" +
     (
   /** xsl:apply-templates (matched-nested-root-for-each-apply-templates.xsl:1) */
-  selectSimplePathNodes(currentNode, ["detail"]).map((templateNode) => (
+  selectSimplePathNodesByStepPlan(currentNode, [{"name":"detail"}]).map((templateNode, templateIndex, templateNodes) => (
   /** match="detail" (matched-nested-root-for-each-apply-templates.xsl:1) */
   (
   /** literal detail (matched-nested-root-for-each-apply-templates.xsl:1) */

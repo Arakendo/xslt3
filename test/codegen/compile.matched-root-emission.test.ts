@@ -125,7 +125,7 @@ describe('XSLT codegen matched-root emission', () => {
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
     expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
-    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["detail"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(currentNode, [{"name":"detail"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -135,7 +135,7 @@ describe('XSLT codegen matched-root emission', () => {
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
     expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
-    expect(emitted).toContain('applyBuiltInTemplatesByPath(currentNode, ["detail"], (templateNode) =>');
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(currentNode, ["detail"], (templateNode, templateIndex, templateNodes) =>');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 

@@ -31,7 +31,7 @@ describe('XSLT codegen apply-templates relative absolute-match emission', () => 
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FIXTURE_STYLESHEET, 'apply-templates-relative-absolute-match.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
@@ -40,7 +40,7 @@ describe('XSLT codegen apply-templates relative absolute-match emission', () => 
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FOR_EACH_FIXTURE_STYLESHEET, 'apply-templates-relative-absolute-match-for-each.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
     expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
     expect(emitted).toContain('escapeText(stringValueOfNode(currentNode))');
@@ -51,7 +51,7 @@ describe('XSLT codegen apply-templates relative absolute-match emission', () => 
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-relative-absolute-match-for-each-choose.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('"<flagged>" +');
@@ -63,7 +63,7 @@ describe('XSLT codegen apply-templates relative absolute-match emission', () => 
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, 'apply-templates-relative-absolute-match-for-each-choose-no-otherwise.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
@@ -73,7 +73,7 @@ describe('XSLT codegen apply-templates relative absolute-match emission', () => 
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, 'apply-templates-relative-absolute-match-for-each-choose-multi-when.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
@@ -84,7 +84,7 @@ describe('XSLT codegen apply-templates relative absolute-match emission', () => 
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, 'apply-templates-relative-absolute-match-for-each-choose-nested-if.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
@@ -96,7 +96,7 @@ describe('XSLT codegen apply-templates relative absolute-match emission', () => 
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-relative-absolute-match-for-each-choose-nested-choose.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
@@ -108,9 +108,9 @@ describe('XSLT codegen apply-templates relative absolute-match emission', () => 
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_FIXTURE_STYLESHEET, 'apply-templates-relative-absolute-match-for-each-apply-templates.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).toContain('selectSimplePathNodes(templateNode, ["group"]).map((currentNode) =>');
-    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["detail"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(currentNode, [{"name":"detail"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -118,9 +118,9 @@ describe('XSLT codegen apply-templates relative absolute-match emission', () => 
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_RELATIVE_SELECT_ABSOLUTE_MATCH_FOR_EACH_APPLY_TEMPLATES_DEFAULT_FIXTURE_STYLESHEET, 'apply-templates-relative-absolute-match-for-each-apply-templates-default.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodes(document, ["root","item"]).map((templateNode) =>');
+    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
     expect(emitted).toContain('selectSimplePathNodes(templateNode, ["group"]).map((currentNode) =>');
-    expect(emitted).toContain('applyBuiltInTemplatesByPath(currentNode, ["detail"], (templateNode) =>');
+    expect(emitted).toContain('applyBuiltInTemplatesByPath(currentNode, ["detail"], (templateNode, templateIndex, templateNodes) =>');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 });

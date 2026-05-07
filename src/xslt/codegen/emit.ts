@@ -41,7 +41,7 @@ export function emitStylesheetModule(
         ];
     const defaultBodyStatements = [
       ...(nativePlan.setupStatements.length === 0 ? ['  void ctx;'] : []),
-      '  const document = createCompiledDocument(sourceXml);',
+      ...(nativePlan.needsDocumentBinding ? ['  const document = createCompiledDocument(sourceXml);'] : ['  createCompiledDocument(sourceXml);']),
       ...nativePlan.setupStatements.map((statement) => `  ${statement}`),
       ...(nativePlan.needsCurrentNodeBinding
         ? [`  const currentNode = ${renderTsExpression(nativePlan.currentNodeExpression)};`]
@@ -75,7 +75,7 @@ export function emitStylesheetModule(
           '  if (requestedInitialTemplate === ' + JSON.stringify(nativePlan.initialTemplateName) + ') {',
           '    try {',
           ...((nativePlan.initialTemplateSetupStatements ?? []).length === 0 ? ['      void ctx;'] : []),
-          '      const document = createCompiledDocument(sourceXml);',
+          ...(nativePlan.needsDocumentBinding ? ['      const document = createCompiledDocument(sourceXml);'] : ['      createCompiledDocument(sourceXml);']),
           ...(nativePlan.initialTemplateSetupStatements ?? []).map((statement) => `      ${statement}`),
           ...((nativePlan.initialTemplateNeedsCurrentNodeBinding ?? false)
             ? [`      const currentNode = ${renderTsExpression(nativePlan.initialTemplateCurrentNodeExpression!)};`]

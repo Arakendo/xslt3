@@ -27,6 +27,7 @@ export interface NativeTransformPlan {
   readonly entryTemplate: TemplateRule;
   readonly initialTemplateName?: string;
   readonly initialTemplateEntryTemplate?: TemplateRule;
+  readonly needsDocumentBinding: boolean;
   readonly currentNodeExpression: TsExpression;
   readonly currentNodeMayBeNull: boolean;
   readonly needsCurrentNodeBinding: boolean;
@@ -118,14 +119,28 @@ function tryCreateNamedInitialTemplateNativePlan(ir: StylesheetIR, sourcePath?: 
   const outputExpression = tsRawExpression(
     `(() => { try { return ${bodyExpression.code}; } catch (error) { throw prependNativeInitialTemplateError(error, ${JSON.stringify(template.name)}, ${JSON.stringify(template.location)}); } })()`,
   );
+  const finalizedGlobalBindingSetup = finalizeGlobalBindingSetup(globalBindingSetup, [
+    outputExpression.code,
+    ...templateParamSetup.setupStatements,
+  ]);
+
+  const needsDocumentBinding = hasDocumentReference([
+    outputExpression.code,
+    ...templateParamSetup.setupStatements,
+    ...finalizedGlobalBindingSetup,
+  ]);
+  if (needsDocumentBinding) {
+    runtimeHelpers.add('createCompiledDocument');
+  }
 
   return {
     entryTemplate: template,
     initialTemplateName: template.name,
+    needsDocumentBinding,
     currentNodeExpression: tsRawExpression('document'),
     currentNodeMayBeNull: false,
     needsCurrentNodeBinding: false,
-    setupStatements: [...globalBindingSetup.setupStatements, ...templateParamSetup.setupStatements],
+    setupStatements: [...finalizedGlobalBindingSetup, ...templateParamSetup.setupStatements],
     outputExpression,
     runtimeHelpers: [...runtimeHelpers].sort(),
   };
@@ -202,20 +217,39 @@ function tryCreateSingleTemplateWithNamedInitialTemplateNativePlan(ir: Styleshee
   const initialOutputExpression = tsRawExpression(
     `(() => { try { return ${initialBodyExpression.code}; } catch (error) { throw prependNativeInitialTemplateError(error, ${JSON.stringify(initialTemplate.name)}, ${JSON.stringify(initialTemplate.location)}); } })()`,
   );
+  const finalizedGlobalBindingSetup = finalizeGlobalBindingSetup(globalBindingSetup, [
+    defaultContext.currentNodeExpression.code,
+    defaultOutputExpression.code,
+    initialOutputExpression.code,
+    ...templateParamSetup.setupStatements,
+  ]);
+  const needsDefaultCurrentNodeBinding = defaultContext.currentNodeMayBeNull || defaultOutputExpression.code.includes('currentNode');
+
+  const needsDocumentBinding = hasDocumentReference([
+    ...(needsDefaultCurrentNodeBinding ? [defaultContext.currentNodeExpression.code] : []),
+    defaultOutputExpression.code,
+    initialOutputExpression.code,
+    ...templateParamSetup.setupStatements,
+    ...finalizedGlobalBindingSetup,
+  ]);
+  if (needsDocumentBinding) {
+    runtimeHelpers.add('createCompiledDocument');
+  }
 
   return {
     entryTemplate: defaultTemplate,
     initialTemplateName: initialTemplate.name,
     initialTemplateEntryTemplate: initialTemplate,
+    needsDocumentBinding,
     currentNodeExpression: defaultContext.currentNodeExpression,
     currentNodeMayBeNull: defaultContext.currentNodeMayBeNull,
-    needsCurrentNodeBinding: defaultContext.currentNodeMayBeNull || defaultOutputExpression.code.includes('currentNode'),
-    setupStatements: globalBindingSetup.setupStatements,
+    needsCurrentNodeBinding: needsDefaultCurrentNodeBinding,
+    setupStatements: finalizedGlobalBindingSetup,
     outputExpression: defaultOutputExpression,
     initialTemplateCurrentNodeExpression: tsRawExpression('document'),
     initialTemplateCurrentNodeMayBeNull: false,
     initialTemplateNeedsCurrentNodeBinding: false,
-    initialTemplateSetupStatements: [...globalBindingSetup.setupStatements, ...templateParamSetup.setupStatements],
+    initialTemplateSetupStatements: [...finalizedGlobalBindingSetup, ...templateParamSetup.setupStatements],
     initialTemplateOutputExpression: initialOutputExpression,
     runtimeHelpers: [...runtimeHelpers].sort(),
   };
@@ -282,13 +316,28 @@ function tryCreateSingleTemplateNativePlan(ir: StylesheetIR, sourcePath?: string
   if (outputExpression === undefined) {
     return undefined;
   }
+  const finalizedGlobalBindingSetup = finalizeGlobalBindingSetup(globalBindingSetup, [
+    templateContext.currentNodeExpression.code,
+    outputExpression.code,
+  ]);
+  const needsCurrentNodeBinding = templateContext.currentNodeMayBeNull || outputExpression.code.includes('currentNode');
+
+  const needsDocumentBinding = hasDocumentReference([
+    ...(needsCurrentNodeBinding ? [templateContext.currentNodeExpression.code] : []),
+    outputExpression.code,
+    ...finalizedGlobalBindingSetup,
+  ]);
+  if (needsDocumentBinding) {
+    runtimeHelpers.add('createCompiledDocument');
+  }
 
   return {
     entryTemplate: template,
+    needsDocumentBinding,
     currentNodeExpression: templateContext.currentNodeExpression,
     currentNodeMayBeNull: templateContext.currentNodeMayBeNull,
-    needsCurrentNodeBinding: templateContext.currentNodeMayBeNull || outputExpression.code.includes('currentNode'),
-    setupStatements: globalBindingSetup.setupStatements,
+    needsCurrentNodeBinding,
+    setupStatements: finalizedGlobalBindingSetup,
     outputExpression,
     runtimeHelpers: [...runtimeHelpers].sort(),
   };
@@ -335,13 +384,23 @@ function tryCreateRootApplyTemplatesNativePlan(ir: StylesheetIR, sourcePath?: st
   if (outputExpression === undefined) {
     return undefined;
   }
+  const finalizedGlobalBindingSetup = finalizeGlobalBindingSetup(globalBindingSetup, [outputExpression.code]);
+
+  const needsDocumentBinding = hasDocumentReference([
+    outputExpression.code,
+    ...finalizedGlobalBindingSetup,
+  ]);
+  if (needsDocumentBinding) {
+    runtimeHelpers.add('createCompiledDocument');
+  }
 
   return {
     entryTemplate: rootTemplate,
+    needsDocumentBinding,
     currentNodeExpression: tsRawExpression('document'),
     currentNodeMayBeNull: false,
     needsCurrentNodeBinding: false,
-    setupStatements: globalBindingSetup.setupStatements,
+    setupStatements: finalizedGlobalBindingSetup,
     outputExpression,
     runtimeHelpers: [...runtimeHelpers].sort(),
   };
@@ -426,31 +485,51 @@ function tryCreateMatchedTemplateApplyTemplatesNativePlan(ir: StylesheetIR, sour
   if (outputExpression === undefined) {
     return undefined;
   }
+  const finalizedGlobalBindingSetup = finalizeGlobalBindingSetup(globalBindingSetup, [
+    templateContext.currentNodeExpression.code,
+    outputExpression.code,
+  ]);
+  const needsCurrentNodeBinding = templateContext.currentNodeMayBeNull || outputExpression.code.includes('currentNode');
+
+  const needsDocumentBinding = hasDocumentReference([
+    ...(needsCurrentNodeBinding ? [templateContext.currentNodeExpression.code] : []),
+    outputExpression.code,
+    ...finalizedGlobalBindingSetup,
+  ]);
+  if (needsDocumentBinding) {
+    runtimeHelpers.add('createCompiledDocument');
+  }
 
   return {
     entryTemplate: primaryTemplate,
+    needsDocumentBinding,
     currentNodeExpression: templateContext.currentNodeExpression,
     currentNodeMayBeNull: templateContext.currentNodeMayBeNull,
-    needsCurrentNodeBinding: templateContext.currentNodeMayBeNull || outputExpression.code.includes('currentNode'),
-    setupStatements: globalBindingSetup.setupStatements,
+    needsCurrentNodeBinding,
+    setupStatements: finalizedGlobalBindingSetup,
     outputExpression,
     runtimeHelpers: [...runtimeHelpers].sort(),
   };
 }
 
+interface GlobalBindingSetupPlan {
+  readonly getterIdentifier: string;
+  readonly setupStatements: readonly string[];
+}
+
 function tryCreateGlobalBindingSetup(
   bindings: readonly GlobalBinding[],
   runtimeHelpers: Set<string>,
-): { readonly setupStatements: readonly string[]; readonly variableBindings: ReadonlyMap<string, TsExpression> } | undefined {
+): { readonly bindingPlans: readonly GlobalBindingSetupPlan[]; readonly variableBindings: ReadonlyMap<string, TsExpression> } | undefined {
   if (bindings.length === 0) {
     return {
-      setupStatements: [],
+      bindingPlans: [],
       variableBindings: new Map(),
     };
   }
 
-  const setupStatements: string[] = [];
   const variableBindings = new Map<string, TsExpression>();
+  const bindingSetupPlans: GlobalBindingSetupPlan[] = [];
 
   const bindingPlans = bindings.map((binding, index) => ({
     binding,
@@ -474,6 +553,7 @@ function tryCreateGlobalBindingSetup(
 
   for (const plan of bindingPlans) {
     const { binding, identifier, getterIdentifier, stateIdentifier, cacheIdentifier } = plan;
+    const setupStatements: string[] = [];
     const defaultValueExpression = binding.body !== undefined
       ? emitTemporaryTreeBindingExpression(binding.body, runtimeHelpers, 'document', { variableBindings })
       : binding.select === undefined
@@ -484,9 +564,9 @@ function tryCreateGlobalBindingSetup(
     }
 
     setupStatements.push(`let ${stateIdentifier} = 0;`);
-    setupStatements.push(`let ${cacheIdentifier};`);
+    setupStatements.push(`const ${cacheIdentifier} = new Map();`);
     setupStatements.push(`function ${getterIdentifier}() {`);
-    setupStatements.push(`  if (${stateIdentifier} === 2) { return ${cacheIdentifier}; }`);
+    setupStatements.push(`  if (${stateIdentifier} === 2) { return ${cacheIdentifier}.get("value"); }`);
     setupStatements.push(`  if (${stateIdentifier} === 1) { throwCircularNativeGlobalBinding(${JSON.stringify(binding.kind)}, ${JSON.stringify(binding.name)}, ${JSON.stringify(binding.location)}); }`);
     setupStatements.push(`  ${stateIdentifier} = 1;`);
     setupStatements.push('  try {');
@@ -497,29 +577,80 @@ function tryCreateGlobalBindingSetup(
       );
       if (binding.required) {
         setupStatements.push(`    if (raw_${identifier} === undefined) { throwMissingNativeStylesheetParameter(${JSON.stringify(binding.name)}, Object.keys(ctx.parameters ?? {}), ${JSON.stringify(binding.location)}); }`);
-        setupStatements.push(`    ${cacheIdentifier} = String(raw_${identifier});`);
+        setupStatements.push(`    ${cacheIdentifier}.set("value", String(raw_${identifier}));`);
       } else {
         setupStatements.push(
-          `    ${cacheIdentifier} = raw_${identifier} === undefined ? ${defaultValueExpression.code} : String(raw_${identifier});`,
+          `    ${cacheIdentifier}.set("value", raw_${identifier} === undefined ? ${defaultValueExpression.code} : String(raw_${identifier}));`,
         );
       }
     } else {
-      setupStatements.push(`    ${cacheIdentifier} = ${defaultValueExpression.code};`);
+      setupStatements.push(`    ${cacheIdentifier}.set("value", ${defaultValueExpression.code});`);
     }
 
     setupStatements.push(`    ${stateIdentifier} = 2;`);
-    setupStatements.push(`    return ${cacheIdentifier};`);
+    setupStatements.push(`    return ${cacheIdentifier}.get("value");`);
     setupStatements.push('  } catch (error) {');
     setupStatements.push(`    ${stateIdentifier} = 0;`);
     setupStatements.push(`    throw prependNativeGlobalBindingError(error, ${JSON.stringify(binding.kind)}, ${JSON.stringify(binding.name)}, ${JSON.stringify(binding.selectText)}, ${JSON.stringify(binding.location)});`);
     setupStatements.push('  }');
     setupStatements.push('}');
+    bindingSetupPlans.push({ getterIdentifier, setupStatements });
   }
 
   return {
-    setupStatements,
+    bindingPlans: bindingSetupPlans,
     variableBindings,
   };
+}
+
+function finalizeGlobalBindingSetup(
+  setup: { readonly bindingPlans: readonly GlobalBindingSetupPlan[] },
+  referenceSources: readonly string[],
+): readonly string[] {
+  if (setup.bindingPlans.length === 0) {
+    return [];
+  }
+
+  const selectedGetters = new Set<string>();
+  const pendingGetters: string[] = [];
+
+  const enqueueGetter = (getterIdentifier: string): void => {
+    if (selectedGetters.has(getterIdentifier)) {
+      return;
+    }
+
+    selectedGetters.add(getterIdentifier);
+    pendingGetters.push(getterIdentifier);
+  };
+
+  for (const plan of setup.bindingPlans) {
+    if (referenceSources.some((source) => source.includes(`${plan.getterIdentifier}(`))) {
+      enqueueGetter(plan.getterIdentifier);
+    }
+  }
+
+  while (pendingGetters.length > 0) {
+    const getterIdentifier = pendingGetters.pop();
+    const plan = setup.bindingPlans.find((candidate) => candidate.getterIdentifier === getterIdentifier);
+    if (plan === undefined) {
+      continue;
+    }
+
+    const setupSource = plan.setupStatements.join('\n');
+    for (const dependencyPlan of setup.bindingPlans) {
+      if (setupSource.includes(`${dependencyPlan.getterIdentifier}(`)) {
+        enqueueGetter(dependencyPlan.getterIdentifier);
+      }
+    }
+  }
+
+  return setup.bindingPlans
+    .filter((plan) => selectedGetters.has(plan.getterIdentifier))
+    .flatMap((plan) => plan.setupStatements);
+}
+
+function hasDocumentReference(referenceSources: readonly string[]): boolean {
+  return referenceSources.some((source) => /\bdocument\b/.test(source));
 }
 
 function tryCreateTemplateParamSetup(
