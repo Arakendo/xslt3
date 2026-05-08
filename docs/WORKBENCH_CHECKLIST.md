@@ -7,7 +7,7 @@
 
 ## Current status
 
-Current progress as of 2026-05-07:
+Current closeout status as of 2026-05-07:
 
 - the in-memory workbench boundary is implemented in code and now supports
   compile, transform, compile-and-transform, reusable compiled stylesheet
@@ -29,13 +29,11 @@ Current progress as of 2026-05-07:
   [WORKBENCH.md](./WORKBENCH.md) route, with a host-owned preset manifest,
   debounced edit loop, generated TypeScript pane, output pane, diagnostics,
   notices, and worker-based browser isolation
-
-Still open:
-
-- the prototype still needs real hosted publishing on `weaverxslt.org`
-- no public screenshot, GIF, or walkthrough of the embed exists yet
-- the current proof still needs to be linked from
-      [PROGRESS_ARTIFACTS.md](./PROGRESS_ARTIFACTS.md) once published
+- the public workbench is now reachable on `weaverxslt.org`
+- public milestone proof now exists as both the live page and a supporting GIF
+  linked from [PROGRESS_ARTIFACTS.md](./PROGRESS_ARTIFACTS.md)
+- the repo-side MVP+6.5 checklist items are now complete; any remaining work is
+  optional polish or later-increment scope
 
 ## Why this doc exists
 
@@ -69,17 +67,20 @@ Start by locking one minimal host loop that is visibly correct:
 If that loop is fuzzy, everything after it becomes UI churn over an unstable
 behavior model.
 
-## Tomorrow-first checklist
+## Completed checklist
+
+All items below are now complete and preserved as the implementation record for
+MVP+6.5.
 
 ### 0. Lock the host-owned preset manifest
 
-- [ ] Create a static host manifest with exactly these preset ids:
+- [x] Create a static host manifest with exactly these preset ids:
       - `hello-world`
       - `parameters-with-defaults`
       - `apply-templates-flow`
-- [ ] Set `hello-world` as the stable default preset
-- [ ] Store preset content as plain in-memory `uri + text` pairs
-- [ ] Verify that selecting a preset replaces both editable panes in one step
+- [x] Set `hello-world` as the stable default preset
+- [x] Store preset content as plain in-memory `uri + text` pairs
+- [x] Verify that selecting a preset replaces both editable panes in one step
 
 Outcome:
 
@@ -89,11 +90,11 @@ Outcome:
 
 ### 1. Render the smallest useful public shell
 
-- [ ] Render an editable XML pane
-- [ ] Render an editable XSLT pane
-- [ ] Render a read-only generated TypeScript pane
-- [ ] Render an output and diagnostics surface
-- [ ] Render a small preset selector above or near the editable panes
+- [x] Render an editable XML pane
+- [x] Render an editable XSLT pane
+- [x] Render a read-only generated TypeScript pane
+- [x] Render an output and diagnostics surface
+- [x] Render a small preset selector above or near the editable panes
 
 Outcome:
 
@@ -101,11 +102,11 @@ Outcome:
 
 ### 2. Wire the live compile-and-run loop
 
-- [ ] Hydrate the default preset on initial page load
-- [ ] Trigger an immediate compile-and-run after preset selection
-- [ ] Trigger a debounced compile-and-run after XML edits
-- [ ] Trigger a debounced compile-and-run after XSLT edits
-- [ ] Update generated TS, output, diagnostics, and notices from the same
+- [x] Hydrate the default preset on initial page load
+- [x] Trigger an immediate compile-and-run after preset selection
+- [x] Trigger a debounced compile-and-run after XML edits
+- [x] Trigger a debounced compile-and-run after XSLT edits
+- [x] Update generated TS, output, diagnostics, and notices from the same
       result set
 
 Outcome:
@@ -115,10 +116,10 @@ Outcome:
 
 ### 3. Keep generated TS inspection honest
 
-- [ ] Make the generated TypeScript pane read-only
-- [ ] Show successful emitted `.xsl.ts` text directly from the workbench result
-- [ ] Preserve diagnostics visibility even when no output is available
-- [ ] Do not allow editing generated TS to flow back into transform semantics
+- [x] Make the generated TypeScript pane read-only
+- [x] Show successful emitted `.xsl.ts` text directly from the workbench result
+- [x] Preserve diagnostics visibility even when no output is available
+- [x] Do not allow editing generated TS to flow back into transform semantics
 
 Outcome:
 
@@ -127,10 +128,10 @@ Outcome:
 
 ### 4. Render diagnostics and notices as first-class host data
 
-- [ ] Render `DiagnosticReport` structure rather than scraped formatter text
-- [ ] Surface native fallback warnings from workbench `notices`
-- [ ] Keep diagnostics visible when compile succeeds but transform fails
-- [ ] Keep diagnostics visible when output is empty but not erroneous
+- [x] Render `DiagnosticReport` structure rather than scraped formatter text
+- [x] Surface native fallback warnings from workbench `notices`
+- [x] Keep diagnostics visible when compile succeeds but transform fails
+- [x] Keep diagnostics visible when output is empty but not erroneous
 
 Outcome:
 
@@ -138,11 +139,11 @@ Outcome:
 
 ### 5. Enforce browser isolation if browser execution is used
 
-- [ ] Route browser-side execution through a worker or equivalent isolated
+- [x] Route browser-side execution through a worker or equivalent isolated
       boundary
-- [ ] Keep user-generated code out of the main page context
-- [ ] Avoid ambient filesystem, network, or DOM assumptions inside execution
-- [ ] Document the chosen isolation boundary near the host implementation
+- [x] Keep user-generated code out of the main page context
+- [x] Avoid ambient filesystem, network, or DOM assumptions inside execution
+- [x] Document the chosen isolation boundary near the host implementation
 
 Outcome:
 
@@ -150,11 +151,11 @@ Outcome:
 
 ### 6. Land a minimally responsive layout
 
-- [ ] Keep XML and XSLT first in the visual order on mobile
-- [ ] Keep generated TS visibly available on desktop
-- [ ] Allow generated TS to move later in the stack or behind disclosure on
+- [x] Keep XML and XSLT first in the visual order on mobile
+- [x] Keep generated TS visibly available on desktop
+- [x] Allow generated TS to move later in the stack or behind disclosure on
       smaller screens
-- [ ] Avoid a cramped fixed grid that makes editing unusable on phones
+- [x] Avoid a cramped fixed grid that makes editing unusable on phones
 
 Outcome:
 
@@ -162,11 +163,11 @@ Outcome:
 
 ### 7. Publish one piece of public evidence
 
-- [ ] Make the live embed publicly reachable on `weaverxslt.org`, or capture at
+- [x] Make the live embed publicly reachable on `weaverxslt.org`, or capture at
   least one screenshot / short GIF if the live page is not yet publishable
-- [ ] Ensure the public proof shows XML, XSLT, generated TS, and output in one
+- [x] Ensure the public proof shows XML, XSLT, generated TS, and output in one
   visible flow, either through the live page itself or supporting media
-- [ ] Link the live embed or any supporting media from
+- [x] Link the live embed or any supporting media from
   [PROGRESS_ARTIFACTS.md](./PROGRESS_ARTIFACTS.md)
 
 Outcome:

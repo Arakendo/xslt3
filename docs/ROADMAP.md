@@ -545,22 +545,33 @@ consumer of those foundations, not an excuse to build them halfway.
 - Executing user-generated TS in the main page or with ambient I/O
 
 **Exit criteria:**
-- [ ] Workbench demo runs entirely from in-memory XML/XSLT sources; no local
+- [x] Workbench demo runs entirely from in-memory XML/XSLT sources; no local
       files required for the core loop
-- [ ] Editing either XML or XSLT updates diagnostics and output from the same
+- [x] Editing either XML or XSLT updates diagnostics and output from the same
       underlying compile/run surfaces used by non-UI entry points
-- [ ] The host offers at least a small preset selector that hydrates both XML
+- [x] The host offers at least a small preset selector that hydrates both XML
   and XSLT panes with editable starter content
-- [ ] Workbench API supports both one-shot execution and repeated transforms
+- [x] Workbench API supports both one-shot execution and repeated transforms
   through a reusable compiled handle
-- [ ] Generated TS pane shows the emitted `.xsl.ts` for a successful compile
+- [x] Generated TS pane shows the emitted `.xsl.ts` for a successful compile
       and remains read-only
-- [ ] At least one linked-highlighting fixture proves that selecting an
+- [x] At least one linked-highlighting fixture proves that selecting an
       XSLT span can reveal the corresponding generated TS span
-- [ ] Browser execution, if used for generated code, is sandboxed in a worker
+- [x] Browser execution, if used for generated code, is sandboxed in a worker
       or equivalent isolated boundary; no `eval()` in the main page
-- [ ] A small public design note or README section demonstrates the four-pane
+- [x] A small public design note or README section demonstrates the four-pane
       loop with a copy-pasteable example
+
+**Completed notes:**
+- The engine-side workbench boundary now supports one-shot execution,
+  reusable compiled handles, generated TypeScript artifacts, structured source
+  maps, and structured notices for embedders.
+- The first public worker-backed workbench is live on `weaverxslt.org` at
+  [WORKBENCH.md](./WORKBENCH.md), with editable XML/XSLT panes, a read-only
+  generated TypeScript pane, visible output/diagnostics, and three starter
+  presets.
+- Public milestone proof now exists both as the live page and as linked
+  supporting media under [PROGRESS_ARTIFACTS.md](./PROGRESS_ARTIFACTS.md).
 
 Design note: [WORKBENCH_API.md](./WORKBENCH_API.md) defines the Weaver-side
 engine contract for this increment. The first public host is expected to be an

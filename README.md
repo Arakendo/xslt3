@@ -6,7 +6,7 @@ debuggers, and generated-artifact workflows.
 
 <sub>package: `@arakendo/weaver-xslt` · repo: `weaver-xslt`</sub>
 
-> Status: **MVP+6.5 in progress** — the native direct-execution slice is closed, and the live workbench / embedding boundary is now landing on top of that surface.
+> Status: **MVP+6.5 closed** — the live public workbench is now running on `weaverxslt.org`, and the next gated increment is MVP+6.75 XML node trace debugging.
 
 > **Open source, closed contributions.** This project is MIT licensed — fork
 > and use it however you like. External pull requests and issues are not
@@ -139,14 +139,16 @@ That keeps the compile/run split explicit for embedders that want to compile a
 stylesheet once, inspect generated TS or source maps, and reuse the same
 compiled handle as often as they want.
 
-For the first public `weaverxslt.org` embed, the workbench is expected to ship
-with a small preset selector that hydrates both editable panes with starter
-XML + XSLT pairs. The initial preset set is documented in
+The public `weaverxslt.org` workbench now ships with a small preset selector
+that hydrates both editable panes with starter XML + XSLT pairs. The initial
+preset set is documented in
 [docs/WORKBENCH_API.md](./docs/WORKBENCH_API.md) and currently targets three
 simple flows: hello world, parameters with defaults, and `xsl:apply-templates`
 with matching rules.
-For the public host-facing shape of that embed, including default preset and
-page behavior, see [docs/WORKBENCH_EMBED.md](./docs/WORKBENCH_EMBED.md).
+For the public host-facing shape of that embed, including default preset,
+page behavior, and the live route, see
+[docs/WORKBENCH_EMBED.md](./docs/WORKBENCH_EMBED.md) and
+[docs/WORKBENCH.md](./docs/WORKBENCH.md).
 
 ## CLI
 
@@ -301,7 +303,7 @@ plan with scope and exit criteria per increment. High-level milestones:
 - [x] M5 — Typed params, typed extension functions, CLI
 - [x] M6 — Watch mode, source maps, static-analysis diagnostics v2, bundler polish
 - [x] M6.25 — Native backend direct execution
-- [ ] M6.5 — Live workbench / playground
+- [x] M6.5 — Live workbench / playground
 - [ ] M6.75 — XML node trace debugging
 - [ ] M7 — XPath type system, maps/arrays, higher-order functions
 - [ ] M8 — XSLT 3.0 feature-complete (non-streaming)

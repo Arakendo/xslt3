@@ -6,17 +6,17 @@ This is the stable public entry point for the Weaver live workbench on
 The intent is simple:
 
 - the front page should link here directly
-- the first public live embed can later live on this page without changing the
-  public URL
-- until the live shell lands, this page points to the current host and engine
-  design notes
+- the public workbench should keep a stable URL even as the implementation
+  underneath it evolves
+- the current live embed and the durable engine notes should coexist on the
+  same page
 
-## Planned public shape
+## Current public shape
 
 The first public workbench is the MVP+6.5 embed described in
 [WORKBENCH_EMBED.md](./WORKBENCH_EMBED.md).
 
-That embed is planned to provide:
+The live page currently provides:
 
 - editable XML pane
 - editable XSLT pane
@@ -31,7 +31,7 @@ Current state:
 - the engine-side workbench boundary exists and is tested
 - the in-memory compile path is now browser-bundle-friendly
 - the public embed behavior and preset set are documented
-- a first worker-backed static-site prototype now lives on this page
+- a worker-backed static-site workbench now lives on this page
 
 ## Prototype
 
@@ -41,19 +41,19 @@ Current state:
   <p>The live workbench prototype requires JavaScript. The current host and engine notes remain available below.</p>
 </noscript>
 
-## When the live page lands
+## Why this route stays stable
 
-This page should become the live public workbench surface or the direct launch
-page for it.
+This page is the live public workbench surface and remains the stable launch
+point for the hosted demo.
 
-That means the eventual front-page CTA can stay stable even while the
-implementation beneath it changes.
+That means the front-page CTA can stay stable even while the implementation
+beneath it changes.
 
-## Until then
+## Source of truth
 
 Use these pages as the current source of truth:
 
 - [WORKBENCH_EMBED.md](./WORKBENCH_EMBED.md) for the public host behavior
-- [WORKBENCH_CHECKLIST.md](./WORKBENCH_CHECKLIST.md) for the concrete M6.5 work order
-- [WORKBENCH_EVIDENCE.md](./WORKBENCH_EVIDENCE.md) for the future live-page or GIF capture procedure
+- [WORKBENCH_CHECKLIST.md](./WORKBENCH_CHECKLIST.md) for the completed M6.5 work record
+- [WORKBENCH_EVIDENCE.md](./WORKBENCH_EVIDENCE.md) for the live-page and supporting-media capture procedure
 - [WORKBENCH_API.md](./WORKBENCH_API.md) for the engine boundary
