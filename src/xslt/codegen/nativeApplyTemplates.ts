@@ -262,10 +262,17 @@ export function emitRootApplyTemplatesInstruction(
     return undefined;
   }
 
+  runtimeHelpers.add('traceFocusEnter');
+  runtimeHelpers.add('traceTemplateEnter');
+
   const childTemplateCallback = renderCommentedArrowFunction(
     renderTemplateProvenanceComment(childTemplate, sourcePath),
     '(templateNode)',
-    childBody.code,
+    `(() => {\n  traceFocusEnter(templateNode, ctx);\n  traceTemplateEnter(templateNode, ctx, ${JSON.stringify({
+      ...(childTemplate.matchText === undefined ? {} : { match: childTemplate.matchText }),
+      ...(childTemplate.name === undefined ? {} : { name: childTemplate.name }),
+      location: childTemplate.location,
+    })});\n  return ${childBody.code};\n})()`,
   );
 
   if (instruction.select === undefined) {
@@ -286,8 +293,9 @@ export function emitRootApplyTemplatesInstruction(
   }
 
   runtimeHelpers.add('selectSimplePathNodes');
+  runtimeHelpers.add('traceSelectedNodes');
   return tsRawExpression(
-    `selectSimplePathNodes(${selectPath.absolute ? 'document' : contextNodeIdentifier}, ${JSON.stringify(selectPath.segments)}).map(${childTemplateCallback}).join("")`,
+    `traceSelectedNodes(selectSimplePathNodes(${selectPath.absolute ? 'document' : contextNodeIdentifier}, ${JSON.stringify(selectPath.segments)}), ctx, ${JSON.stringify({ kind: 'xsl:apply-templates', location: instruction.location })}).map(${childTemplateCallback}).join("")`,
   );
 }
 
@@ -401,16 +409,24 @@ export function emitPlannedApplyTemplatesInstruction(
       return undefined;
     }
 
+    runtimeHelpers.add('traceFocusEnter');
+    runtimeHelpers.add('traceTemplateEnter');
+
     const callbackBody = invocationSetup.setupStatements.length === 0
       ? childBody.code
       : `(() => {\n${invocationSetup.setupStatements.map((statement) => `  ${statement}`).join('\n')}\n  return ${childBody.code};\n})()`;
+    const tracedCallbackBody = `(() => {\n  traceFocusEnter(templateNode, ctx);\n  traceTemplateEnter(templateNode, ctx, ${JSON.stringify({
+      ...(childPlan.template.matchText === undefined ? {} : { match: childPlan.template.matchText }),
+      ...(childPlan.template.name === undefined ? {} : { name: childPlan.template.name }),
+      location: childPlan.template.location,
+    })});\n  return ${callbackBody};\n})()`;
 
     return {
       plan: childPlan,
       callback: renderCommentedArrowFunction(
         renderTemplateProvenanceComment(childPlan.template, sourcePath),
         childCallbackParameters,
-        callbackBody,
+        tracedCallbackBody,
       ),
     };
   });
@@ -447,8 +463,9 @@ export function emitPlannedApplyTemplatesInstruction(
   }
 
   runtimeHelpers.add('selectSimplePathNodesByStepPlan');
+  runtimeHelpers.add('traceSelectedNodes');
   return tsRawExpression(
-    `selectSimplePathNodesByStepPlan(${selectPath.absolute ? 'document' : contextNodeIdentifier}, ${JSON.stringify(selectPath.steps)}).map(${renderMatchedNode}).join("")`,
+    `traceSelectedNodes(selectSimplePathNodesByStepPlan(${selectPath.absolute ? 'document' : contextNodeIdentifier}, ${JSON.stringify(selectPath.steps)}), ctx, ${JSON.stringify({ kind: 'xsl:apply-templates', location: instruction.location })}).map(${renderMatchedNode}).join("")`,
   );
 }
 

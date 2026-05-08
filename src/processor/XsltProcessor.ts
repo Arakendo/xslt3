@@ -21,6 +21,10 @@ import {
   selectSimplePathText,
   stringValueOfNativeValue,
   stringValueOfNode,
+  traceFocusEnter,
+  traceSelectedNodes,
+  traceStringValueOfNode,
+  traceTemplateEnter,
   prependNativeGlobalBindingError,
   prependNativeInitialTemplateError,
   throwCircularNativeGlobalBinding,
@@ -299,9 +303,18 @@ function executeNativeTransformPlan(
   const helperBindings = plan.runtimeHelpers.length === 0
     ? ''
     : `const { ${plan.runtimeHelpers.join(', ')} } = helpers;`;
+  const needsTraceDocumentBinding = !activeNeedsCurrentNodeBinding;
+  const activeTraceNodeIdentifier = activeNeedsCurrentNodeBinding ? 'currentNode' : 'document';
+  const activeTemplateInfo = JSON.stringify({
+    ...(activeEntryTemplate.matchText === undefined ? {} : { match: activeEntryTemplate.matchText }),
+    ...(activeEntryTemplate.name === undefined ? {} : { name: activeEntryTemplate.name }),
+    location: activeEntryTemplate.location,
+  });
   const nativeBodyStatements = [
     ...(activeSetupStatements.length === 0 ? ['void ctx;'] : []),
-    ...(plan.needsDocumentBinding ? ['const document = createCompiledDocument(sourceXml);'] : ['createCompiledDocument(sourceXml);']),
+    ...(plan.needsDocumentBinding || needsTraceDocumentBinding
+      ? ['const document = createCompiledDocument(sourceXml);']
+      : ['createCompiledDocument(sourceXml);']),
     ...activeSetupStatements,
     ...(activeNeedsCurrentNodeBinding
       ? [`const currentNode = ${activeCurrentNodeExpression.code};`]
@@ -313,6 +326,8 @@ function executeNativeTransformPlan(
           '}',
         ]
       : []),
+    `helpers.traceFocusEnter(${activeTraceNodeIdentifier}, ctx);`,
+    `helpers.traceTemplateEnter(${activeTraceNodeIdentifier}, ctx, ${activeTemplateInfo});`,
     'return {',
     `  output: ${activeOutputExpression.code},`,
     '};',
@@ -369,6 +384,10 @@ const NATIVE_RUNTIME_HELPERS = {
   selectSimplePathText,
   stringValueOfNativeValue,
   stringValueOfNode,
+  traceFocusEnter,
+  traceSelectedNodes,
+  traceStringValueOfNode,
+  traceTemplateEnter,
   prependNativeGlobalBindingError,
   prependNativeInitialTemplateError,
   throwCircularNativeGlobalBinding,

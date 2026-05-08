@@ -966,11 +966,16 @@ function emitInstruction(
     case 'valueOf': {
       if (instruction.select.kind === 'contextItem') {
         runtimeHelpers.add('escapeText');
-        runtimeHelpers.add('stringValueOfNode');
+        runtimeHelpers.add('traceStringValueOfNode');
 
         return tsCallExpression('escapeText', [
-          tsCallExpression('stringValueOfNode', [
+          tsCallExpression('traceStringValueOfNode', [
             tsRawExpression(contextNodeIdentifier),
+            tsRawExpression('ctx'),
+            tsRawExpression(JSON.stringify({
+              kind: 'xsl:value-of',
+              location: instruction.location,
+            })),
           ]),
         ]);
       }
@@ -1180,12 +1185,13 @@ function emitInstruction(
       }
 
       runtimeHelpers.add('selectSimplePathNodes');
+      runtimeHelpers.add('traceSelectedNodes');
       const startNode = simplePath.absolute ? 'document' : contextNodeIdentifier;
       const callbackParameters = body.code.includes('currentIndex') || body.code.includes('currentNodes.length')
         ? '(currentNode, currentIndex, currentNodes)'
         : '(currentNode)';
       return annotateInstruction(tsRawExpression(
-        `selectSimplePathNodes(${startNode}, ${JSON.stringify(simplePath.segments)}).map(${callbackParameters} => ${body.code}).join("")`,
+        `traceSelectedNodes(selectSimplePathNodes(${startNode}, ${JSON.stringify(simplePath.segments)}), ctx, ${JSON.stringify({ kind: 'xsl:for-each', location: instruction.location })}).map(${callbackParameters} => ${body.code}).join("")`,
       ));
     }
     case 'callTemplate': {

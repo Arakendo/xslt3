@@ -130,10 +130,13 @@ function applyTemplatesToItems(
   return items.map((item, index) => {
     const nodeItem = item as XdmNode;
     const context = createContext(nodeItem, staticContext, index + 1, items.length, variables);
-    emitTraceEvent(trace, {
-      kind: 'focus-enter',
-      node: createXmlNodeHandle(nodeItem.node, sourceDocumentUri),
-    });
+    const handle = tryCreateTraceNodeHandle(nodeItem.node, trace, sourceDocumentUri);
+    if (handle !== undefined) {
+      emitTraceEvent(trace, {
+        kind: 'focus-enter',
+        node: handle,
+      });
+    }
     return applyTemplateToNode(nodeItem.node, ir, context, withParams, trace, sourceDocumentUri);
   }).join('');
 }
@@ -148,15 +151,18 @@ function applyTemplateToNode(
 ): string {
   const template = findBestMatchingTemplate(node, ir.templates, context.staticContext);
   if (template !== undefined) {
-    emitTraceEvent(trace, {
-      kind: 'template-enter',
-      node: createXmlNodeHandle(node, sourceDocumentUri),
-      template: {
-        ...(template.matchText === undefined ? {} : { match: template.matchText }),
-        ...(template.name === undefined ? {} : { name: template.name }),
-        ...(template.location === undefined ? {} : { location: template.location }),
-      },
-    });
+    const handle = tryCreateTraceNodeHandle(node, trace, sourceDocumentUri);
+    if (handle !== undefined) {
+      emitTraceEvent(trace, {
+        kind: 'template-enter',
+        node: handle,
+        template: {
+          ...(template.matchText === undefined ? {} : { match: template.matchText }),
+          ...(template.name === undefined ? {} : { name: template.name }),
+          ...(template.location === undefined ? {} : { location: template.location }),
+        },
+      });
+    }
     try {
       return renderTemplate(template, withParams, ir, context, trace, sourceDocumentUri);
     } catch (error) {
@@ -203,15 +209,18 @@ function renderInitialTemplate(
 
   const contextNode = asXdmNode(context.contextItem)?.node;
   if (contextNode !== undefined) {
-    emitTraceEvent(trace, {
-      kind: 'template-enter',
-      node: createXmlNodeHandle(contextNode, sourceDocumentUri),
-      template: {
-        ...(template.matchText === undefined ? {} : { match: template.matchText }),
-        ...(template.name === undefined ? {} : { name: template.name }),
-        ...(template.location === undefined ? {} : { location: template.location }),
-      },
-    });
+    const handle = tryCreateTraceNodeHandle(contextNode, trace, sourceDocumentUri);
+    if (handle !== undefined) {
+      emitTraceEvent(trace, {
+        kind: 'template-enter',
+        node: handle,
+        template: {
+          ...(template.matchText === undefined ? {} : { match: template.matchText }),
+          ...(template.name === undefined ? {} : { name: template.name }),
+          ...(template.location === undefined ? {} : { location: template.location }),
+        },
+      });
+    }
   }
 
   try {
@@ -301,6 +310,7 @@ function renderInstruction(
     case 'forEach': {
       try {
         const items = [...evaluate(instruction.select, context)];
+        emitInstructionSelectEvents(items, trace, sourceDocumentUri, 'xsl:for-each', instruction.location);
         return items.map((item, index) => renderInstructions(
           instruction.body,
           ir,
@@ -349,6 +359,8 @@ function renderInstruction(
     case 'valueOf': {
       try {
         const items = [...evaluate(instruction.select, context)];
+        emitInstructionSelectEvents(items, trace, sourceDocumentUri, 'xsl:value-of', instruction.location);
+        emitValueReadEvents(items, trace, sourceDocumentUri, instruction.location);
         const separator = instruction.separator ?? ' ';
         return escapeText(items.map(itemToStringValue).join(separator));
       } catch (error) {
@@ -364,6 +376,7 @@ function renderInstruction(
         const items = instruction.select === undefined
           ? getChildNodeItems(context.contextItem)
           : [...evaluate(instruction.select, context)];
+        emitInstructionSelectEvents(items, trace, sourceDocumentUri, 'xsl:apply-templates', instruction.location);
         return applyTemplatesToItems(
           items,
           ir,
@@ -558,6 +571,93 @@ function renderBuiltInTemplate(
 
 function emitTraceEvent(trace: TransformTraceOptions | undefined, event: XmlTraceEvent): void {
   trace?.onEvent?.(event);
+}
+
+function tryCreateTraceNodeHandle(
+  node: Node,
+  trace: TransformTraceOptions | undefined,
+  sourceDocumentUri: string,
+) {
+  if (trace?.onEvent === undefined) {
+    return undefined;
+  }
+
+  switch (node.nodeType) {
+    case node.DOCUMENT_NODE:
+    case node.ELEMENT_NODE:
+    case node.ATTRIBUTE_NODE:
+    case node.TEXT_NODE:
+    case node.COMMENT_NODE:
+    case node.PROCESSING_INSTRUCTION_NODE:
+      return createXmlNodeHandle(node, sourceDocumentUri);
+    default:
+      return undefined;
+  }
+}
+
+function emitInstructionSelectEvents(
+  items: readonly XdmItem[],
+  trace: TransformTraceOptions | undefined,
+  sourceDocumentUri: string,
+  instructionKind: string,
+  location: RelatedLocation['location'] | undefined,
+): void {
+  if (trace?.onEvent === undefined) {
+    return;
+  }
+
+  for (const item of items) {
+    const nodeItem = asXdmNode(item);
+    if (nodeItem === undefined) {
+      continue;
+    }
+
+    const handle = tryCreateTraceNodeHandle(nodeItem.node, trace, sourceDocumentUri);
+    if (handle === undefined) {
+      continue;
+    }
+
+    emitTraceEvent(trace, {
+      kind: 'instruction-select',
+      node: handle,
+      instruction: {
+        kind: instructionKind,
+        ...(location === undefined ? {} : { location }),
+      },
+    });
+  }
+}
+
+function emitValueReadEvents(
+  items: readonly XdmItem[],
+  trace: TransformTraceOptions | undefined,
+  sourceDocumentUri: string,
+  location: RelatedLocation['location'] | undefined,
+): void {
+  if (trace?.onEvent === undefined) {
+    return;
+  }
+
+  for (const item of items) {
+    const nodeItem = asXdmNode(item);
+    if (nodeItem === undefined) {
+      continue;
+    }
+
+    const handle = tryCreateTraceNodeHandle(nodeItem.node, trace, sourceDocumentUri);
+    if (handle === undefined) {
+      continue;
+    }
+
+    emitTraceEvent(trace, {
+      kind: 'value-read',
+      node: handle,
+      instruction: {
+        kind: 'xsl:value-of',
+        ...(location === undefined ? {} : { location }),
+      },
+    });
+  }
 }
 
 function itemToStringValue(item: XdmItem): string {

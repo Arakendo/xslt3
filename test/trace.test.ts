@@ -4,7 +4,7 @@ import type { XmlTraceEvent } from '../src/index.js';
 import { XsltProcessor } from '../src/index.js';
 
 describe('xml node tracing', () => {
-  it('emits focus-enter and template-enter events on the interpreter path', () => {
+  it('emits focus-enter, template-enter, instruction-select, and value-read events on the interpreter path', () => {
     const stylesheet = [
       '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
       '  <xsl:template match="/">',
@@ -51,6 +51,30 @@ describe('xml node tracing', () => {
         },
       },
       {
+        kind: 'instruction-select',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[1]',
+        },
+        instruction: {
+          kind: 'xsl:apply-templates',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'instruction-select',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[2]',
+        },
+        instruction: {
+          kind: 'xsl:apply-templates',
+          location: expect.any(Object),
+        },
+      },
+      {
         kind: 'focus-enter',
         node: {
           documentUri: 'memory:/input.xml',
@@ -71,6 +95,30 @@ describe('xml node tracing', () => {
         },
       },
       {
+        kind: 'instruction-select',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[1]',
+        },
+        instruction: {
+          kind: 'xsl:value-of',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'value-read',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[1]',
+        },
+        instruction: {
+          kind: 'xsl:value-of',
+          location: expect.any(Object),
+        },
+      },
+      {
         kind: 'focus-enter',
         node: {
           documentUri: 'memory:/input.xml',
@@ -87,6 +135,192 @@ describe('xml node tracing', () => {
         },
         template: {
           match: 'item',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'instruction-select',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[2]',
+        },
+        instruction: {
+          kind: 'xsl:value-of',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'value-read',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[2]',
+        },
+        instruction: {
+          kind: 'xsl:value-of',
+          location: expect.any(Object),
+        },
+      },
+    ]);
+  });
+
+  it('emits focus-enter, template-enter, instruction-select, and value-read events on the native path', () => {
+    const stylesheet = [
+      '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+      '  <xsl:template match="/">',
+      '    <items><xsl:apply-templates select="/root/item"/></items>',
+      '  </xsl:template>',
+      '  <xsl:template match="item">',
+      '    <entry><xsl:value-of select="."/></entry>',
+      '  </xsl:template>',
+      '</xsl:stylesheet>',
+    ].join('\n');
+
+    const events: XmlTraceEvent[] = [];
+    const result = new XsltProcessor(stylesheet).transform(
+      '<root><item>alpha</item><item>beta</item></root>',
+      {
+        execution: 'native',
+        trace: {
+          documentUri: 'memory:/input.xml',
+          onEvent: (event) => events.push(event),
+        },
+      },
+    );
+
+    expect(result.execution?.resolved).toBe('native');
+    expect(result.output).toBe('<items><entry>alpha</entry><entry>beta</entry></items>');
+    expect(events).toEqual([
+      {
+        kind: 'focus-enter',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'document',
+          path: '/',
+        },
+      },
+      {
+        kind: 'template-enter',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'document',
+          path: '/',
+        },
+        template: {
+          match: '/',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'instruction-select',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[1]',
+        },
+        instruction: {
+          kind: 'xsl:apply-templates',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'instruction-select',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[2]',
+        },
+        instruction: {
+          kind: 'xsl:apply-templates',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'focus-enter',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[1]',
+        },
+      },
+      {
+        kind: 'template-enter',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[1]',
+        },
+        template: {
+          match: 'item',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'instruction-select',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[1]',
+        },
+        instruction: {
+          kind: 'xsl:value-of',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'value-read',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[1]',
+        },
+        instruction: {
+          kind: 'xsl:value-of',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'focus-enter',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[2]',
+        },
+      },
+      {
+        kind: 'template-enter',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[2]',
+        },
+        template: {
+          match: 'item',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'instruction-select',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[2]',
+        },
+        instruction: {
+          kind: 'xsl:value-of',
+          location: expect.any(Object),
+        },
+      },
+      {
+        kind: 'value-read',
+        node: {
+          documentUri: 'memory:/input.xml',
+          kind: 'element',
+          path: '/root[1]/item[2]',
+        },
+        instruction: {
+          kind: 'xsl:value-of',
           location: expect.any(Object),
         },
       },

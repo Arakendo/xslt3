@@ -1,6 +1,13 @@
 import type { Node } from '@xmldom/xmldom';
 
-import type { TransformOptions, TransformResult, XmlNodeHandle } from '../processor/types.js';
+import type {
+  TransformOptions,
+  TransformResult,
+  XmlNodeHandle,
+  XmlTraceEvent,
+  XmlTraceInstructionInfo,
+  XmlTraceTemplateInfo,
+} from '../processor/types.js';
 import { XTDE0040, XTDE0050, XTDE0640, XTDE0700, XTSE0010 } from '../errors/codes.js';
 import { XdmError, XsltError, type ErrorFrame, type ErrorSuggestion, type RelatedLocation, type SourceLocation } from '../errors/index.js';
 import { parseXml, type Document } from '../xml/parse.js';
@@ -19,6 +26,119 @@ export function createCompiledDocument(sourceXml: string): Document {
 }
 
 export { createXmlNodeHandle };
+
+function getTraceDocumentUri(ctx: TransformContext): string {
+  return ctx.trace?.documentUri ?? '<source-xml>';
+}
+
+function tryCreateTraceNodeHandle(node: Node, ctx: TransformContext): XmlNodeHandle | undefined {
+  switch (node.nodeType) {
+    case node.DOCUMENT_NODE:
+    case node.ELEMENT_NODE:
+    case node.ATTRIBUTE_NODE:
+    case node.TEXT_NODE:
+    case node.COMMENT_NODE:
+    case node.PROCESSING_INSTRUCTION_NODE:
+      return createXmlNodeHandle(node, getTraceDocumentUri(ctx));
+    default:
+      return undefined;
+  }
+}
+
+function emitTraceEvent(ctx: TransformContext, event: XmlTraceEvent): void {
+  const onEvent = ctx.trace?.onEvent;
+  if (onEvent !== undefined) {
+    onEvent(event);
+  }
+}
+
+export function traceFocusEnter(node: Node, ctx: TransformContext): Node {
+  if (ctx.trace?.onEvent === undefined) {
+    return node;
+  }
+
+  const handle = tryCreateTraceNodeHandle(node, ctx);
+  if (handle === undefined) {
+    return node;
+  }
+
+  emitTraceEvent(ctx, {
+    kind: 'focus-enter',
+    node: handle,
+  });
+  return node;
+}
+
+export function traceTemplateEnter(node: Node, ctx: TransformContext, template: XmlTraceTemplateInfo): Node {
+  if (ctx.trace?.onEvent === undefined) {
+    return node;
+  }
+
+  const handle = tryCreateTraceNodeHandle(node, ctx);
+  if (handle === undefined) {
+    return node;
+  }
+
+  emitTraceEvent(ctx, {
+    kind: 'template-enter',
+    node: handle,
+    template,
+  });
+  return node;
+}
+
+export function traceSelectedNodes(
+  nodes: readonly Node[],
+  ctx: TransformContext,
+  instruction: XmlTraceInstructionInfo,
+): readonly Node[] {
+  if (ctx.trace?.onEvent === undefined) {
+    return nodes;
+  }
+
+  for (const node of nodes) {
+    const handle = tryCreateTraceNodeHandle(node, ctx);
+    if (handle === undefined) {
+      continue;
+    }
+
+    emitTraceEvent(ctx, {
+      kind: 'instruction-select',
+      node: handle,
+      instruction,
+    });
+  }
+
+  return nodes;
+}
+
+export function traceStringValueOfNode(
+  node: Node | null,
+  ctx: TransformContext,
+  instruction: XmlTraceInstructionInfo,
+): string {
+  if (node === null) {
+    return '';
+  }
+
+  if (ctx.trace?.onEvent !== undefined) {
+    const handle = tryCreateTraceNodeHandle(node, ctx);
+    if (handle !== undefined) {
+      emitTraceEvent(ctx, {
+        kind: 'instruction-select',
+        node: handle,
+        instruction,
+      });
+      emitTraceEvent(ctx, {
+        kind: 'value-read',
+        node: handle,
+        instruction,
+      });
+    }
+  }
+
+  return stringValueOfNode(node);
+}
 
 export function createTemporaryTreeNode(serializedContent: string): Node {
   const temporaryDocument = parseXml(`<temporary-root>${serializedContent}</temporary-root>`);
