@@ -54,7 +54,9 @@ describe('XSLT codegen MVP4 slice', () => {
 
     const emitted = compileStylesheetToTs(stylesheet, { path: 'conditional.xsl' });
 
-    expect(emitted).toContain('selectSimplePathText(document, ["root","name"])');
+    expect(emitted).toContain('traceStringValueOfNode(');
+    expect(emitted).toContain('selectSimplePathNode(document, ["root","name"])');
+    expect(emitted).not.toContain('selectSimplePathText(document, ["root","name"])');
     expect(emitted).toContain('1 === 1');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });

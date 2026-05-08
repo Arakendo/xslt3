@@ -303,6 +303,7 @@ function executeNativeTransformPlan(
   const helperBindings = plan.runtimeHelpers.length === 0
     ? ''
     : `const { ${plan.runtimeHelpers.join(', ')} } = helpers;`;
+  const isInitialTemplateExecution = activeInitialTemplateName !== undefined;
   const needsTraceDocumentBinding = !activeNeedsCurrentNodeBinding;
   const activeTraceNodeIdentifier = activeNeedsCurrentNodeBinding ? 'currentNode' : 'document';
   const activeTemplateInfo = JSON.stringify({
@@ -326,7 +327,7 @@ function executeNativeTransformPlan(
           '}',
         ]
       : []),
-    `helpers.traceFocusEnter(${activeTraceNodeIdentifier}, ctx);`,
+    ...(isInitialTemplateExecution ? [] : [`helpers.traceFocusEnter(${activeTraceNodeIdentifier}, ctx);`]),
     `helpers.traceTemplateEnter(${activeTraceNodeIdentifier}, ctx, ${activeTemplateInfo});`,
     'return {',
     `  output: ${activeOutputExpression.code},`,

@@ -13,6 +13,23 @@ export function emitStylesheetModule(
   const typeBlock = createStylesheetTypeBlock(ir);
 
   if (nativePlan !== undefined) {
+    const defaultIsInitialTemplateExecution = nativePlan.initialTemplateName !== undefined && nativePlan.initialTemplateEntryTemplate === undefined;
+    const defaultNeedsTraceDocumentBinding = !nativePlan.needsCurrentNodeBinding;
+    const defaultTraceNodeIdentifier = nativePlan.needsCurrentNodeBinding ? 'currentNode' : 'document';
+    const defaultTemplateInfo = JSON.stringify({
+      ...(nativePlan.entryTemplate.matchText === undefined ? {} : { match: nativePlan.entryTemplate.matchText }),
+      ...(nativePlan.entryTemplate.name === undefined ? {} : { name: nativePlan.entryTemplate.name }),
+      location: nativePlan.entryTemplate.location,
+    });
+    const initialNeedsTraceDocumentBinding = !(nativePlan.initialTemplateNeedsCurrentNodeBinding ?? false);
+    const initialTraceNodeIdentifier = (nativePlan.initialTemplateNeedsCurrentNodeBinding ?? false) ? 'currentNode' : 'document';
+    const initialTemplateInfo = nativePlan.initialTemplateEntryTemplate === undefined
+      ? undefined
+      : JSON.stringify({
+          ...(nativePlan.initialTemplateEntryTemplate.matchText === undefined ? {} : { match: nativePlan.initialTemplateEntryTemplate.matchText }),
+          ...(nativePlan.initialTemplateEntryTemplate.name === undefined ? {} : { name: nativePlan.initialTemplateEntryTemplate.name }),
+          location: nativePlan.initialTemplateEntryTemplate.location,
+        });
     const initialModeGuardStatements = [
       '  if (ctx.initialMode !== undefined) {',
       '    throwUnsupportedNativeInitialMode(ctx.initialMode);',
@@ -41,7 +58,9 @@ export function emitStylesheetModule(
         ];
     const defaultBodyStatements = [
       ...(nativePlan.setupStatements.length === 0 ? ['  void ctx;'] : []),
-      ...(nativePlan.needsDocumentBinding ? ['  const document = createCompiledDocument(sourceXml);'] : ['  createCompiledDocument(sourceXml);']),
+      ...(nativePlan.needsDocumentBinding || defaultNeedsTraceDocumentBinding
+        ? ['  const document = createCompiledDocument(sourceXml);']
+        : ['  createCompiledDocument(sourceXml);']),
       ...nativePlan.setupStatements.map((statement) => `  ${statement}`),
       ...(nativePlan.needsCurrentNodeBinding
         ? [`  const currentNode = ${renderTsExpression(nativePlan.currentNodeExpression)};`]
@@ -53,6 +72,8 @@ export function emitStylesheetModule(
             '  }',
           ]
         : []),
+      ...(defaultIsInitialTemplateExecution ? [] : [`  traceFocusEnter(${defaultTraceNodeIdentifier}, ctx);`]),
+      `  traceTemplateEnter(${defaultTraceNodeIdentifier}, ctx, ${defaultTemplateInfo});`,
       '  return {',
       '    output:',
       `      ${renderTsExpression(nativePlan.outputExpression)},`,
@@ -75,7 +96,9 @@ export function emitStylesheetModule(
           '  if (requestedInitialTemplate === ' + JSON.stringify(nativePlan.initialTemplateName) + ') {',
           '    try {',
           ...((nativePlan.initialTemplateSetupStatements ?? []).length === 0 ? ['      void ctx;'] : []),
-          ...(nativePlan.needsDocumentBinding ? ['      const document = createCompiledDocument(sourceXml);'] : ['      createCompiledDocument(sourceXml);']),
+          ...(nativePlan.needsDocumentBinding || initialNeedsTraceDocumentBinding
+            ? ['      const document = createCompiledDocument(sourceXml);']
+            : ['      createCompiledDocument(sourceXml);']),
           ...(nativePlan.initialTemplateSetupStatements ?? []).map((statement) => `      ${statement}`),
           ...((nativePlan.initialTemplateNeedsCurrentNodeBinding ?? false)
             ? [`      const currentNode = ${renderTsExpression(nativePlan.initialTemplateCurrentNodeExpression!)};`]
@@ -87,6 +110,7 @@ export function emitStylesheetModule(
                 '      }',
               ]
             : []),
+          `      traceTemplateEnter(${initialTraceNodeIdentifier}, ctx, ${initialTemplateInfo!});`,
           '      return {',
           '        output:',
           `          ${renderTsExpression(nativePlan.initialTemplateOutputExpression!)},`,
@@ -98,7 +122,7 @@ export function emitStylesheetModule(
         ];
     return renderTsModule({
       statements: [
-        `import { ${[...new Set(['throwMissingNativeInitialTemplate', 'throwUnsupportedNativeInitialMode', ...nativePlan.runtimeHelpers])].join(', ')} } from ${JSON.stringify(plan.moduleSpecifier)};`,
+        `import { ${[...new Set(['throwMissingNativeInitialTemplate', 'throwUnsupportedNativeInitialMode', 'traceFocusEnter', 'traceTemplateEnter', ...nativePlan.runtimeHelpers])].join(', ')} } from ${JSON.stringify(plan.moduleSpecifier)};`,
         `import type { TransformContext, TransformResult } from ${JSON.stringify(plan.moduleSpecifier)};`,
         ...typeBlock.importStatements,
         '',

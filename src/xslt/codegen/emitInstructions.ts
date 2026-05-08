@@ -964,6 +964,11 @@ function emitInstruction(
       ]));
     }
     case 'valueOf': {
+      const valueOfInstructionInfo = JSON.stringify({
+        kind: 'xsl:value-of',
+        location: instruction.location,
+      });
+
       if (instruction.select.kind === 'contextItem') {
         runtimeHelpers.add('escapeText');
         runtimeHelpers.add('traceStringValueOfNode');
@@ -972,10 +977,7 @@ function emitInstruction(
           tsCallExpression('traceStringValueOfNode', [
             tsRawExpression(contextNodeIdentifier),
             tsRawExpression('ctx'),
-            tsRawExpression(JSON.stringify({
-              kind: 'xsl:value-of',
-              location: instruction.location,
-            })),
+            tsRawExpression(valueOfInstructionInfo),
           ]),
         ]);
       }
@@ -1078,6 +1080,18 @@ function emitInstruction(
 
       if (instruction.select.kind !== 'path') {
         return undefined;
+      }
+
+      const tracedPathValue = emitTracedValueOfPathStringExpression(
+        instruction.select,
+        runtimeHelpers,
+        contextNodeIdentifier,
+        valueOfInstructionInfo,
+        options.variableBindings,
+      );
+      if (tracedPathValue !== undefined) {
+        runtimeHelpers.add('escapeText');
+        return annotateInstruction(tsCallExpression('escapeText', [tracedPathValue]));
       }
 
       const pathValue = emitPathStringValueExpression(
@@ -1541,6 +1555,57 @@ function tryGetSimpleChildSegments(ast: PathExpression): readonly string[] | und
   }
 
   return names;
+}
+
+function emitTracedValueOfPathStringExpression(
+  ast: PathExpression,
+  runtimeHelpers: Set<string>,
+  contextNodeIdentifier: string,
+  instructionInfoCode: string,
+  variableBindings?: ReadonlyMap<string, TsExpression>,
+): TsExpression | undefined {
+  if (variableBindings === undefined) {
+    const simplePath = tryGetSimpleChildPath(ast);
+    if (simplePath !== undefined) {
+      runtimeHelpers.add('selectSimplePathNode');
+      runtimeHelpers.add('traceStringValueOfNode');
+      return tsCallExpression('traceStringValueOfNode', [
+        tsCallExpression('selectSimplePathNode', [
+          tsRawExpression(simplePath.absolute ? 'document' : contextNodeIdentifier),
+          tsRawExpression(JSON.stringify(simplePath.segments)),
+        ]),
+        tsRawExpression('ctx'),
+        tsRawExpression(instructionInfoCode),
+      ]);
+    }
+  } else {
+    const simplePath = tryResolveSimpleChildPath(ast, contextNodeIdentifier, variableBindings);
+    if (simplePath !== undefined) {
+      runtimeHelpers.add('selectSimplePathNode');
+      runtimeHelpers.add('traceStringValueOfNode');
+      return tsCallExpression('traceStringValueOfNode', [
+        tsCallExpression('selectSimplePathNode', [
+          simplePath.startNodeExpression,
+          tsRawExpression(JSON.stringify(simplePath.segments)),
+        ]),
+        tsRawExpression('ctx'),
+        tsRawExpression(instructionInfoCode),
+      ]);
+    }
+  }
+
+  const descendantPath = tryGetSimpleDescendantNamePath(ast);
+  if (descendantPath === undefined) {
+    return undefined;
+  }
+
+  runtimeHelpers.add('selectDescendantElementsByName');
+  runtimeHelpers.add('traceStringValueOfNode');
+  return tsCallExpression('traceStringValueOfNode', [
+    tsRawExpression(`selectDescendantElementsByName(${descendantPath.absolute ? 'document' : contextNodeIdentifier}, ${JSON.stringify(descendantPath.localName)})[0] ?? null`),
+    tsRawExpression('ctx'),
+    tsRawExpression(instructionInfoCode),
+  ]);
 }
 
 function emitPathStringValueExpression(
