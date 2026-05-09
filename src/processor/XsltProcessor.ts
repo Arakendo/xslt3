@@ -21,6 +21,8 @@ import {
   selectSimplePathText,
   stringValueOfNativeValue,
   stringValueOfNode,
+  getRecordedTracePause,
+  resetRecordedTracePause,
   traceFocusEnter,
   traceSelectedNodes,
   traceStringValueOfNode,
@@ -280,6 +282,7 @@ function executeNativeTransformPlan(
   sourceXml: string,
   context: TransformOptions,
 ): TransformResult {
+  resetRecordedTracePause(context.trace);
   const useInitialTemplateEntry = context.initialTemplate !== undefined && plan.initialTemplateName !== undefined;
   const activeEntryTemplate = useInitialTemplateEntry && plan.initialTemplateEntryTemplate !== undefined
     ? plan.initialTemplateEntryTemplate
@@ -304,6 +307,7 @@ function executeNativeTransformPlan(
     ? ''
     : `const { ${plan.runtimeHelpers.join(', ')} } = helpers;`;
   const isInitialTemplateExecution = activeInitialTemplateName !== undefined;
+  const activeCurrentNodeIsDocument = activeCurrentNodeExpression.code === 'document';
   const needsTraceDocumentBinding = !activeNeedsCurrentNodeBinding;
   const activeTraceNodeIdentifier = activeNeedsCurrentNodeBinding ? 'currentNode' : 'document';
   const activeTemplateInfo = JSON.stringify({
@@ -316,6 +320,9 @@ function executeNativeTransformPlan(
     ...(plan.needsDocumentBinding || needsTraceDocumentBinding
       ? ['const document = createCompiledDocument(sourceXml);']
       : ['createCompiledDocument(sourceXml);']),
+    ...(!isInitialTemplateExecution && activeTraceNodeIdentifier !== 'document' && !activeCurrentNodeIsDocument
+      ? ['helpers.traceFocusEnter(document, ctx);']
+      : []),
     ...activeSetupStatements,
     ...(activeNeedsCurrentNodeBinding
       ? [`const currentNode = ${activeCurrentNodeExpression.code};`]
@@ -357,7 +364,9 @@ function executeNativeTransformPlan(
     helpers: typeof NATIVE_RUNTIME_HELPERS,
   ) => TransformResult;
 
-  return executeNative(sourceXml, context, NATIVE_RUNTIME_HELPERS);
+  const result = executeNative(sourceXml, context, NATIVE_RUNTIME_HELPERS);
+  const pause = getRecordedTracePause(context.trace);
+  return pause === undefined ? result : { ...result, pause };
 }
 
 function createExecutionFallbackReason(

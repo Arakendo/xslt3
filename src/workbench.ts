@@ -6,7 +6,13 @@ import {
 } from './diagnostics/index.js';
 import { compileStylesheetRuntimeArtifacts } from './processor/runtimeArtifacts.js';
 import { XsltProcessor } from './processor/XsltProcessor.js';
-import type { TransformExecutionInfo, TransformExecutionFallbackReason, TransformOptions } from './processor/types.js';
+import type { TransformExecutionInfo, TransformExecutionFallbackReason, TransformOptions, XmlNodeHandle, XmlTracePause } from './processor/types.js';
+import {
+  createCompiledDocument,
+  resolveXmlNodeHandle as resolveRuntimeXmlNodeHandle,
+  resolveXmlNodeHandleAtOffset as resolveRuntimeXmlNodeHandleAtOffset,
+  resolveXmlNodeHandleInRange as resolveRuntimeXmlNodeHandleInRange,
+} from './runtime/index.js';
 
 export interface SourceDocument {
   readonly uri: string;
@@ -67,6 +73,7 @@ export interface TransformSuccessResult {
   readonly ok: true;
   readonly diagnostics: readonly DiagnosticReport[];
   readonly output: string;
+  readonly pause?: XmlTracePause;
   readonly execution?: TransformExecutionInfo;
   readonly notices?: readonly WorkbenchNotice[];
 }
@@ -77,6 +84,41 @@ export interface TransformFailureResult {
 }
 
 export type TransformResult = TransformSuccessResult | TransformFailureResult;
+
+export interface ResolveSourceXmlNodeHandleRequest {
+  readonly sourceXml: SourceDocument;
+  readonly path: string;
+}
+
+export interface ResolveSourceXmlNodeHandleAtOffsetRequest {
+  readonly sourceXml: SourceDocument;
+  readonly offset: number;
+}
+
+export interface ResolveSourceXmlNodeHandleInRangeRequest {
+  readonly sourceXml: SourceDocument;
+  readonly offsetStart: number;
+  readonly offsetEnd: number;
+}
+
+export interface ResolveSourceXmlNodeHandleSuccessResult {
+  readonly ok: true;
+  readonly diagnostics: readonly DiagnosticReport[];
+  readonly handle?: XmlNodeHandle;
+}
+
+export interface ResolveSourceXmlNodeHandleFailureResult {
+  readonly ok: false;
+  readonly diagnostics: readonly DiagnosticReport[];
+}
+
+export type ResolveSourceXmlNodeHandleResult =
+  | ResolveSourceXmlNodeHandleSuccessResult
+  | ResolveSourceXmlNodeHandleFailureResult;
+
+export type ResolveSourceXmlNodeHandleAtOffsetResult = ResolveSourceXmlNodeHandleResult;
+
+export type ResolveSourceXmlNodeHandleInRangeResult = ResolveSourceXmlNodeHandleResult;
 
 export interface CompileAndTransformRequest {
   readonly stylesheet: SourceDocument;
@@ -95,6 +137,7 @@ export interface CompileAndTransformSuccessResult {
   readonly stylesheet: CompiledStylesheet;
   readonly generatedTs?: string;
   readonly sourceMap?: WeaverSourceMap;
+  readonly pause?: XmlTracePause;
   readonly execution?: TransformExecutionInfo;
   readonly notices?: readonly WorkbenchNotice[];
 }
@@ -168,6 +211,7 @@ export class CompiledStylesheet {
         ok: true,
         diagnostics: this.diagnostics,
         output: result.output,
+        ...(result.pause === undefined ? {} : { pause: result.pause }),
         ...(result.execution === undefined ? {} : { execution: result.execution }),
         ...(notices.length === 0 ? {} : { notices }),
       };
@@ -220,6 +264,72 @@ export function transform(request: TransformRequest): TransformResult {
   return request.stylesheet.transform(request.sourceXml, request.options);
 }
 
+export function resolveSourceXmlNodeHandle(
+  request: ResolveSourceXmlNodeHandleRequest,
+): ResolveSourceXmlNodeHandleResult {
+  try {
+    const document = createCompiledDocument(request.sourceXml.text);
+    const handle = resolveRuntimeXmlNodeHandle(document, request.sourceXml.uri, request.path);
+
+    return {
+      ok: true,
+      diagnostics: [],
+      ...(handle === undefined ? {} : { handle }),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostics: [diagnosticReportFromError(error)],
+    };
+  }
+}
+
+export function resolveSourceXmlNodeHandleAtOffset(
+  request: ResolveSourceXmlNodeHandleAtOffsetRequest,
+): ResolveSourceXmlNodeHandleAtOffsetResult {
+  try {
+    const document = createCompiledDocument(request.sourceXml.text);
+    const handle = resolveRuntimeXmlNodeHandleAtOffset(document, request.sourceXml.uri, request.sourceXml.text, request.offset);
+
+    return {
+      ok: true,
+      diagnostics: [],
+      ...(handle === undefined ? {} : { handle }),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostics: [diagnosticReportFromError(error)],
+    };
+  }
+}
+
+export function resolveSourceXmlNodeHandleInRange(
+  request: ResolveSourceXmlNodeHandleInRangeRequest,
+): ResolveSourceXmlNodeHandleInRangeResult {
+  try {
+    const document = createCompiledDocument(request.sourceXml.text);
+    const handle = resolveRuntimeXmlNodeHandleInRange(
+      document,
+      request.sourceXml.uri,
+      request.sourceXml.text,
+      request.offsetStart,
+      request.offsetEnd,
+    );
+
+    return {
+      ok: true,
+      diagnostics: [],
+      ...(handle === undefined ? {} : { handle }),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostics: [diagnosticReportFromError(error)],
+    };
+  }
+}
+
 export function compileAndTransform(request: CompileAndTransformRequest): CompileAndTransformResult {
   const compileResult = compile({
     stylesheet: request.stylesheet,
@@ -265,6 +375,7 @@ function getTransformOptions(options: CompileAndTransformRequest['options']): Tr
     ...(options.execution === undefined ? {} : { execution: options.execution }),
     ...(options.parameters === undefined ? {} : { parameters: options.parameters }),
     ...(options.baseUri === undefined ? {} : { baseUri: options.baseUri }),
+    ...(options.trace === undefined ? {} : { trace: options.trace }),
   };
 }
 

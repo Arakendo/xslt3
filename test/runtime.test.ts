@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createCompiledDocument, createXmlNodeHandle } from '../src/runtime/index.js';
+import { createCompiledDocument, createXmlNodeHandle, resolveXmlNodeHandle } from '../src/index.js';
 
 describe('xml node handles', () => {
   it('creates stable element, attribute, text, and document handles from a parsed input tree', () => {
@@ -49,5 +49,47 @@ describe('xml node handles', () => {
       kind: 'text',
       path: '/root[1]/section[1]/item[2]/text()[1]',
     });
+  });
+
+  it('resolves stable handle paths back into public XML node handles', () => {
+    const document = createCompiledDocument([
+      '<root>',
+      '  <?debug step?>',
+      '  <section>',
+      '    <!--note-->',
+      '    <item priority="high">beta</item>',
+      '  </section>',
+      '</root>',
+    ].join(''));
+    const root = document.documentElement;
+    if (root === null) {
+      throw new Error('expected root element');
+    }
+
+    const section = root.getElementsByTagName('section').item(0);
+    const item = root.getElementsByTagName('item').item(0);
+    const attribute = item?.getAttributeNode('priority') ?? null;
+    const textNode = item?.firstChild ?? null;
+    const comment = section?.childNodes.item(1) ?? null;
+    const processingInstruction = root.childNodes.item(1);
+    if (section === null || item === null || attribute === null || textNode === null || comment === null || processingInstruction === null) {
+      throw new Error('expected test nodes');
+    }
+
+    expect(resolveXmlNodeHandle(document, 'memory:/input.xml', '/')).toEqual(createXmlNodeHandle(document, 'memory:/input.xml'));
+    expect(resolveXmlNodeHandle(document, 'memory:/input.xml', '/root[1]/section[1]/item[1]')).toEqual(createXmlNodeHandle(item, 'memory:/input.xml'));
+    expect(resolveXmlNodeHandle(document, 'memory:/input.xml', '/root[1]/section[1]/item[1]/@priority')).toEqual(createXmlNodeHandle(attribute, 'memory:/input.xml'));
+    expect(resolveXmlNodeHandle(document, 'memory:/input.xml', '/root[1]/section[1]/item[1]/text()[1]')).toEqual(createXmlNodeHandle(textNode, 'memory:/input.xml'));
+    expect(resolveXmlNodeHandle(document, 'memory:/input.xml', '/root[1]/section[1]/comment()[1]')).toEqual(createXmlNodeHandle(comment, 'memory:/input.xml'));
+    expect(resolveXmlNodeHandle(document, 'memory:/input.xml', '/root[1]/processing-instruction("debug")[1]')).toEqual(createXmlNodeHandle(processingInstruction, 'memory:/input.xml'));
+  });
+
+  it('returns undefined for missing or malformed XML node paths', () => {
+    const document = createCompiledDocument('<root><item>alpha</item></root>');
+
+    expect(resolveXmlNodeHandle(document, 'memory:/input.xml', 'root[1]')).toBeUndefined();
+    expect(resolveXmlNodeHandle(document, 'memory:/input.xml', '/root[1]/item[2]')).toBeUndefined();
+    expect(resolveXmlNodeHandle(document, 'memory:/input.xml', '/root[1]/@missing')).toBeUndefined();
+    expect(resolveXmlNodeHandle(document, 'memory:/input.xml', '/root[1]/text()')).toBeUndefined();
   });
 });

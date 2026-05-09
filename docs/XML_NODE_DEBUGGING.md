@@ -174,6 +174,11 @@ Notes:
 - `path` is a stable per-document identity string for the parsed input tree.
 - The host may derive it from an editor selection or ask Weaver to resolve it.
 - This is runtime identity, not a promise about lexical formatting.
+- Hosts that want engine-aligned handle derivation without reaching into
+  internal modules can use the public `createCompiledDocument(...)`,
+  `createXmlNodeHandle(...)`, `resolveXmlNodeHandle(...)`, and
+  `resolveXmlNodeHandleAtOffset(...)`, and `resolveXmlNodeHandleInRange(...)`
+  helpers from the package root.
 
 ### Trace events
 

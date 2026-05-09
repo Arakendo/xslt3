@@ -6,12 +6,24 @@ import type {
   XmlNodeHandle,
   XmlTraceEvent,
   XmlTraceInstructionInfo,
+  XmlTracePause,
   XmlTraceTemplateInfo,
 } from '../processor/types.js';
 import { XTDE0040, XTDE0050, XTDE0640, XTDE0700, XTSE0010 } from '../errors/codes.js';
 import { XdmError, XsltError, type ErrorFrame, type ErrorSuggestion, type RelatedLocation, type SourceLocation } from '../errors/index.js';
 import { parseXml, type Document } from '../xml/parse.js';
-import { createXmlNodeHandle } from './xmlNodeHandles.js';
+import {
+  createXmlNodeHandle,
+  resolveXmlNodeHandle,
+  resolveXmlNodeHandleAtOffset,
+  resolveXmlNodeHandleInRange,
+} from './xmlNodeHandles.js';
+import {
+  emitTraceEvent as publishTraceEvent,
+  getRecordedTracePause,
+  isTraceEnabled,
+  resetRecordedTracePause,
+} from './tracePause.js';
 import { computeLevenshteinDistance } from '../xslt/diagnostics.js';
 import { normalizeTemplateName } from '../xslt/eval/templateDispatch.js';
 import { runTransform } from '../xslt/eval/transform.js';
@@ -19,13 +31,13 @@ import type { StylesheetIR } from '../xslt/compile/ir.js';
 
 export type TransformContext = TransformOptions;
 
-export type { TransformOptions, TransformResult, StylesheetIR, XmlNodeHandle };
+export type { TransformOptions, TransformResult, StylesheetIR, XmlNodeHandle, XmlTracePause };
 
 export function createCompiledDocument(sourceXml: string): Document {
   return parseXml(sourceXml, { role: 'source-document', sourceName: '<source-xml>' });
 }
 
-export { createXmlNodeHandle };
+export { createXmlNodeHandle, resolveXmlNodeHandle, resolveXmlNodeHandleAtOffset, resolveXmlNodeHandleInRange };
 
 function getTraceDocumentUri(ctx: TransformContext): string {
   return ctx.trace?.documentUri ?? '<source-xml>';
@@ -46,14 +58,13 @@ function tryCreateTraceNodeHandle(node: Node, ctx: TransformContext): XmlNodeHan
 }
 
 function emitTraceEvent(ctx: TransformContext, event: XmlTraceEvent): void {
-  const onEvent = ctx.trace?.onEvent;
-  if (onEvent !== undefined) {
-    onEvent(event);
-  }
+  publishTraceEvent(ctx.trace, event);
 }
 
+export { getRecordedTracePause, resetRecordedTracePause };
+
 export function traceFocusEnter(node: Node, ctx: TransformContext): Node {
-  if (ctx.trace?.onEvent === undefined) {
+  if (!isTraceEnabled(ctx.trace)) {
     return node;
   }
 
@@ -70,7 +81,7 @@ export function traceFocusEnter(node: Node, ctx: TransformContext): Node {
 }
 
 export function traceTemplateEnter(node: Node, ctx: TransformContext, template: XmlTraceTemplateInfo): Node {
-  if (ctx.trace?.onEvent === undefined) {
+  if (!isTraceEnabled(ctx.trace)) {
     return node;
   }
 
@@ -92,7 +103,7 @@ export function traceSelectedNodes(
   ctx: TransformContext,
   instruction: XmlTraceInstructionInfo,
 ): readonly Node[] {
-  if (ctx.trace?.onEvent === undefined) {
+  if (!isTraceEnabled(ctx.trace)) {
     return nodes;
   }
 
@@ -121,7 +132,7 @@ export function traceStringValueOfNode(
     return '';
   }
 
-  if (ctx.trace?.onEvent !== undefined) {
+  if (isTraceEnabled(ctx.trace)) {
     const handle = tryCreateTraceNodeHandle(node, ctx);
     if (handle !== undefined) {
       emitTraceEvent(ctx, {
@@ -512,12 +523,14 @@ export function applyBuiltInTemplatesByPath(
   path: readonly string[],
   renderMatchedNode: (node: Node, index: number, nodes: readonly Node[]) => string,
   absolute = false,
+  ctx?: TransformContext,
+  instruction?: XmlTraceInstructionInfo,
 ): string {
   if (path.length === 0) {
     return '';
   }
 
-  return renderBuiltInTemplateChildren(startNode, path, renderMatchedNode, absolute);
+  return renderBuiltInTemplateChildren(startNode, path, renderMatchedNode, absolute, ctx, instruction, true);
 }
 
 export function selectSimplePathText(startNode: Node, path: readonly string[]): string {
@@ -852,6 +865,9 @@ function renderBuiltInTemplateChildren(
   path: readonly string[],
   renderMatchedNode: (node: Node, index: number, nodes: readonly Node[]) => string,
   absolute: boolean,
+  ctx?: TransformContext,
+  instruction?: XmlTraceInstructionInfo,
+  emitSelectionEvents = false,
 ): string {
   const childNodes: Node[] = [];
   for (let index = 0; index < node.childNodes.length; index += 1) {
@@ -861,18 +877,22 @@ function renderBuiltInTemplateChildren(
     }
   }
 
+  if (emitSelectionEvents && ctx !== undefined && instruction !== undefined) {
+    traceSelectedNodes(childNodes, ctx, instruction);
+  }
+
   let output = '';
 
   for (const [index, child] of childNodes.entries()) {
     if (child.nodeType !== child.ELEMENT_NODE) {
       if (child !== null) {
-        output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute, index, childNodes);
+        output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute, index, childNodes, ctx, instruction);
       }
 
       continue;
     }
 
-    output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute, index, childNodes);
+    output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute, index, childNodes, ctx, instruction);
   }
 
   return output;
@@ -885,13 +905,19 @@ function renderBuiltInTemplateNode(
   absolute: boolean,
   index: number,
   nodes: readonly Node[],
+  ctx?: TransformContext,
+  instruction?: XmlTraceInstructionInfo,
 ): string {
   if (matchesSimplePath(node, path, absolute)) {
     return renderMatchedNode(node, index, nodes);
   }
 
+  if (ctx !== undefined) {
+    traceFocusEnter(node, ctx);
+  }
+
   if (node.nodeType === node.DOCUMENT_NODE || node.nodeType === node.ELEMENT_NODE) {
-    return renderBuiltInTemplateChildren(node, path, renderMatchedNode, absolute);
+    return renderBuiltInTemplateChildren(node, path, renderMatchedNode, absolute, ctx, instruction);
   }
 
   if (

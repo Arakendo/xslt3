@@ -277,10 +277,11 @@ export function emitRootApplyTemplatesInstruction(
 
   if (instruction.select === undefined) {
     runtimeHelpers.add('applyBuiltInTemplatesByPath');
+    runtimeHelpers.add('traceSelectedNodes');
     return tsRawExpression(
       childMatchAbsolute
-        ? `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childMatchPath)}, ${childTemplateCallback}, true)`
-        : `applyBuiltInTemplatesByPath(${contextNodeIdentifier}, ${JSON.stringify(childMatchPath)}, ${childTemplateCallback})`,
+        ? `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childMatchPath)}, ${childTemplateCallback}, true, ctx, ${JSON.stringify({ kind: 'xsl:apply-templates', location: instruction.location })})`
+        : `applyBuiltInTemplatesByPath(${contextNodeIdentifier}, ${JSON.stringify(childMatchPath)}, ${childTemplateCallback}, false, ctx, ${JSON.stringify({ kind: 'xsl:apply-templates', location: instruction.location })})`,
     );
   }
 
@@ -447,10 +448,11 @@ export function emitPlannedApplyTemplatesInstruction(
 
   if (instruction.select === undefined) {
     runtimeHelpers.add('applyBuiltInTemplatesByPath');
+    runtimeHelpers.add('traceSelectedNodes');
     return tsRawExpression(
       childPlans.every((childPlan) => childPlan.matchAbsolute)
-        ? `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childPlans[0]!.matchPath)}, ${renderMatchedNode}, true)`
-        : `applyBuiltInTemplatesByPath(${contextNodeIdentifier}, ${JSON.stringify(childPlans[0]!.matchPath)}, ${renderMatchedNode})`,
+        ? `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childPlans[0]!.matchPath)}, ${renderMatchedNode}, true, ctx, ${JSON.stringify({ kind: 'xsl:apply-templates', location: instruction.location })})`
+        : `applyBuiltInTemplatesByPath(${contextNodeIdentifier}, ${JSON.stringify(childPlans[0]!.matchPath)}, ${renderMatchedNode}, false, ctx, ${JSON.stringify({ kind: 'xsl:apply-templates', location: instruction.location })})`,
     );
   }
 

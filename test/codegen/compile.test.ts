@@ -20,9 +20,9 @@ describe('XSLT codegen MVP4 slice', () => {
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('/** match="/" (apply-templates.xsl:1) */');
     expect(emitted).toContain('/** match="item" (apply-templates.xsl:1) */');
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates"');
     expect(emitted).toContain('(templateNode, templateIndex, templateNodes) => (');
-    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).toContain('escapeText(traceStringValueOfNode(selectSimplePathNode(templateNode, ["name"]), ctx, {"kind":"xsl:value-of"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -38,7 +38,8 @@ describe('XSLT codegen MVP4 slice', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["item"], (templateNode, templateIndex, templateNodes) => (');
-    expect(emitted).toContain('escapeText(stringValueOfNode(templateNode))');
+    expect(emitted).toContain('), false, ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('escapeText(traceStringValueOfNode(templateNode, ctx, {"kind":"xsl:value-of"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -54,8 +55,8 @@ describe('XSLT codegen MVP4 slice', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) => (');
-    expect(emitted).toContain(', true)');
-    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).toContain('), true, ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('escapeText(traceStringValueOfNode(selectSimplePathNode(templateNode, ["name"]), ctx, {"kind":"xsl:value-of"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 

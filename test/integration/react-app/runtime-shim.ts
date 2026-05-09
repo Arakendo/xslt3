@@ -3,11 +3,18 @@ export interface TransformContext {
   readonly initialMode?: string;
   readonly parameters?: Readonly<Record<string, unknown>>;
   readonly baseUri?: string;
+  readonly trace?: {
+    readonly documentUri?: string;
+    readonly breakpoints?: readonly unknown[];
+    readonly onEvent?: (event: unknown) => void;
+    readonly onPause?: (pause: unknown) => void;
+  };
 }
 
 export interface TransformResult {
   readonly output: string;
   readonly secondaryOutputs?: Readonly<Record<string, string>>;
+  readonly pause?: unknown;
 }
 
 export type StylesheetIR = unknown;
@@ -73,8 +80,18 @@ export function applyBuiltInTemplatesByPath(
   _path: readonly string[],
   _renderTemplate: (templateNode: NativeNode, templateIndex: number, templateNodes: readonly NativeNode[]) => string,
   _absolute = false,
+  _ctx?: TransformContext,
+  _instruction?: unknown,
 ): string {
   return '';
+}
+
+export function getRecordedTracePause(_trace: TransformContext['trace']): unknown {
+  return undefined;
+}
+
+export function resetRecordedTracePause(_trace: TransformContext['trace']): void {
+  // noop in the test runtime shim
 }
 
 export function nameOfNode(_node: NativeNode | null): string {

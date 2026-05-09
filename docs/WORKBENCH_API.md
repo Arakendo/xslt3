@@ -135,9 +135,16 @@ Current implemented slice:
 
 - `@arakendo/weaver-xslt/workbench` now exports `SourceDocument`,
   `CompiledStylesheet`, `WeaverSourceMap`, `CompileRequest`, `CompileResult`,
-  `TransformRequest`, `TransformResult`, `CompileAndTransformRequest`,
-  `CompileAndTransformResult`, `compile(...)`, `transform(...)`, and
-  `compileAndTransform(...)`.
+  `TransformRequest`, `TransformResult`, `ResolveSourceXmlNodeHandleRequest`,
+  `ResolveSourceXmlNodeHandleResult`,
+  `ResolveSourceXmlNodeHandleAtOffsetRequest`,
+  `ResolveSourceXmlNodeHandleAtOffsetResult`,
+  `ResolveSourceXmlNodeHandleInRangeRequest`,
+  `ResolveSourceXmlNodeHandleInRangeResult`,
+  `CompileAndTransformRequest`, `CompileAndTransformResult`, `compile(...)`,
+  `transform(...)`, `resolveSourceXmlNodeHandle(...)`,
+  `resolveSourceXmlNodeHandleAtOffset(...)`,
+  `resolveSourceXmlNodeHandleInRange(...)`, and `compileAndTransform(...)`.
 - The first slice now includes a reusable compiled-stylesheet handle for
   repeated runs while keeping `compileAndTransform(...)` as the one-shot
   convenience boundary.
@@ -223,6 +230,65 @@ Rules:
 - Transform-only callers use the compiled handle returned from `compile(...)`.
 - Runtime failures still use `DiagnosticReport`; no special workbench-only
   exception shape is introduced.
+
+### Source-XML node handle resolution
+
+For tracked-node debugging hosts, the workbench surface can resolve the stable
+XML trace path format, a caret offset, or a selection range against an
+in-memory `SourceDocument`:
+
+```ts
+export interface ResolveSourceXmlNodeHandleRequest {
+  sourceXml: SourceDocument;
+  path: string;
+}
+
+export interface ResolveSourceXmlNodeHandleAtOffsetRequest {
+  sourceXml: SourceDocument;
+  offset: number;
+}
+
+export interface ResolveSourceXmlNodeHandleInRangeRequest {
+  sourceXml: SourceDocument;
+  offsetStart: number;
+  offsetEnd: number;
+}
+
+export interface ResolveSourceXmlNodeHandleSuccessResult {
+  ok: true;
+  diagnostics: DiagnosticReport[];
+  handle?: XmlNodeHandle;
+}
+
+export interface ResolveSourceXmlNodeHandleFailureResult {
+  ok: false;
+  diagnostics: DiagnosticReport[];
+}
+
+export type ResolveSourceXmlNodeHandleResult =
+  | ResolveSourceXmlNodeHandleSuccessResult
+  | ResolveSourceXmlNodeHandleFailureResult;
+
+export type ResolveSourceXmlNodeHandleAtOffsetResult =
+  ResolveSourceXmlNodeHandleResult;
+
+export type ResolveSourceXmlNodeHandleInRangeResult =
+  ResolveSourceXmlNodeHandleResult;
+```
+
+Rules:
+
+- Parse failures use the normal `DiagnosticReport[]` contract.
+- A missing path is not a parse/runtime failure; it returns `ok: true` with no
+  `handle` so hosts can treat it as an empty selection lookup.
+- A caret offset resolves the deepest matching element, attribute, or
+  non-whitespace text node using the parsed XML node locations already tracked
+  by the engine.
+- A selection range resolves the deepest matching element, attribute, or
+  non-whitespace text node whose selectable region fully covers the range.
+  Ranges spanning multiple selectable nodes return `ok: true` with no handle.
+- The returned handle matches the same stable trace identity used by
+  XML-node breakpoints and pause payloads.
 
 ### Convenience surface
 

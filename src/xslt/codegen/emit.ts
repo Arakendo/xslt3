@@ -16,6 +16,7 @@ export function emitStylesheetModule(
     const defaultIsInitialTemplateExecution = nativePlan.initialTemplateName !== undefined && nativePlan.initialTemplateEntryTemplate === undefined;
     const defaultNeedsTraceDocumentBinding = !nativePlan.needsCurrentNodeBinding;
     const defaultTraceNodeIdentifier = nativePlan.needsCurrentNodeBinding ? 'currentNode' : 'document';
+    const defaultCurrentNodeIsDocument = renderTsExpression(nativePlan.currentNodeExpression) === 'document';
     const defaultTemplateInfo = JSON.stringify({
       ...(nativePlan.entryTemplate.matchText === undefined ? {} : { match: nativePlan.entryTemplate.matchText }),
       ...(nativePlan.entryTemplate.name === undefined ? {} : { name: nativePlan.entryTemplate.name }),
@@ -61,6 +62,9 @@ export function emitStylesheetModule(
       ...(nativePlan.needsDocumentBinding || defaultNeedsTraceDocumentBinding
         ? ['  const document = createCompiledDocument(sourceXml);']
         : ['  createCompiledDocument(sourceXml);']),
+      ...(!defaultIsInitialTemplateExecution && defaultTraceNodeIdentifier !== 'document' && !defaultCurrentNodeIsDocument
+        ? ['  traceFocusEnter(document, ctx);']
+        : []),
       ...nativePlan.setupStatements.map((statement) => `  ${statement}`),
       ...(nativePlan.needsCurrentNodeBinding
         ? [`  const currentNode = ${renderTsExpression(nativePlan.currentNodeExpression)};`]
@@ -77,6 +81,7 @@ export function emitStylesheetModule(
       '  return {',
       '    output:',
       `      ${renderTsExpression(nativePlan.outputExpression)},`,
+      '    ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),',
       '  };',
     ];
     const wrappedDefaultBodyStatements = nativePlan.initialTemplateEntryTemplate !== undefined
@@ -114,6 +119,7 @@ export function emitStylesheetModule(
           '      return {',
           '        output:',
           `          ${renderTsExpression(nativePlan.initialTemplateOutputExpression!)},`,
+          '        ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),',
           '      };',
           '    } catch (error) {',
           `      throw prependNativeInitialTemplateError(error, ${JSON.stringify(nativePlan.initialTemplateName)}, ${JSON.stringify(nativePlan.initialTemplateEntryTemplate.location)});`,
@@ -122,7 +128,7 @@ export function emitStylesheetModule(
         ];
     return renderTsModule({
       statements: [
-        `import { ${[...new Set(['throwMissingNativeInitialTemplate', 'throwUnsupportedNativeInitialMode', 'traceFocusEnter', 'traceTemplateEnter', ...nativePlan.runtimeHelpers])].join(', ')} } from ${JSON.stringify(plan.moduleSpecifier)};`,
+        `import { ${[...new Set(['throwMissingNativeInitialTemplate', 'throwUnsupportedNativeInitialMode', 'getRecordedTracePause', 'resetRecordedTracePause', 'traceFocusEnter', 'traceTemplateEnter', ...nativePlan.runtimeHelpers])].join(', ')} } from ${JSON.stringify(plan.moduleSpecifier)};`,
         `import type { TransformContext, TransformResult } from ${JSON.stringify(plan.moduleSpecifier)};`,
         ...typeBlock.importStatements,
         '',
@@ -132,6 +138,7 @@ export function emitStylesheetModule(
         '',
         renderTemplateProvenanceComment(nativePlan.entryTemplate, plan.sourcePath),
         `export function transform(sourceXml: string, ctx: ${typeBlock.transformContextTypeName} = {}): TransformResult {`,
+        '  resetRecordedTracePause(ctx.trace);',
         ...initialModeGuardStatements,
         ...missingInitialTemplateGuardStatements,
         ...initialTemplateValueStatements,

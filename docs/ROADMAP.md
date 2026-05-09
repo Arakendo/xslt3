@@ -614,15 +614,15 @@ compile/run boundary that can render pause state.
 - Arbitrary conditional breakpoint expression languages
 
 **Exit criteria:**
-- [ ] A fixture host can identify an input node and pause when that node enters
+- [x] A fixture host can identify an input node and pause when that node enters
   a matched template or becomes the current focus
-- [ ] The pause payload includes the node identity plus template/instruction
+- [x] The pause payload includes the node identity plus template/instruction
   provenance anchored on existing span/frame contracts
-- [ ] The same tracked-node fixture produces equivalent pause semantics under
+- [x] The same tracked-node fixture produces equivalent pause semantics under
   interpreter, native direct, and native emitted execution
-- [ ] At least one public design note documents why XML-node breakpoints are a
+- [x] At least one public design note documents why XML-node breakpoints are a
   trace/debugging feature rather than a source-map feature
-- [ ] A small demo or fixture proves the user story: "track this `<para>` node
+- [x] A small demo or fixture proves the user story: "track this `<para>` node
   through the transform"
 
 Design note: [XML_NODE_DEBUGGING.md](./XML_NODE_DEBUGGING.md) defines the

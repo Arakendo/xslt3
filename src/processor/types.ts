@@ -1,4 +1,4 @@
-import type { ErrorSuggestion, SourceLocation } from '../errors/index.js';
+import type { ErrorFrame, ErrorSuggestion, SourceLocation } from '../errors/index.js';
 
 /**
  * Options accepted by {@link XsltProcessor.transform}.
@@ -33,6 +33,11 @@ export interface XmlTraceEvent {
   instruction?: XmlTraceInstructionInfo;
 }
 
+export interface XmlTracePause {
+  event: XmlTraceEvent;
+  frames: readonly ErrorFrame[];
+}
+
 export interface XmlTraceBreakpoint {
   node: XmlNodeHandle;
   on: readonly XmlTraceEventKind[];
@@ -45,6 +50,8 @@ export interface TransformTraceOptions {
   breakpoints?: readonly XmlTraceBreakpoint[];
   /** Optional event sink for hosts that want runtime node-trace notifications. */
   onEvent?: (event: XmlTraceEvent) => void;
+  /** Optional pause sink for hosts that want the first matching breakpoint payload. */
+  onPause?: (pause: XmlTracePause) => void;
 }
 
 export interface TransformExecutionFallbackReason {
@@ -88,6 +95,8 @@ export interface TransformResult {
   output: string;
   /** Secondary result documents keyed by their href (xsl:result-document). */
   secondaryOutputs?: Readonly<Record<string, string>>;
+  /** First matched XML-node trace pause for the current transform, when any breakpoint fired. */
+  pause?: XmlTracePause;
   /** Execution strategy information when an explicit strategy was requested. */
   execution?: TransformExecutionInfo;
 }

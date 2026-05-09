@@ -2,7 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 
 import * as stylesheetCompiler from '../src/xslt/compile/compiler.js';
 import type { SourceSpan } from '../src/diagnostics.js';
-import { CompiledStylesheet, compile, compileAndTransform, transform } from '../src/workbench.js';
+import {
+  CompiledStylesheet,
+  compile,
+  compileAndTransform,
+  resolveSourceXmlNodeHandle,
+  resolveSourceXmlNodeHandleAtOffset,
+  resolveSourceXmlNodeHandleInRange,
+  transform,
+} from '../src/workbench.js';
 
 describe('workbench boundary', () => {
   it('compiles in-memory source documents into inspectable artifacts', () => {
@@ -59,7 +67,7 @@ describe('workbench boundary', () => {
 
     const generatedValueOfSpan = generatedSpans.find((span) => {
       const generatedText = sliceSpan(result.generatedTs ?? '', span);
-      return generatedText.includes('selectSimplePathText');
+      return generatedText.includes('traceStringValueOfNode');
     });
     expect(generatedValueOfSpan).toBeDefined();
 
@@ -243,7 +251,264 @@ describe('workbench boundary', () => {
         resolved: 'native',
       },
     });
-    expect(result.generatedTs).toContain('selectDescendantElementTextByName');
+    expect(result.generatedTs).toContain('selectDescendantElementsByName');
+    expect(result.generatedTs).toContain('traceStringValueOfNode');
+  });
+
+  it('resolves a workbench source XML path into a trace handle', () => {
+    const sourceXml = {
+      uri: 'memory:/tracked.xml',
+      text: '<root><section><para>alpha</para><para>beta</para></section></root>',
+    };
+
+    const result = resolveSourceXmlNodeHandle({
+      sourceXml,
+      path: '/root[1]/section[1]/para[2]',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      diagnostics: [],
+      handle: {
+        documentUri: 'memory:/tracked.xml',
+        kind: 'element',
+        path: '/root[1]/section[1]/para[2]',
+      },
+    });
+  });
+
+  it('returns an empty successful lookup when the workbench XML path does not resolve', () => {
+    const result = resolveSourceXmlNodeHandle({
+      sourceXml: {
+        uri: 'memory:/tracked.xml',
+        text: '<root><section><para>alpha</para></section></root>',
+      },
+      path: '/root[1]/section[1]/para[2]',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      diagnostics: [],
+    });
+  });
+
+  it('resolves a workbench XML caret offset into the deepest matching trace handle', () => {
+    const sourceXml = {
+      uri: 'memory:/tracked.xml',
+      text: '<root><section priority="high"><para>alpha</para><para>beta</para></section></root>',
+    };
+    const paraOffset = sourceXml.text.indexOf('<para>beta</para>') + 1;
+    const attributeOffset = sourceXml.text.indexOf('high');
+    const textOffset = sourceXml.text.indexOf('beta');
+
+    expect(resolveSourceXmlNodeHandleAtOffset({ sourceXml, offset: paraOffset })).toEqual({
+      ok: true,
+      diagnostics: [],
+      handle: {
+        documentUri: 'memory:/tracked.xml',
+        kind: 'element',
+        path: '/root[1]/section[1]/para[2]',
+      },
+    });
+    expect(resolveSourceXmlNodeHandleAtOffset({ sourceXml, offset: attributeOffset })).toEqual({
+      ok: true,
+      diagnostics: [],
+      handle: {
+        documentUri: 'memory:/tracked.xml',
+        kind: 'attribute',
+        path: '/root[1]/section[1]/@priority',
+      },
+    });
+    expect(resolveSourceXmlNodeHandleAtOffset({ sourceXml, offset: textOffset })).toEqual({
+      ok: true,
+      diagnostics: [],
+      handle: {
+        documentUri: 'memory:/tracked.xml',
+        kind: 'text',
+        path: '/root[1]/section[1]/para[2]/text()[1]',
+      },
+    });
+  });
+
+  it('returns an empty successful lookup when the workbench XML caret offset misses a trace node', () => {
+    const sourceXml = {
+      uri: 'memory:/tracked.xml',
+      text: '<root>  <section><para>alpha</para></section></root>',
+    };
+    const offset = sourceXml.text.indexOf('  ');
+
+    const result = resolveSourceXmlNodeHandleAtOffset({
+      sourceXml,
+      offset,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      diagnostics: [],
+    });
+  });
+
+  it('resolves a workbench XML selection range into the deepest matching trace handle', () => {
+    const sourceXml = {
+      uri: 'memory:/tracked.xml',
+      text: '<root><section priority="high"><para>alpha</para><para>beta</para></section></root>',
+    };
+    const attributeValueStart = sourceXml.text.indexOf('high');
+    const attributeValueEnd = attributeValueStart + 'high'.length;
+    const paraNameStart = sourceXml.text.indexOf('<para>beta</para>') + 1;
+    const paraNameEnd = paraNameStart + 'para'.length;
+    const textStart = sourceXml.text.indexOf('beta');
+    const textEnd = textStart + 'beta'.length;
+
+    expect(resolveSourceXmlNodeHandleInRange({
+      sourceXml,
+      offsetStart: attributeValueStart,
+      offsetEnd: attributeValueEnd,
+    })).toEqual({
+      ok: true,
+      diagnostics: [],
+      handle: {
+        documentUri: 'memory:/tracked.xml',
+        kind: 'attribute',
+        path: '/root[1]/section[1]/@priority',
+      },
+    });
+    expect(resolveSourceXmlNodeHandleInRange({
+      sourceXml,
+      offsetStart: paraNameStart,
+      offsetEnd: paraNameEnd,
+    })).toEqual({
+      ok: true,
+      diagnostics: [],
+      handle: {
+        documentUri: 'memory:/tracked.xml',
+        kind: 'element',
+        path: '/root[1]/section[1]/para[2]',
+      },
+    });
+    expect(resolveSourceXmlNodeHandleInRange({
+      sourceXml,
+      offsetStart: textStart,
+      offsetEnd: textEnd,
+    })).toEqual({
+      ok: true,
+      diagnostics: [],
+      handle: {
+        documentUri: 'memory:/tracked.xml',
+        kind: 'text',
+        path: '/root[1]/section[1]/para[2]/text()[1]',
+      },
+    });
+  });
+
+  it('returns an empty successful lookup when the workbench XML selection range spans multiple trace nodes', () => {
+    const sourceXml = {
+      uri: 'memory:/tracked.xml',
+      text: '<root><section><para>alpha</para><para>beta</para></section></root>',
+    };
+    const offsetStart = sourceXml.text.indexOf('alpha');
+    const offsetEnd = sourceXml.text.indexOf('beta') + 'beta'.length;
+
+    const result = resolveSourceXmlNodeHandleInRange({
+      sourceXml,
+      offsetStart,
+      offsetEnd,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      diagnostics: [],
+    });
+  });
+
+  it('surfaces XML parse failures through the workbench node resolver', () => {
+    const result = resolveSourceXmlNodeHandle({
+      sourceXml: {
+        uri: 'memory:/broken.xml',
+        text: '<root><section></root>',
+      },
+      path: '/root[1]/section[1]',
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('expected resolveSourceXmlNodeHandle to fail');
+    }
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0]).toMatchObject({
+      severity: 'error',
+      message: expect.stringContaining('Source XML is not well-formed'),
+    });
+  });
+
+  it('surfaces a tracked-node template-enter pause through compileAndTransform', () => {
+    const sourceXml = {
+      uri: 'memory:/input.xml',
+      text: [
+        '<root>',
+        '  <section>',
+        '    <para>alpha</para>',
+        '    <para>beta</para>',
+        '  </section>',
+        '</root>',
+      ].join(''),
+    };
+    const trackedParaNodeResult = resolveSourceXmlNodeHandleAtOffset({
+      sourceXml,
+      offset: sourceXml.text.indexOf('<para>beta</para>') + 1,
+    });
+    expect(trackedParaNodeResult.ok).toBe(true);
+    if (!trackedParaNodeResult.ok || trackedParaNodeResult.handle === undefined) {
+      throw new Error('expected tracked para handle');
+    }
+    const trackedParaNode = trackedParaNodeResult.handle;
+    const result = compileAndTransform({
+      stylesheet: {
+        uri: 'memory:/trace-pause.xsl',
+        text: [
+          '<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+          '  <xsl:template match="/">',
+          '    <items><xsl:apply-templates select="/root/section/para"/></items>',
+          '  </xsl:template>',
+          '  <xsl:template match="para">',
+          '    <entry><xsl:value-of select="."/></entry>',
+          '  </xsl:template>',
+          '</xsl:stylesheet>',
+        ].join('\n'),
+      },
+      sourceXml,
+      options: {
+        execution: 'native',
+        trace: {
+          documentUri: sourceXml.uri,
+          breakpoints: [{
+            node: trackedParaNode,
+            on: ['template-enter'],
+          }],
+        },
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      diagnostics: [],
+      output: '<items><entry>alpha</entry><entry>beta</entry></items>',
+      pause: {
+        event: {
+          kind: 'template-enter',
+          node: trackedParaNode,
+          template: {
+            match: 'para',
+            location: expect.any(Object),
+          },
+        },
+        frames: [{
+          kind: 'template',
+          label: 'match="para"',
+          location: expect.any(Object),
+        }],
+      },
+    });
   });
 });
 

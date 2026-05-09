@@ -6,11 +6,19 @@
  */
 
 export { XsltProcessor } from './processor/XsltProcessor.js';
+export {
+	createCompiledDocument,
+	createXmlNodeHandle,
+	resolveXmlNodeHandle,
+	resolveXmlNodeHandleAtOffset,
+	resolveXmlNodeHandleInRange,
+} from './runtime/index.js';
 export type {
 	XmlNodeHandle,
 	XmlTraceBreakpoint,
 	XmlTraceEvent,
 	XmlTraceEventKind,
+	XmlTracePause,
 	TransformExecutionFallbackReason,
 	TransformExecutionFallbackReasonCode,
 	TransformExecutionInfo,

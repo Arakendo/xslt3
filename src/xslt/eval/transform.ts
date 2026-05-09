@@ -11,6 +11,12 @@ import { XTDE0040, XTDE0050, XTDE0640, XTDE0700, XTSE0010, XTSE0650, XPTY0004 } 
 import { XsltError, type ErrorFrame, type ErrorSuggestion, type RelatedLocation } from '../../errors/index.js';
 import type { TransformOptions, TransformResult, TransformTraceOptions, XmlTraceEvent } from '../../processor/types.js';
 import { createXmlNodeHandle } from '../../runtime/xmlNodeHandles.js';
+import {
+  emitTraceEvent as publishTraceEvent,
+  getRecordedTracePause,
+  isTraceEnabled,
+  resetRecordedTracePause,
+} from '../../runtime/tracePause.js';
 import { parseXml } from '../../xml/parse.js';
 import { createXdmNode, createXdmString, type XdmAtomicValue, type XdmItem, type XdmNode } from '../../xdm/types.js';
 import { evaluate, evaluateEffectiveBooleanValue } from '../../xpath/eval/evaluator.js';
@@ -43,6 +49,7 @@ export function runTransform(
 ): TransformResult {
   const trace = options.trace;
   const sourceDocumentUri = trace?.documentUri ?? '<source-xml>';
+  resetRecordedTracePause(trace);
 
   if (options.initialMode !== undefined) {
     throw new XsltError(
@@ -72,20 +79,26 @@ export function runTransform(
 
   if (options.initialTemplate !== undefined) {
     const initialContext = createContext(createXdmNode(sourceDocument), staticContext, 1, 1, globalVariables);
+    const output = renderInitialTemplate(options.initialTemplate, ir, initialContext, trace, sourceDocumentUri);
+    const pause = getRecordedTracePause(trace);
     return {
-      output: renderInitialTemplate(options.initialTemplate, ir, initialContext, trace, sourceDocumentUri),
+      output,
+      ...(pause === undefined ? {} : { pause }),
     };
   }
 
+  const output = applyTemplatesToItems(
+    [createXdmNode(sourceDocument)],
+    ir,
+    staticContext,
+    globalVariables,
+    trace,
+    sourceDocumentUri,
+  );
+  const pause = getRecordedTracePause(trace);
   return {
-    output: applyTemplatesToItems(
-      [createXdmNode(sourceDocument)],
-      ir,
-      staticContext,
-      globalVariables,
-      trace,
-      sourceDocumentUri,
-    ),
+    output,
+    ...(pause === undefined ? {} : { pause }),
   };
 }
 
@@ -570,7 +583,7 @@ function renderBuiltInTemplate(
 }
 
 function emitTraceEvent(trace: TransformTraceOptions | undefined, event: XmlTraceEvent): void {
-  trace?.onEvent?.(event);
+  publishTraceEvent(trace, event);
 }
 
 function tryCreateTraceNodeHandle(
@@ -578,7 +591,7 @@ function tryCreateTraceNodeHandle(
   trace: TransformTraceOptions | undefined,
   sourceDocumentUri: string,
 ) {
-  if (trace?.onEvent === undefined) {
+  if (!isTraceEnabled(trace)) {
     return undefined;
   }
 
@@ -602,7 +615,7 @@ function emitInstructionSelectEvents(
   instructionKind: string,
   location: RelatedLocation['location'] | undefined,
 ): void {
-  if (trace?.onEvent === undefined) {
+  if (!isTraceEnabled(trace)) {
     return;
   }
 
@@ -634,7 +647,7 @@ function emitValueReadEvents(
   sourceDocumentUri: string,
   location: RelatedLocation['location'] | undefined,
 ): void {
-  if (trace?.onEvent === undefined) {
+  if (!isTraceEnabled(trace)) {
     return;
   }
 
