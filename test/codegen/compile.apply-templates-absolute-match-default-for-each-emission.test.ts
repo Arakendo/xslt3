@@ -31,10 +31,10 @@ describe('XSLT codegen apply-templates absolute-match default for-each emission'
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain(', true)');
-    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
-    expect(emitted).toContain('escapeText(stringValueOfNode(currentNode))');
+    expect(emitted).toContain(', true, ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('escapeText(traceStringValueOfNode(selectSimplePathNode(templateNode, ["name"]), ctx, {"kind":"xsl:value-of"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
+    expect(emitted).toContain('escapeText(traceStringValueOfNode(currentNode, ctx, {"kind":"xsl:value-of"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -43,8 +43,8 @@ describe('XSLT codegen apply-templates absolute-match default for-each emission'
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain(', true)');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain(', true, ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('"<flagged>" +');
     expect(emitted).toContain('"<plain>" +');
@@ -56,8 +56,8 @@ describe('XSLT codegen apply-templates absolute-match default for-each emission'
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain(', true)');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain(', true, ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('"<flagged>" +');
     expect(emitted).toContain(': "")');
@@ -69,8 +69,8 @@ describe('XSLT codegen apply-templates absolute-match default for-each emission'
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain(', true)');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain(', true, ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
     expect(emitted).toContain('"<flagged>" +');
@@ -84,8 +84,8 @@ describe('XSLT codegen apply-templates absolute-match default for-each emission'
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain(', true)');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain(', true, ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
@@ -97,8 +97,8 @@ describe('XSLT codegen apply-templates absolute-match default for-each emission'
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain(', true)');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain(', true, ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
@@ -110,8 +110,8 @@ describe('XSLT codegen apply-templates absolute-match default for-each emission'
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["group"]).map((currentNode) =>');
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(currentNode, [{"name":"detail"}]).map((templateNode, templateIndex, templateNodes) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["group"]), ctx, {"kind":"xsl:for-each"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(currentNode, [{"name":"detail"}]), ctx, {"kind":"xsl:apply-templates"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -120,8 +120,9 @@ describe('XSLT codegen apply-templates absolute-match default for-each emission'
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["group"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["group"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('applyBuiltInTemplatesByPath(currentNode, ["detail"], (templateNode, templateIndex, templateNodes) =>');
+    expect(emitted).toContain('false, ctx, {"kind":"xsl:apply-templates"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 });

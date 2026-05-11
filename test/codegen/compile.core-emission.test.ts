@@ -52,7 +52,7 @@ describe('XSLT codegen core emission smoke tests', () => {
     expect(emitted).toContain('@arakendo/weaver-xslt/runtime');
     expect(emitted).toContain('export const source = { path: "hello.xsl"');
     expect(emitted).toContain('createCompiledDocument(sourceXml)');
-    expect(emitted).toContain('selectSimplePathText(document, ["root","name"])');
+    expect(emitted).toContain('traceStringValueOfNode(selectSimplePathNode(document, ["root","name"]), ctx, {"kind":"xsl:value-of"');
     expect(emitted).not.toContain('const currentNode = document;');
     expect(emitted).toContain('"<hello>"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
@@ -62,7 +62,7 @@ describe('XSLT codegen core emission smoke tests', () => {
     const { emitted, transpiled } = transpileEmittedModule(RELATIVE_FIXTURE_STYLESHEET, 'relative.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathText(currentNode, ["root","name"])');
+    expect(emitted).toContain('traceStringValueOfNode(selectSimplePathNode(currentNode, ["root","name"]), ctx, {"kind":"xsl:value-of"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["root","flag"])');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });

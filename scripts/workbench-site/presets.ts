@@ -1,5 +1,5 @@
 export interface WorkbenchPreset {
-  readonly id: 'hello-world' | 'parameters-with-defaults' | 'apply-templates-flow';
+  readonly id: 'hello-world' | 'parameters-with-defaults' | 'apply-templates-flow' | 'xml-breakpoint-trace';
   readonly label: string;
   readonly description: string;
   readonly sourceXml: {
@@ -77,6 +77,36 @@ export const PRESETS: readonly WorkbenchPreset[] = [
   </xsl:template>
 
   <xsl:template match="item">
+    <entry>
+      <xsl:value-of select="."/>
+    </entry>
+  </xsl:template>
+</xsl:stylesheet>`,
+    },
+  },
+  {
+    id: 'xml-breakpoint-trace',
+    label: 'XML breakpoint trace',
+    description: 'Select a node in the XML pane and pause on the matching trace event.',
+    sourceXml: {
+      uri: 'memory:/workbench/xml-breakpoint-trace.xml',
+      text: `<root>
+  <section priority="high">
+    <para>alpha</para>
+    <para>beta</para>
+  </section>
+</root>`,
+    },
+    stylesheet: {
+      uri: 'memory:/workbench/xml-breakpoint-trace.xsl',
+      text: `<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:template match="/root">
+    <items>
+      <xsl:apply-templates select="section/para"/>
+    </items>
+  </xsl:template>
+
+  <xsl:template match="para">
     <entry>
       <xsl:value-of select="."/>
     </entry>

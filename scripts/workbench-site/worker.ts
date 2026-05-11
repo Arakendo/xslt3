@@ -1,4 +1,5 @@
-import { compileAndTransform } from '../../src/workbench.ts';
+import { compileAndTransform, resolveSourceXmlNodeHandleAtOffset, resolveSourceXmlNodeHandleInRange } from '../../src/workbench.ts';
+import type { XmlTraceEventKind } from '../../src/processor/types.ts';
 
 interface WorkbenchRequest {
   readonly requestId: number;
@@ -10,6 +11,11 @@ interface WorkbenchRequest {
     readonly uri: string;
     readonly text: string;
   };
+  readonly traceBreakpoint?: {
+    readonly offsetStart: number;
+    readonly offsetEnd: number;
+    readonly eventKind: XmlTraceEventKind;
+  };
 }
 
 interface WorkbenchResponse {
@@ -20,16 +26,33 @@ interface WorkbenchResponse {
   readonly diagnostics: readonly string[];
   readonly notices: readonly string[];
   readonly execution: string;
+  readonly traceStatus: string;
+  readonly traceHandle: string;
+  readonly pause: string;
 }
 
 self.addEventListener('message', (event: MessageEvent<WorkbenchRequest>) => {
   const request = event.data;
+  const breakpointResolution = resolveTraceBreakpoint(request);
   const result = compileAndTransform({
     stylesheet: request.stylesheet,
     sourceXml: request.sourceXml,
     options: {
       emitGeneratedTs: true,
       execution: 'auto',
+      ...(breakpointResolution.handle === undefined
+        ? {}
+        : {
+            trace: {
+              documentUri: request.sourceXml.uri,
+              breakpoints: [
+                {
+                  node: breakpointResolution.handle,
+                  on: [request.traceBreakpoint?.eventKind ?? 'template-enter'],
+                },
+              ],
+            },
+          }),
     },
   });
 
@@ -43,10 +66,65 @@ self.addEventListener('message', (event: MessageEvent<WorkbenchRequest>) => {
     execution: result.ok && result.execution !== undefined
       ? `${result.execution.requested} -> ${result.execution.resolved}`
       : '',
+    traceStatus: formatTraceStatus(request, breakpointResolution, result),
+    traceHandle: breakpointResolution.handle === undefined ? '' : `${breakpointResolution.handle.kind} ${breakpointResolution.handle.path}`,
+    pause: result.ok && result.pause !== undefined ? JSON.stringify(result.pause, null, 2) : '',
   };
 
   self.postMessage(response);
 });
+
+function resolveTraceBreakpoint(request: WorkbenchRequest) {
+  const traceBreakpoint = request.traceBreakpoint;
+  if (traceBreakpoint === undefined) {
+    return { diagnostics: [] as readonly string[], handle: undefined };
+  }
+
+  const selectionResult = traceBreakpoint.offsetStart === traceBreakpoint.offsetEnd
+    ? resolveSourceXmlNodeHandleAtOffset({
+        sourceXml: request.sourceXml,
+        offset: traceBreakpoint.offsetStart,
+      })
+    : resolveSourceXmlNodeHandleInRange({
+        sourceXml: request.sourceXml,
+        offsetStart: traceBreakpoint.offsetStart,
+        offsetEnd: traceBreakpoint.offsetEnd,
+      });
+
+  return {
+    diagnostics: selectionResult.diagnostics.map(formatDiagnostic),
+    handle: selectionResult.ok ? selectionResult.handle : undefined,
+  };
+}
+
+function formatTraceStatus(
+  request: WorkbenchRequest,
+  breakpointResolution: { readonly diagnostics: readonly string[]; readonly handle?: { readonly kind: string; readonly path: string } },
+  result: ReturnType<typeof compileAndTransform>,
+): string {
+  const traceBreakpoint = request.traceBreakpoint;
+  if (traceBreakpoint === undefined) {
+    return 'Select XML text and click "Run XML breakpoint from selection" to capture a pause payload.';
+  }
+
+  if (breakpointResolution.diagnostics.length > 0) {
+    return breakpointResolution.diagnostics.join('\n');
+  }
+
+  if (breakpointResolution.handle === undefined) {
+    return 'The current XML selection does not resolve to a selectable trace node.';
+  }
+
+  if (!result.ok) {
+    return `Resolved ${breakpointResolution.handle.path}, but compile or transform failed.`;
+  }
+
+  if (result.pause === undefined) {
+    return `Resolved ${breakpointResolution.handle.path}, but no ${traceBreakpoint.eventKind} breakpoint fired.`;
+  }
+
+  return `Paused on ${result.pause.event.kind} for ${result.pause.event.node.path}.`;
+}
 
 function formatDiagnostic(diagnostic: ReturnType<typeof compileAndTransform>['diagnostics'][number]): string {
   const location = diagnostic.primary === undefined

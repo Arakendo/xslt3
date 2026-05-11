@@ -1,10 +1,11 @@
-import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathNodes, selectSimplePathText, stringValueOfNode } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, getRecordedTracePause, resetRecordedTracePause, traceFocusEnter, traceTemplateEnter, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathNode, selectSimplePathNodes, traceSelectedNodes, traceStringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "apply-templates-nested-match-default-for-each.xsl", digest: "e92a9833" } as const;
 
 /** match="/" (apply-templates-nested-match-default-for-each.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  resetRecordedTracePause(ctx.trace);
   if (ctx.initialMode !== undefined) {
     throwUnsupportedNativeInitialMode(ctx.initialMode);
   }
@@ -13,6 +14,8 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   }
   void ctx;
   const document = createCompiledDocument(sourceXml);
+  traceFocusEnter(document, ctx);
+  traceTemplateEnter(document, ctx, {"match":"/","location":{"source":"apply-templates-nested-match-default-for-each.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
   return {
     output:
       (
@@ -22,33 +25,38 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   /** xsl:apply-templates (apply-templates-nested-match-default-for-each.xsl:1) */
   applyBuiltInTemplatesByPath(document, ["section","item"], (templateNode, templateIndex, templateNodes) => (
   /** match="section/item" (apply-templates-nested-match-default-for-each.xsl:1) */
-  (
+  (() => {
+  traceFocusEnter(templateNode, ctx);
+  traceTemplateEnter(templateNode, ctx, {"match":"section/item","location":{"source":"apply-templates-nested-match-default-for-each.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
+  return (
   /** literal item (apply-templates-nested-match-default-for-each.xsl:1) */
   "<item>" +
     (
   /** xsl:value-of (apply-templates-nested-match-default-for-each.xsl:1) */
-  escapeText(selectSimplePathText(templateNode, ["name"]))
+  escapeText(traceStringValueOfNode(selectSimplePathNode(templateNode, ["name"]), ctx, {"kind":"xsl:value-of","location":{"source":"apply-templates-nested-match-default-for-each.xsl","line":1,"column":219,"offset":218,"endLine":1,"endColumn":223,"endOffset":222}}))
 ) +
     (
   /** literal details (apply-templates-nested-match-default-for-each.xsl:1) */
   "<details>" +
     (
   /** xsl:for-each (apply-templates-nested-match-default-for-each.xsl:1) */
-  selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) => (
+  traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each","location":{"source":"apply-templates-nested-match-default-for-each.xsl","line":1,"column":219,"offset":218,"endLine":1,"endColumn":223,"endOffset":222}}).map((currentNode) => (
   /** literal detail (apply-templates-nested-match-default-for-each.xsl:1) */
   "<detail>" +
-    escapeText(stringValueOfNode(currentNode)) +
+    escapeText(traceStringValueOfNode(currentNode, ctx, {"kind":"xsl:value-of","location":{"source":"apply-templates-nested-match-default-for-each.xsl","line":1,"column":219,"offset":218,"endLine":1,"endColumn":223,"endOffset":222}})) +
     "</detail>"
 )).join("")
 ) +
     "</details>"
 ) +
     "</item>"
-)
-))
+);
+})()
+), false, ctx, {"kind":"xsl:apply-templates","location":{"source":"apply-templates-nested-match-default-for-each.xsl","line":1,"column":111,"offset":110,"endLine":1,"endColumn":112,"endOffset":111}})
 ) +
     "</items>"
 ),
+    ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),
   };
 }
 

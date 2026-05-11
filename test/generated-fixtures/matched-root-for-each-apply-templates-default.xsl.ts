@@ -1,10 +1,11 @@
-import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathNode, selectSimplePathNodes, selectSimplePathText, stringValueOfNode } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, getRecordedTracePause, resetRecordedTracePause, traceFocusEnter, traceTemplateEnter, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathNode, selectSimplePathNodes, traceSelectedNodes, traceStringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "matched-root-for-each-apply-templates-default.xsl", digest: "aa228273" } as const;
 
 /** match="/root" (matched-root-for-each-apply-templates-default.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  resetRecordedTracePause(ctx.trace);
   if (ctx.initialMode !== undefined) {
     throwUnsupportedNativeInitialMode(ctx.initialMode);
   }
@@ -13,10 +14,13 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   }
   void ctx;
   const document = createCompiledDocument(sourceXml);
+  traceFocusEnter(document, ctx);
   const currentNode = selectSimplePathNode(document, ["root"]);
   if (currentNode === null) {
     return { output: "" };
   }
+  traceFocusEnter(currentNode, ctx);
+  traceTemplateEnter(currentNode, ctx, {"match":"/root","location":{"source":"matched-root-for-each-apply-templates-default.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":106,"endOffset":105}});
   return {
     output:
       (
@@ -24,12 +28,12 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   "<items>" +
     (
   /** xsl:for-each (matched-root-for-each-apply-templates-default.xsl:1) */
-  selectSimplePathNodes(currentNode, ["item"]).map((currentNode) => (
+  traceSelectedNodes(selectSimplePathNodes(currentNode, ["item"]), ctx, {"kind":"xsl:for-each","location":{"source":"matched-root-for-each-apply-templates-default.xsl","line":1,"column":137,"offset":136,"endLine":1,"endColumn":141,"endOffset":140}}).map((currentNode) => (
   /** literal item (matched-root-for-each-apply-templates-default.xsl:1) */
   "<item>" +
     (
   /** xsl:value-of (matched-root-for-each-apply-templates-default.xsl:1) */
-  escapeText(selectSimplePathText(currentNode, ["name"]))
+  escapeText(traceStringValueOfNode(selectSimplePathNode(currentNode, ["name"]), ctx, {"kind":"xsl:value-of","location":{"source":"matched-root-for-each-apply-templates-default.xsl","line":1,"column":137,"offset":136,"endLine":1,"endColumn":141,"endOffset":140}}))
 ) +
     (
   /** literal details (matched-root-for-each-apply-templates-default.xsl:1) */
@@ -38,13 +42,17 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   /** xsl:apply-templates (matched-root-for-each-apply-templates-default.xsl:1) */
   applyBuiltInTemplatesByPath(currentNode, ["detail"], (templateNode, templateIndex, templateNodes) => (
   /** match="detail" (matched-root-for-each-apply-templates-default.xsl:1) */
-  (
+  (() => {
+  traceFocusEnter(templateNode, ctx);
+  traceTemplateEnter(templateNode, ctx, {"match":"detail","location":{"source":"matched-root-for-each-apply-templates-default.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":106,"endOffset":105}});
+  return (
   /** literal detail (matched-root-for-each-apply-templates-default.xsl:1) */
   "<detail>" +
-    escapeText(stringValueOfNode(templateNode)) +
+    escapeText(traceStringValueOfNode(templateNode, ctx, {"kind":"xsl:value-of","location":{"source":"matched-root-for-each-apply-templates-default.xsl","line":1,"column":137,"offset":136,"endLine":1,"endColumn":141,"endOffset":140}})) +
     "</detail>"
-)
-))
+);
+})()
+), false, ctx, {"kind":"xsl:apply-templates","location":{"source":"matched-root-for-each-apply-templates-default.xsl","line":1,"column":187,"offset":186,"endLine":1,"endColumn":188,"endOffset":187}})
 ) +
     "</details>"
 ) +
@@ -53,6 +61,7 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
 ) +
     "</items>"
 ),
+    ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),
   };
 }
 

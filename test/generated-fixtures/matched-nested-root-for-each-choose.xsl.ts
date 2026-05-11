@@ -1,10 +1,11 @@
-import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNode, selectSimplePathNodes, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, getRecordedTracePause, resetRecordedTracePause, traceFocusEnter, traceTemplateEnter, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNode, selectSimplePathNodes, traceSelectedNodes, traceStringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "matched-nested-root-for-each-choose.xsl", digest: "2208aaf7" } as const;
 
 /** match="/root/section" (matched-nested-root-for-each-choose.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  resetRecordedTracePause(ctx.trace);
   if (ctx.initialMode !== undefined) {
     throwUnsupportedNativeInitialMode(ctx.initialMode);
   }
@@ -13,10 +14,13 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   }
   void ctx;
   const document = createCompiledDocument(sourceXml);
+  traceFocusEnter(document, ctx);
   const currentNode = selectSimplePathNode(document, ["root","section"]);
   if (currentNode === null) {
     return { output: "" };
   }
+  traceFocusEnter(currentNode, ctx);
+  traceTemplateEnter(currentNode, ctx, {"match":"/root/section","location":{"source":"matched-nested-root-for-each-choose.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":114,"endOffset":113}});
   return {
     output:
       (
@@ -24,12 +28,12 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   "<items>" +
     (
   /** xsl:for-each (matched-nested-root-for-each-choose.xsl:1) */
-  selectSimplePathNodes(currentNode, ["item"]).map((currentNode) => (
+  traceSelectedNodes(selectSimplePathNodes(currentNode, ["item"]), ctx, {"kind":"xsl:for-each","location":{"source":"matched-nested-root-for-each-choose.xsl","line":1,"column":145,"offset":144,"endLine":1,"endColumn":149,"endOffset":148}}).map((currentNode) => (
   /** literal item (matched-nested-root-for-each-choose.xsl:1) */
   "<item>" +
     (
   /** xsl:value-of (matched-nested-root-for-each-choose.xsl:1) */
-  escapeText(selectSimplePathText(currentNode, ["name"]))
+  escapeText(traceStringValueOfNode(selectSimplePathNode(currentNode, ["name"]), ctx, {"kind":"xsl:value-of","location":{"source":"matched-nested-root-for-each-choose.xsl","line":1,"column":145,"offset":144,"endLine":1,"endColumn":149,"endOffset":148}}))
 ) +
     (
   /** xsl:choose (matched-nested-root-for-each-choose.xsl:1) */
@@ -54,6 +58,7 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
 ) +
     "</items>"
 ),
+    ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),
   };
 }
 

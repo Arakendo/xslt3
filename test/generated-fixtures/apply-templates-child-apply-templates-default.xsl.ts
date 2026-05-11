@@ -1,10 +1,11 @@
-import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathNodesByStepPlan, selectSimplePathText, stringValueOfNode } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, getRecordedTracePause, resetRecordedTracePause, traceFocusEnter, traceTemplateEnter, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathNode, selectSimplePathNodesByStepPlan, traceSelectedNodes, traceStringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "apply-templates-child-apply-templates-default.xsl", digest: "8d246d32" } as const;
 
 /** match="/" (apply-templates-child-apply-templates-default.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  resetRecordedTracePause(ctx.trace);
   if (ctx.initialMode !== undefined) {
     throwUnsupportedNativeInitialMode(ctx.initialMode);
   }
@@ -13,6 +14,8 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   }
   void ctx;
   const document = createCompiledDocument(sourceXml);
+  traceFocusEnter(document, ctx);
+  traceTemplateEnter(document, ctx, {"match":"/","location":{"source":"apply-templates-child-apply-templates-default.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
   return {
     output:
       (
@@ -20,14 +23,17 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   "<items>" +
     (
   /** xsl:apply-templates (apply-templates-child-apply-templates-default.xsl:1) */
-  selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) => (
+  traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates","location":{"source":"apply-templates-child-apply-templates-default.xsl","line":1,"column":140,"offset":139,"endLine":1,"endColumn":150,"endOffset":149}}).map((templateNode, templateIndex, templateNodes) => (
   /** match="item" (apply-templates-child-apply-templates-default.xsl:1) */
-  (
+  (() => {
+  traceFocusEnter(templateNode, ctx);
+  traceTemplateEnter(templateNode, ctx, {"match":"item","location":{"source":"apply-templates-child-apply-templates-default.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
+  return (
   /** literal item (apply-templates-child-apply-templates-default.xsl:1) */
   "<item>" +
     (
   /** xsl:value-of (apply-templates-child-apply-templates-default.xsl:1) */
-  escapeText(selectSimplePathText(templateNode, ["name"]))
+  escapeText(traceStringValueOfNode(selectSimplePathNode(templateNode, ["name"]), ctx, {"kind":"xsl:value-of","location":{"source":"apply-templates-child-apply-templates-default.xsl","line":1,"column":140,"offset":139,"endLine":1,"endColumn":150,"endOffset":149}}))
 ) +
     (
   /** literal details (apply-templates-child-apply-templates-default.xsl:1) */
@@ -36,22 +42,28 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   /** xsl:apply-templates (apply-templates-child-apply-templates-default.xsl:1) */
   applyBuiltInTemplatesByPath(templateNode, ["detail"], (templateNode, templateIndex, templateNodes) => (
   /** match="detail" (apply-templates-child-apply-templates-default.xsl:1) */
-  (
+  (() => {
+  traceFocusEnter(templateNode, ctx);
+  traceTemplateEnter(templateNode, ctx, {"match":"detail","location":{"source":"apply-templates-child-apply-templates-default.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
+  return (
   /** literal detail (apply-templates-child-apply-templates-default.xsl:1) */
   "<detail>" +
-    escapeText(stringValueOfNode(templateNode)) +
+    escapeText(traceStringValueOfNode(templateNode, ctx, {"kind":"xsl:value-of","location":{"source":"apply-templates-child-apply-templates-default.xsl","line":1,"column":140,"offset":139,"endLine":1,"endColumn":150,"endOffset":149}})) +
     "</detail>"
-)
-))
+);
+})()
+), false, ctx, {"kind":"xsl:apply-templates","location":{"source":"apply-templates-child-apply-templates-default.xsl","line":1,"column":247,"offset":246,"endLine":1,"endColumn":248,"endOffset":247}})
 ) +
     "</details>"
 ) +
     "</item>"
-)
+);
+})()
 )).join("")
 ) +
     "</items>"
 ),
+    ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),
   };
 }
 

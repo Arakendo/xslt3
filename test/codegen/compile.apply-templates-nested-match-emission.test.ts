@@ -30,8 +30,8 @@ describe('XSLT codegen apply-templates nested-match emission', () => {
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_NESTED_MATCH_FIXTURE_STYLESHEET, 'apply-templates-nested-match.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('escapeText(traceStringValueOfNode(selectSimplePathNode(templateNode, ["name"]), ctx, {"kind":"xsl:value-of"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -39,10 +39,10 @@ describe('XSLT codegen apply-templates nested-match emission', () => {
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('escapeText(selectSimplePathText(templateNode, ["name"]))');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
-    expect(emitted).toContain('escapeText(stringValueOfNode(currentNode))');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('escapeText(traceStringValueOfNode(selectSimplePathNode(templateNode, ["name"]), ctx, {"kind":"xsl:value-of"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
+    expect(emitted).toContain('escapeText(traceStringValueOfNode(currentNode, ctx, {"kind":"xsl:value-of"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -50,8 +50,8 @@ describe('XSLT codegen apply-templates nested-match emission', () => {
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-choose.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('"<flagged>" +');
     expect(emitted).toContain('"<plain>" +');
@@ -62,8 +62,8 @@ describe('XSLT codegen apply-templates nested-match emission', () => {
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NO_OTHERWISE_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-choose-no-otherwise.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('"<flagged>" +');
     expect(emitted).toContain(': "")');
@@ -74,8 +74,8 @@ describe('XSLT codegen apply-templates nested-match emission', () => {
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_MULTI_WHEN_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-choose-multi-when.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
     expect(emitted).toContain('"<flagged>" +');
@@ -88,8 +88,8 @@ describe('XSLT codegen apply-templates nested-match emission', () => {
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_IF_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-choose-nested-if.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
@@ -100,8 +100,8 @@ describe('XSLT codegen apply-templates nested-match emission', () => {
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_NESTED_MATCH_FOR_EACH_CHOOSE_NESTED_CHOOSE_FIXTURE_STYLESHEET, 'apply-templates-nested-match-for-each-choose-nested-choose.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["marker"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
@@ -112,9 +112,9 @@ describe('XSLT codegen apply-templates nested-match emission', () => {
     const { emitted, transpiled } = transpileEmittedModule(APPLY_TEMPLATES_THREE_HOP_NESTED_MATCH_FIXTURE_STYLESHEET, 'apply-templates-three-hop-nested-match.xsl');
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(templateNode, [{"name":"detail"}]).map((templateNode, templateIndex, templateNodes) =>');
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(templateNode, [{"name":"marker"}]).map((templateNode, templateIndex, templateNodes) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"section"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(templateNode, [{"name":"detail"}]), ctx, {"kind":"xsl:apply-templates"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(templateNode, [{"name":"marker"}]), ctx, {"kind":"xsl:apply-templates"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 });

@@ -1,10 +1,11 @@
-import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, getRecordedTracePause, resetRecordedTracePause, traceFocusEnter, traceTemplateEnter, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathNode, traceSelectedNodes, traceStringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "apply-templates-absolute-nested-match-default.xsl", digest: "5aa74aa6" } as const;
 
 /** match="/" (apply-templates-absolute-nested-match-default.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  resetRecordedTracePause(ctx.trace);
   if (ctx.initialMode !== undefined) {
     throwUnsupportedNativeInitialMode(ctx.initialMode);
   }
@@ -13,6 +14,8 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   }
   void ctx;
   const document = createCompiledDocument(sourceXml);
+  traceFocusEnter(document, ctx);
+  traceTemplateEnter(document, ctx, {"match":"/","location":{"source":"apply-templates-absolute-nested-match-default.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
   return {
     output:
       (
@@ -22,19 +25,24 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   /** xsl:apply-templates (apply-templates-absolute-nested-match-default.xsl:1) */
   applyBuiltInTemplatesByPath(document, ["root","section","item"], (templateNode, templateIndex, templateNodes) => (
   /** match="/root/section/item" (apply-templates-absolute-nested-match-default.xsl:1) */
-  (
+  (() => {
+  traceFocusEnter(templateNode, ctx);
+  traceTemplateEnter(templateNode, ctx, {"match":"/root/section/item","location":{"source":"apply-templates-absolute-nested-match-default.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
+  return (
   /** literal item (apply-templates-absolute-nested-match-default.xsl:1) */
   "<item>" +
     (
   /** xsl:value-of (apply-templates-absolute-nested-match-default.xsl:1) */
-  escapeText(selectSimplePathText(templateNode, ["name"]))
+  escapeText(traceStringValueOfNode(selectSimplePathNode(templateNode, ["name"]), ctx, {"kind":"xsl:value-of","location":{"source":"apply-templates-absolute-nested-match-default.xsl","line":1,"column":225,"offset":224,"endLine":1,"endColumn":229,"endOffset":228}}))
 ) +
     "</item>"
-)
-), true)
+);
+})()
+), true, ctx, {"kind":"xsl:apply-templates","location":{"source":"apply-templates-absolute-nested-match-default.xsl","line":1,"column":111,"offset":110,"endLine":1,"endColumn":112,"endOffset":111}})
 ) +
     "</items>"
 ),
+    ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),
   };
 }
 

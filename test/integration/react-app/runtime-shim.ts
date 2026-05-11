@@ -94,6 +94,30 @@ export function resetRecordedTracePause(_trace: TransformContext['trace']): void
   // noop in the test runtime shim
 }
 
+export function traceFocusEnter(node: NativeNode, _ctx?: TransformContext): NativeNode {
+  return node;
+}
+
+export function traceTemplateEnter(node: NativeNode, _ctx?: TransformContext, _template?: unknown): NativeNode {
+  return node;
+}
+
+export function traceSelectedNodes<TNode extends NativeNode>(
+  nodes: readonly TNode[],
+  _ctx?: TransformContext,
+  _instruction?: unknown,
+): readonly TNode[] {
+  return nodes;
+}
+
+export function traceStringValueOfNode(
+  node: NativeNode | null,
+  _ctx?: TransformContext,
+  _instruction?: unknown,
+): string {
+  return node === null ? '' : stringValueOfNode(node);
+}
+
 export function nameOfNode(_node: NativeNode | null): string {
   return '';
 }

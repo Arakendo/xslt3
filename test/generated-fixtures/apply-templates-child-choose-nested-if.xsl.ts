@@ -1,10 +1,11 @@
-import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNodesByStepPlan, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, getRecordedTracePause, resetRecordedTracePause, traceFocusEnter, traceTemplateEnter, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNode, selectSimplePathNodesByStepPlan, traceSelectedNodes, traceStringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "apply-templates-child-choose-nested-if.xsl", digest: "53eafda3" } as const;
 
 /** match="/" (apply-templates-child-choose-nested-if.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  resetRecordedTracePause(ctx.trace);
   if (ctx.initialMode !== undefined) {
     throwUnsupportedNativeInitialMode(ctx.initialMode);
   }
@@ -13,6 +14,8 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   }
   void ctx;
   const document = createCompiledDocument(sourceXml);
+  traceFocusEnter(document, ctx);
+  traceTemplateEnter(document, ctx, {"match":"/","location":{"source":"apply-templates-child-choose-nested-if.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
   return {
     output:
       (
@@ -20,14 +23,17 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   "<items>" +
     (
   /** xsl:apply-templates (apply-templates-child-choose-nested-if.xsl:1) */
-  selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]).map((templateNode, templateIndex, templateNodes) => (
+  traceSelectedNodes(selectSimplePathNodesByStepPlan(document, [{"name":"root"},{"name":"item"}]), ctx, {"kind":"xsl:apply-templates","location":{"source":"apply-templates-child-choose-nested-if.xsl","line":1,"column":140,"offset":139,"endLine":1,"endColumn":150,"endOffset":149}}).map((templateNode, templateIndex, templateNodes) => (
   /** match="item" (apply-templates-child-choose-nested-if.xsl:1) */
-  (
+  (() => {
+  traceFocusEnter(templateNode, ctx);
+  traceTemplateEnter(templateNode, ctx, {"match":"item","location":{"source":"apply-templates-child-choose-nested-if.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
+  return (
   /** literal item (apply-templates-child-choose-nested-if.xsl:1) */
   "<item>" +
     (
   /** xsl:value-of (apply-templates-child-choose-nested-if.xsl:1) */
-  escapeText(selectSimplePathText(templateNode, ["name"]))
+  escapeText(traceStringValueOfNode(selectSimplePathNode(templateNode, ["name"]), ctx, {"kind":"xsl:value-of","location":{"source":"apply-templates-child-choose-nested-if.xsl","line":1,"column":140,"offset":139,"endLine":1,"endColumn":150,"endOffset":149}}))
 ) +
     (
   /** xsl:choose (apply-templates-child-choose-nested-if.xsl:1) */
@@ -54,11 +60,13 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
 ))
 ) +
     "</item>"
-)
+);
+})()
 )).join("")
 ) +
     "</items>"
 ),
+    ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),
   };
 }
 

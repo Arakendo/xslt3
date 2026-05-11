@@ -42,7 +42,7 @@ describe('XSLT codegen matched-root emission', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
-    expect(emitted).toContain('selectSimplePathText(currentNode, ["name"])');
+    expect(emitted).toContain('traceStringValueOfNode(selectSimplePathNode(currentNode, ["name"]), ctx, {"kind":"xsl:value-of"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
@@ -52,8 +52,8 @@ describe('XSLT codegen matched-root emission', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
-    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
-    expect(emitted).toContain('escapeText(selectSimplePathText(currentNode, ["name"]))');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(currentNode, ["item"]), ctx, {"kind":"xsl:for-each"');
+    expect(emitted).toContain('escapeText(traceStringValueOfNode(selectSimplePathNode(currentNode, ["name"]), ctx, {"kind":"xsl:value-of"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -62,7 +62,7 @@ describe('XSLT codegen matched-root emission', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
-    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(currentNode, ["item"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('"<flagged>" +');
     expect(emitted).toContain('"<plain>" +');
@@ -74,7 +74,7 @@ describe('XSLT codegen matched-root emission', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
-    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(currentNode, ["item"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('"<flagged>" +');
     expect(emitted).toContain(': "")');
@@ -86,7 +86,7 @@ describe('XSLT codegen matched-root emission', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
-    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(currentNode, ["item"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
     expect(emitted).toContain('"<flagged>" +');
@@ -100,7 +100,7 @@ describe('XSLT codegen matched-root emission', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
-    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(currentNode, ["item"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["detail"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
@@ -112,7 +112,7 @@ describe('XSLT codegen matched-root emission', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
-    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(currentNode, ["item"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["detail"])');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["vip"])');
@@ -124,8 +124,8 @@ describe('XSLT codegen matched-root emission', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
-    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
-    expect(emitted).toContain('selectSimplePathNodesByStepPlan(currentNode, [{"name":"detail"}]).map((templateNode, templateIndex, templateNodes) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(currentNode, ["item"]), ctx, {"kind":"xsl:for-each"');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodesByStepPlan(currentNode, [{"name":"detail"}]), ctx, {"kind":"xsl:apply-templates"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -134,8 +134,9 @@ describe('XSLT codegen matched-root emission', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root"]);');
-    expect(emitted).toContain('selectSimplePathNodes(currentNode, ["item"]).map((currentNode) =>');
+    expect(emitted).toContain('traceSelectedNodes(selectSimplePathNodes(currentNode, ["item"]), ctx, {"kind":"xsl:for-each"');
     expect(emitted).toContain('applyBuiltInTemplatesByPath(currentNode, ["detail"], (templateNode, templateIndex, templateNodes) =>');
+    expect(emitted).toContain('false, ctx, {"kind":"xsl:apply-templates"');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });
 
@@ -144,7 +145,7 @@ describe('XSLT codegen matched-root emission', () => {
 
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(emitted).toContain('const currentNode = selectSimplePathNode(document, ["root","section","item"]);');
-    expect(emitted).toContain('escapeText(selectSimplePathText(currentNode, ["name"]))');
+    expect(emitted).toContain('escapeText(traceStringValueOfNode(selectSimplePathNode(currentNode, ["name"]), ctx, {"kind":"xsl:value-of"');
     expect(emitted).toContain('selectSimplePathExists(currentNode, ["flag"])');
     expect(emitted).not.toContain('transformCompiledStylesheet(stylesheet, sourceXml, ctx)');
   });

@@ -1,10 +1,11 @@
-import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNodes, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, getRecordedTracePause, resetRecordedTracePause, traceFocusEnter, traceTemplateEnter, applyBuiltInTemplatesByPath, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNode, selectSimplePathNodes, traceSelectedNodes, traceStringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "apply-templates-absolute-match-default-for-each-choose-nested-if.xsl", digest: "e8f56b16" } as const;
 
 /** match="/" (apply-templates-absolute-match-default-for-each-choose-nested-if.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  resetRecordedTracePause(ctx.trace);
   if (ctx.initialMode !== undefined) {
     throwUnsupportedNativeInitialMode(ctx.initialMode);
   }
@@ -13,6 +14,8 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   }
   void ctx;
   const document = createCompiledDocument(sourceXml);
+  traceFocusEnter(document, ctx);
+  traceTemplateEnter(document, ctx, {"match":"/","location":{"source":"apply-templates-absolute-match-default-for-each-choose-nested-if.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
   return {
     output:
       (
@@ -22,19 +25,22 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   /** xsl:apply-templates (apply-templates-absolute-match-default-for-each-choose-nested-if.xsl:1) */
   applyBuiltInTemplatesByPath(document, ["root","item"], (templateNode, templateIndex, templateNodes) => (
   /** match="/root/item" (apply-templates-absolute-match-default-for-each-choose-nested-if.xsl:1) */
-  (
+  (() => {
+  traceFocusEnter(templateNode, ctx);
+  traceTemplateEnter(templateNode, ctx, {"match":"/root/item","location":{"source":"apply-templates-absolute-match-default-for-each-choose-nested-if.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":102,"endOffset":101}});
+  return (
   /** literal item (apply-templates-absolute-match-default-for-each-choose-nested-if.xsl:1) */
   "<item>" +
     (
   /** xsl:value-of (apply-templates-absolute-match-default-for-each-choose-nested-if.xsl:1) */
-  escapeText(selectSimplePathText(templateNode, ["name"]))
+  escapeText(traceStringValueOfNode(selectSimplePathNode(templateNode, ["name"]), ctx, {"kind":"xsl:value-of","location":{"source":"apply-templates-absolute-match-default-for-each-choose-nested-if.xsl","line":1,"column":217,"offset":216,"endLine":1,"endColumn":221,"endOffset":220}}))
 ) +
     (
   /** literal details (apply-templates-absolute-match-default-for-each-choose-nested-if.xsl:1) */
   "<details>" +
     (
   /** xsl:for-each (apply-templates-absolute-match-default-for-each-choose-nested-if.xsl:1) */
-  selectSimplePathNodes(templateNode, ["detail"]).map((currentNode) => (
+  traceSelectedNodes(selectSimplePathNodes(templateNode, ["detail"]), ctx, {"kind":"xsl:for-each","location":{"source":"apply-templates-absolute-match-default-for-each-choose-nested-if.xsl","line":1,"column":217,"offset":216,"endLine":1,"endColumn":221,"endOffset":220}}).map((currentNode) => (
   /** xsl:choose (apply-templates-absolute-match-default-for-each-choose-nested-if.xsl:1) */
   (selectSimplePathExists(currentNode, ["flag"]) ? (
   /** xsl:when (apply-templates-absolute-match-default-for-each-choose-nested-if.xsl:1) */
@@ -62,11 +68,13 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
     "</details>"
 ) +
     "</item>"
-)
-), true)
+);
+})()
+), true, ctx, {"kind":"xsl:apply-templates","location":{"source":"apply-templates-absolute-match-default-for-each-choose-nested-if.xsl","line":1,"column":111,"offset":110,"endLine":1,"endColumn":112,"endOffset":111}})
 ) +
     "</items>"
 ),
+    ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),
   };
 }
 

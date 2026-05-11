@@ -1,10 +1,11 @@
-import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNode, selectSimplePathText } from "@arakendo/weaver-xslt/runtime";
+import { throwMissingNativeInitialTemplate, throwUnsupportedNativeInitialMode, getRecordedTracePause, resetRecordedTracePause, traceFocusEnter, traceTemplateEnter, createCompiledDocument, escapeText, selectSimplePathExists, selectSimplePathNode, traceStringValueOfNode } from "@arakendo/weaver-xslt/runtime";
 import type { TransformContext, TransformResult } from "@arakendo/weaver-xslt/runtime";
 
 export const source = { path: "matched-nested-root.xsl", digest: "a393a704" } as const;
 
 /** match="/root/section/item" (matched-nested-root.xsl:1) */
 export function transform(sourceXml: string, ctx: TransformContext = {}): TransformResult {
+  resetRecordedTracePause(ctx.trace);
   if (ctx.initialMode !== undefined) {
     throwUnsupportedNativeInitialMode(ctx.initialMode);
   }
@@ -13,10 +14,13 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   }
   void ctx;
   const document = createCompiledDocument(sourceXml);
+  traceFocusEnter(document, ctx);
   const currentNode = selectSimplePathNode(document, ["root","section","item"]);
   if (currentNode === null) {
     return { output: "" };
   }
+  traceFocusEnter(currentNode, ctx);
+  traceTemplateEnter(currentNode, ctx, {"match":"/root/section/item","location":{"source":"matched-nested-root.xsl","line":1,"column":101,"offset":100,"endLine":1,"endColumn":119,"endOffset":118}});
   return {
     output:
       (
@@ -24,7 +28,7 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
   "<item>" +
     (
   /** xsl:value-of (matched-nested-root.xsl:1) */
-  escapeText(selectSimplePathText(currentNode, ["name"]))
+  escapeText(traceStringValueOfNode(selectSimplePathNode(currentNode, ["name"]), ctx, {"kind":"xsl:value-of","location":{"source":"matched-nested-root.xsl","line":1,"column":149,"offset":148,"endLine":1,"endColumn":153,"endOffset":152}}))
 ) +
     (
   /** xsl:if (matched-nested-root.xsl:1) */
@@ -36,6 +40,7 @@ export function transform(sourceXml: string, ctx: TransformContext = {}): Transf
 ) +
     "</item>"
 ),
+    ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),
   };
 }
 

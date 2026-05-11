@@ -11754,16 +11754,27 @@ function emitPlannedApplyTemplatesInstruction(instruction, childPlans, contextNo
     if (childBody === void 0) {
       return void 0;
     }
+    runtimeHelpers.add("traceFocusEnter");
+    runtimeHelpers.add("traceTemplateEnter");
     const callbackBody = invocationSetup.setupStatements.length === 0 ? childBody.code : `(() => {
 ${invocationSetup.setupStatements.map((statement) => `  ${statement}`).join("\n")}
   return ${childBody.code};
+})()`;
+    const tracedCallbackBody = `(() => {
+  traceFocusEnter(templateNode, ctx);
+  traceTemplateEnter(templateNode, ctx, ${JSON.stringify({
+      ...childPlan.template.matchText === void 0 ? {} : { match: childPlan.template.matchText },
+      ...childPlan.template.name === void 0 ? {} : { name: childPlan.template.name },
+      location: childPlan.template.location
+    })});
+  return ${callbackBody};
 })()`;
     return {
       plan: childPlan,
       callback: renderCommentedArrowFunction(
         renderTemplateProvenanceComment(childPlan.template, sourcePath),
         childCallbackParameters,
-        callbackBody
+        tracedCallbackBody
       )
     };
   });
@@ -11780,8 +11791,9 @@ ${invocationSetup.setupStatements.map((statement) => `  ${statement}`).join("\n"
   })();
   if (instruction.select === void 0) {
     runtimeHelpers.add("applyBuiltInTemplatesByPath");
+    runtimeHelpers.add("traceSelectedNodes");
     return tsRawExpression(
-      childPlans.every((childPlan) => childPlan.matchAbsolute) ? `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childPlans[0].matchPath)}, ${renderMatchedNode}, true)` : `applyBuiltInTemplatesByPath(${contextNodeIdentifier}, ${JSON.stringify(childPlans[0].matchPath)}, ${renderMatchedNode})`
+      childPlans.every((childPlan) => childPlan.matchAbsolute) ? `applyBuiltInTemplatesByPath(document, ${JSON.stringify(childPlans[0].matchPath)}, ${renderMatchedNode}, true, ctx, ${JSON.stringify({ kind: "xsl:apply-templates", location: instruction.location })})` : `applyBuiltInTemplatesByPath(${contextNodeIdentifier}, ${JSON.stringify(childPlans[0].matchPath)}, ${renderMatchedNode}, false, ctx, ${JSON.stringify({ kind: "xsl:apply-templates", location: instruction.location })})`
     );
   }
   const selectPath = getSimpleSelectPath(instruction.select);
@@ -11789,8 +11801,9 @@ ${invocationSetup.setupStatements.map((statement) => `  ${statement}`).join("\n"
     return void 0;
   }
   runtimeHelpers.add("selectSimplePathNodesByStepPlan");
+  runtimeHelpers.add("traceSelectedNodes");
   return tsRawExpression(
-    `selectSimplePathNodesByStepPlan(${selectPath.absolute ? "document" : contextNodeIdentifier}, ${JSON.stringify(selectPath.steps)}).map(${renderMatchedNode}).join("")`
+    `traceSelectedNodes(selectSimplePathNodesByStepPlan(${selectPath.absolute ? "document" : contextNodeIdentifier}, ${JSON.stringify(selectPath.steps)}), ctx, ${JSON.stringify({ kind: "xsl:apply-templates", location: instruction.location })}).map(${renderMatchedNode}).join("")`
   );
 }
 function tryBuildApplyTemplatesTemplatePlan(instruction, templates) {
@@ -13766,12 +13779,18 @@ function emitInstruction(instruction, runtimeHelpers, contextNodeIdentifier, opt
       ]));
     }
     case "valueOf": {
+      const valueOfInstructionInfo = JSON.stringify({
+        kind: "xsl:value-of",
+        location: instruction.location
+      });
       if (instruction.select.kind === "contextItem") {
         runtimeHelpers.add("escapeText");
-        runtimeHelpers.add("stringValueOfNode");
+        runtimeHelpers.add("traceStringValueOfNode");
         return tsCallExpression("escapeText", [
-          tsCallExpression("stringValueOfNode", [
-            tsRawExpression(contextNodeIdentifier)
+          tsCallExpression("traceStringValueOfNode", [
+            tsRawExpression(contextNodeIdentifier),
+            tsRawExpression("ctx"),
+            tsRawExpression(valueOfInstructionInfo)
           ])
         ]);
       }
@@ -13862,6 +13881,17 @@ function emitInstruction(instruction, runtimeHelpers, contextNodeIdentifier, opt
       }
       if (instruction.select.kind !== "path") {
         return void 0;
+      }
+      const tracedPathValue = emitTracedValueOfPathStringExpression(
+        instruction.select,
+        runtimeHelpers,
+        contextNodeIdentifier,
+        valueOfInstructionInfo,
+        options.variableBindings
+      );
+      if (tracedPathValue !== void 0) {
+        runtimeHelpers.add("escapeText");
+        return annotateInstruction(tsCallExpression("escapeText", [tracedPathValue]));
       }
       const pathValue = emitPathStringValueExpression(
         instruction.select,
@@ -13955,10 +13985,11 @@ function emitInstruction(instruction, runtimeHelpers, contextNodeIdentifier, opt
         return void 0;
       }
       runtimeHelpers.add("selectSimplePathNodes");
+      runtimeHelpers.add("traceSelectedNodes");
       const startNode = simplePath.absolute ? "document" : contextNodeIdentifier;
       const callbackParameters = body.code.includes("currentIndex") || body.code.includes("currentNodes.length") ? "(currentNode, currentIndex, currentNodes)" : "(currentNode)";
       return annotateInstruction(tsRawExpression(
-        `selectSimplePathNodes(${startNode}, ${JSON.stringify(simplePath.segments)}).map(${callbackParameters} => ${body.code}).join("")`
+        `traceSelectedNodes(selectSimplePathNodes(${startNode}, ${JSON.stringify(simplePath.segments)}), ctx, ${JSON.stringify({ kind: "xsl:for-each", location: instruction.location })}).map(${callbackParameters} => ${body.code}).join("")`
       ));
     }
     case "callTemplate": {
@@ -14224,6 +14255,48 @@ function tryGetSimpleChildSegments(ast) {
   }
   return names;
 }
+function emitTracedValueOfPathStringExpression(ast, runtimeHelpers, contextNodeIdentifier, instructionInfoCode, variableBindings) {
+  if (variableBindings === void 0) {
+    const simplePath = tryGetSimpleChildPath(ast);
+    if (simplePath !== void 0) {
+      runtimeHelpers.add("selectSimplePathNode");
+      runtimeHelpers.add("traceStringValueOfNode");
+      return tsCallExpression("traceStringValueOfNode", [
+        tsCallExpression("selectSimplePathNode", [
+          tsRawExpression(simplePath.absolute ? "document" : contextNodeIdentifier),
+          tsRawExpression(JSON.stringify(simplePath.segments))
+        ]),
+        tsRawExpression("ctx"),
+        tsRawExpression(instructionInfoCode)
+      ]);
+    }
+  } else {
+    const simplePath = tryResolveSimpleChildPath(ast, contextNodeIdentifier, variableBindings);
+    if (simplePath !== void 0) {
+      runtimeHelpers.add("selectSimplePathNode");
+      runtimeHelpers.add("traceStringValueOfNode");
+      return tsCallExpression("traceStringValueOfNode", [
+        tsCallExpression("selectSimplePathNode", [
+          simplePath.startNodeExpression,
+          tsRawExpression(JSON.stringify(simplePath.segments))
+        ]),
+        tsRawExpression("ctx"),
+        tsRawExpression(instructionInfoCode)
+      ]);
+    }
+  }
+  const descendantPath = tryGetSimpleDescendantNamePath(ast);
+  if (descendantPath === void 0) {
+    return void 0;
+  }
+  runtimeHelpers.add("selectDescendantElementsByName");
+  runtimeHelpers.add("traceStringValueOfNode");
+  return tsCallExpression("traceStringValueOfNode", [
+    tsRawExpression(`selectDescendantElementsByName(${descendantPath.absolute ? "document" : contextNodeIdentifier}, ${JSON.stringify(descendantPath.localName)})[0] ?? null`),
+    tsRawExpression("ctx"),
+    tsRawExpression(instructionInfoCode)
+  ]);
+}
 function emitPathStringValueExpression(ast, runtimeHelpers, contextNodeIdentifier, variableBindings) {
   if (variableBindings === void 0) {
     const simplePath = tryGetSimpleChildPath(ast);
@@ -14387,6 +14460,22 @@ function emitStylesheetModule(ir, options) {
   const nativePlan = tryCreateNativeTransformPlan(plan.stylesheet, plan.sourcePath);
   const typeBlock = createStylesheetTypeBlock(ir);
   if (nativePlan !== void 0) {
+    const defaultIsInitialTemplateExecution = nativePlan.initialTemplateName !== void 0 && nativePlan.initialTemplateEntryTemplate === void 0;
+    const defaultNeedsTraceDocumentBinding = !nativePlan.needsCurrentNodeBinding;
+    const defaultTraceNodeIdentifier = nativePlan.needsCurrentNodeBinding ? "currentNode" : "document";
+    const defaultCurrentNodeIsDocument = renderTsExpression(nativePlan.currentNodeExpression) === "document";
+    const defaultTemplateInfo = JSON.stringify({
+      ...nativePlan.entryTemplate.matchText === void 0 ? {} : { match: nativePlan.entryTemplate.matchText },
+      ...nativePlan.entryTemplate.name === void 0 ? {} : { name: nativePlan.entryTemplate.name },
+      location: nativePlan.entryTemplate.location
+    });
+    const initialNeedsTraceDocumentBinding = !(nativePlan.initialTemplateNeedsCurrentNodeBinding ?? false);
+    const initialTraceNodeIdentifier = nativePlan.initialTemplateNeedsCurrentNodeBinding ?? false ? "currentNode" : "document";
+    const initialTemplateInfo = nativePlan.initialTemplateEntryTemplate === void 0 ? void 0 : JSON.stringify({
+      ...nativePlan.initialTemplateEntryTemplate.matchText === void 0 ? {} : { match: nativePlan.initialTemplateEntryTemplate.matchText },
+      ...nativePlan.initialTemplateEntryTemplate.name === void 0 ? {} : { name: nativePlan.initialTemplateEntryTemplate.name },
+      location: nativePlan.initialTemplateEntryTemplate.location
+    });
     const initialModeGuardStatements = [
       "  if (ctx.initialMode !== undefined) {",
       "    throwUnsupportedNativeInitialMode(ctx.initialMode);",
@@ -14409,7 +14498,8 @@ function emitStylesheetModule(ir, options) {
     ];
     const defaultBodyStatements = [
       ...nativePlan.setupStatements.length === 0 ? ["  void ctx;"] : [],
-      ...nativePlan.needsDocumentBinding ? ["  const document = createCompiledDocument(sourceXml);"] : ["  createCompiledDocument(sourceXml);"],
+      ...nativePlan.needsDocumentBinding || defaultNeedsTraceDocumentBinding ? ["  const document = createCompiledDocument(sourceXml);"] : ["  createCompiledDocument(sourceXml);"],
+      ...!defaultIsInitialTemplateExecution && defaultTraceNodeIdentifier !== "document" && !defaultCurrentNodeIsDocument ? ["  traceFocusEnter(document, ctx);"] : [],
       ...nativePlan.setupStatements.map((statement) => `  ${statement}`),
       ...nativePlan.needsCurrentNodeBinding ? [`  const currentNode = ${renderTsExpression(nativePlan.currentNodeExpression)};`] : [],
       ...nativePlan.currentNodeMayBeNull ? [
@@ -14417,9 +14507,12 @@ function emitStylesheetModule(ir, options) {
         '    return { output: "" };',
         "  }"
       ] : [],
+      ...defaultIsInitialTemplateExecution ? [] : [`  traceFocusEnter(${defaultTraceNodeIdentifier}, ctx);`],
+      `  traceTemplateEnter(${defaultTraceNodeIdentifier}, ctx, ${defaultTemplateInfo});`,
       "  return {",
       "    output:",
       `      ${renderTsExpression(nativePlan.outputExpression)},`,
+      "    ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),",
       "  };"
     ];
     const wrappedDefaultBodyStatements = nativePlan.initialTemplateEntryTemplate !== void 0 ? defaultBodyStatements : nativePlan.initialTemplateName === void 0 ? defaultBodyStatements : [
@@ -14433,7 +14526,7 @@ function emitStylesheetModule(ir, options) {
       "  if (requestedInitialTemplate === " + JSON.stringify(nativePlan.initialTemplateName) + ") {",
       "    try {",
       ...(nativePlan.initialTemplateSetupStatements ?? []).length === 0 ? ["      void ctx;"] : [],
-      ...nativePlan.needsDocumentBinding ? ["      const document = createCompiledDocument(sourceXml);"] : ["      createCompiledDocument(sourceXml);"],
+      ...nativePlan.needsDocumentBinding || initialNeedsTraceDocumentBinding ? ["      const document = createCompiledDocument(sourceXml);"] : ["      createCompiledDocument(sourceXml);"],
       ...(nativePlan.initialTemplateSetupStatements ?? []).map((statement) => `      ${statement}`),
       ...nativePlan.initialTemplateNeedsCurrentNodeBinding ?? false ? [`      const currentNode = ${renderTsExpression(nativePlan.initialTemplateCurrentNodeExpression)};`] : [],
       ...nativePlan.initialTemplateCurrentNodeMayBeNull ?? false ? [
@@ -14441,9 +14534,11 @@ function emitStylesheetModule(ir, options) {
         '        return { output: "" };',
         "      }"
       ] : [],
+      `      traceTemplateEnter(${initialTraceNodeIdentifier}, ctx, ${initialTemplateInfo});`,
       "      return {",
       "        output:",
       `          ${renderTsExpression(nativePlan.initialTemplateOutputExpression)},`,
+      "        ...(getRecordedTracePause(ctx.trace) === undefined ? {} : { pause: getRecordedTracePause(ctx.trace) }),",
       "      };",
       "    } catch (error) {",
       `      throw prependNativeInitialTemplateError(error, ${JSON.stringify(nativePlan.initialTemplateName)}, ${JSON.stringify(nativePlan.initialTemplateEntryTemplate.location)});`,
@@ -14452,7 +14547,7 @@ function emitStylesheetModule(ir, options) {
     ];
     return renderTsModule({
       statements: [
-        `import { ${[.../* @__PURE__ */ new Set(["throwMissingNativeInitialTemplate", "throwUnsupportedNativeInitialMode", ...nativePlan.runtimeHelpers])].join(", ")} } from ${JSON.stringify(plan.moduleSpecifier)};`,
+        `import { ${[.../* @__PURE__ */ new Set(["throwMissingNativeInitialTemplate", "throwUnsupportedNativeInitialMode", "getRecordedTracePause", "resetRecordedTracePause", "traceFocusEnter", "traceTemplateEnter", ...nativePlan.runtimeHelpers])].join(", ")} } from ${JSON.stringify(plan.moduleSpecifier)};`,
         `import type { TransformContext, TransformResult } from ${JSON.stringify(plan.moduleSpecifier)};`,
         ...typeBlock.importStatements,
         "",
@@ -14462,6 +14557,7 @@ function emitStylesheetModule(ir, options) {
         "",
         renderTemplateProvenanceComment(nativePlan.entryTemplate, plan.sourcePath),
         `export function transform(sourceXml: string, ctx: ${typeBlock.transformContextTypeName} = {}): TransformResult {`,
+        "  resetRecordedTracePause(ctx.trace);",
         ...initialModeGuardStatements,
         ...missingInitialTemplateGuardStatements,
         ...initialTemplateValueStatements,
@@ -14923,6 +15019,348 @@ function getDefaultTemplatePriority(template) {
     return -0.5;
   }
   return Number.NEGATIVE_INFINITY;
+}
+
+// src/runtime/xmlNodeHandles.ts
+function createXmlNodeHandle(node, documentUri) {
+  return {
+    documentUri,
+    kind: getXmlNodeHandleKind(node),
+    path: getXmlNodePath(node)
+  };
+}
+function resolveXmlNodeHandleAtOffset(node, documentUri, source, offset) {
+  if (!Number.isInteger(offset) || offset < 0 || offset >= source.length) {
+    return void 0;
+  }
+  const document = getDocumentNode(node);
+  if (document === void 0) {
+    return void 0;
+  }
+  const resolvedNode = findDeepestNodeAtOffset(document, source, offset);
+  return resolvedNode === void 0 ? void 0 : createXmlNodeHandle(resolvedNode, documentUri);
+}
+function resolveXmlNodeHandleInRange(node, documentUri, source, offsetStart, offsetEnd) {
+  if (!Number.isInteger(offsetStart) || !Number.isInteger(offsetEnd) || offsetStart < 0 || offsetEnd <= offsetStart || offsetEnd > source.length) {
+    return void 0;
+  }
+  const document = getDocumentNode(node);
+  if (document === void 0) {
+    return void 0;
+  }
+  const resolvedNode = findDeepestNodeInRange(document, source, offsetStart, offsetEnd);
+  return resolvedNode === void 0 ? void 0 : createXmlNodeHandle(resolvedNode, documentUri);
+}
+function getXmlNodeHandleKind(node) {
+  switch (node.nodeType) {
+    case node.DOCUMENT_NODE:
+      return "document";
+    case node.ELEMENT_NODE:
+      return "element";
+    case node.ATTRIBUTE_NODE:
+      return "attribute";
+    case node.TEXT_NODE:
+      return "text";
+    case node.COMMENT_NODE:
+      return "comment";
+    case node.PROCESSING_INSTRUCTION_NODE:
+      return "pi";
+    default:
+      throw new XsltError(
+        XTSE0010,
+        `Node type ${node.nodeType} cannot be represented as an XML trace handle.`
+      );
+  }
+}
+function getXmlNodePath(node) {
+  if (node.nodeType === node.DOCUMENT_NODE) {
+    return "/";
+  }
+  if (node.nodeType === node.ATTRIBUTE_NODE) {
+    const ownerElement = node.ownerElement;
+    if (ownerElement === void 0 || ownerElement === null) {
+      return `/@${node.nodeName}`;
+    }
+    return `${getXmlNodePath(ownerElement)}/@${node.nodeName}`;
+  }
+  const parent = node.parentNode;
+  const basePath = parent === null ? "" : getXmlNodePath(parent);
+  if (basePath === "" || basePath === "/") {
+    return `/${getXmlNodePathSegment(node)}`;
+  }
+  return `${basePath}/${getXmlNodePathSegment(node)}`;
+}
+function getXmlNodePathSegment(node) {
+  if (node.nodeType === node.ELEMENT_NODE) {
+    return `${node.nodeName}[${countPrecedingMatchingSiblings(node) + 1}]`;
+  }
+  if (node.nodeType === node.TEXT_NODE) {
+    return `text()[${countPrecedingMatchingSiblings(node) + 1}]`;
+  }
+  if (node.nodeType === node.COMMENT_NODE) {
+    return `comment()[${countPrecedingMatchingSiblings(node) + 1}]`;
+  }
+  if (node.nodeType === node.PROCESSING_INSTRUCTION_NODE) {
+    return `processing-instruction(${JSON.stringify(node.nodeName)})[${countPrecedingMatchingSiblings(node) + 1}]`;
+  }
+  throw new XsltError(
+    XTSE0010,
+    `Node type ${node.nodeType} cannot be represented as an XML trace path segment.`
+  );
+}
+function countPrecedingMatchingSiblings(node) {
+  let count = 0;
+  let sibling = node.previousSibling;
+  while (sibling !== null) {
+    if (isSamePathKind(sibling, node)) {
+      count += 1;
+    }
+    sibling = sibling.previousSibling;
+  }
+  return count;
+}
+function isSamePathKind(left, right) {
+  if (left.nodeType !== right.nodeType) {
+    return false;
+  }
+  if (left.nodeType === left.ELEMENT_NODE || left.nodeType === left.PROCESSING_INSTRUCTION_NODE) {
+    return left.nodeName === right.nodeName;
+  }
+  return true;
+}
+function findDeepestNodeAtOffset(node, source, offset) {
+  if (node.nodeType === node.DOCUMENT_NODE || node.nodeType === node.ELEMENT_NODE) {
+    for (const attribute of getAttributeNodes(node)) {
+      const match = findDeepestNodeAtOffset(attribute, source, offset);
+      if (match !== void 0) {
+        return match;
+      }
+    }
+    for (let index = 0; index < node.childNodes.length; index += 1) {
+      const child = node.childNodes.item(index);
+      if (child === null) {
+        continue;
+      }
+      const match = findDeepestNodeAtOffset(child, source, offset);
+      if (match !== void 0) {
+        return match;
+      }
+    }
+  }
+  return nodeMatchesOffset(node, source, offset) ? node : void 0;
+}
+function findDeepestNodeInRange(node, source, offsetStart, offsetEnd) {
+  if (node.nodeType === node.DOCUMENT_NODE || node.nodeType === node.ELEMENT_NODE) {
+    for (const attribute of getAttributeNodes(node)) {
+      const match = findDeepestNodeInRange(attribute, source, offsetStart, offsetEnd);
+      if (match !== void 0) {
+        return match;
+      }
+    }
+    for (let index = 0; index < node.childNodes.length; index += 1) {
+      const child = node.childNodes.item(index);
+      if (child === null) {
+        continue;
+      }
+      const match = findDeepestNodeInRange(child, source, offsetStart, offsetEnd);
+      if (match !== void 0) {
+        return match;
+      }
+    }
+  }
+  return nodeMatchesRange(node, source, offsetStart, offsetEnd) ? node : void 0;
+}
+function getAttributeNodes(node) {
+  if (node.nodeType !== node.ELEMENT_NODE) {
+    return [];
+  }
+  const attributes = node.attributes;
+  if (attributes === void 0 || attributes === null) {
+    return [];
+  }
+  const nodes = [];
+  for (let index = 0; index < attributes.length; index += 1) {
+    const attribute = attributes.item(index);
+    if (attribute !== null) {
+      nodes.push(attribute);
+    }
+  }
+  return nodes;
+}
+function nodeMatchesOffset(node, source, offset) {
+  switch (node.nodeType) {
+    case node.ELEMENT_NODE:
+      return isOffsetWithinSourceLocation(getElementNameSourceLocation(source, node), offset);
+    case node.ATTRIBUTE_NODE:
+      return isOffsetWithinAttributeSelection(node, source, offset);
+    case node.TEXT_NODE:
+      return isOffsetWithinTextSelection(node, source, offset);
+    default:
+      return false;
+  }
+}
+function nodeMatchesRange(node, source, offsetStart, offsetEnd) {
+  switch (node.nodeType) {
+    case node.ELEMENT_NODE:
+      return isRangeWithinSourceLocation(getElementNameSourceLocation(source, node), offsetStart, offsetEnd);
+    case node.ATTRIBUTE_NODE:
+      return isRangeWithinAttributeSelection(node, source, offsetStart, offsetEnd);
+    case node.TEXT_NODE:
+      return isRangeWithinTextSelection(node, source, offsetStart, offsetEnd);
+    default:
+      return false;
+  }
+}
+function isOffsetWithinAttributeSelection(node, source, offset) {
+  const attributeLocation = getNodeSourceLocation(source, node);
+  if (hasOffsetLocation(attributeLocation) && offset >= attributeLocation.offset && offset < attributeLocation.offset + node.nodeName.length) {
+    return true;
+  }
+  const ownerElement = node.ownerElement;
+  if (ownerElement === void 0 || ownerElement === null) {
+    return false;
+  }
+  return isOffsetWithinSourceLocation(
+    getAttributeValueSourceLocation(source, ownerElement, node.nodeName),
+    offset
+  );
+}
+function isRangeWithinAttributeSelection(node, source, offsetStart, offsetEnd) {
+  const attributeLocation = getNodeSourceLocation(source, node);
+  if (hasOffsetLocation(attributeLocation)) {
+    const attributeNameEnd = attributeLocation.offset + node.nodeName.length;
+    if (offsetStart >= attributeLocation.offset && offsetEnd <= attributeNameEnd) {
+      return true;
+    }
+  }
+  const ownerElement = node.ownerElement;
+  if (ownerElement === void 0 || ownerElement === null) {
+    return false;
+  }
+  return isRangeWithinSourceLocation(
+    getAttributeValueSourceLocation(source, ownerElement, node.nodeName),
+    offsetStart,
+    offsetEnd
+  );
+}
+function isOffsetWithinTextSelection(node, source, offset) {
+  const location = getNodeSourceLocation(source, node);
+  if (!hasOffsetLocation(location)) {
+    return false;
+  }
+  const textValue = node.nodeValue ?? "";
+  if (textValue.trim().length === 0) {
+    return false;
+  }
+  const textLength = textValue.length;
+  return textLength > 0 && offset >= location.offset && offset < location.offset + textLength;
+}
+function isRangeWithinTextSelection(node, source, offsetStart, offsetEnd) {
+  const location = getNodeSourceLocation(source, node);
+  if (!hasOffsetLocation(location)) {
+    return false;
+  }
+  const textValue = node.nodeValue ?? "";
+  if (textValue.trim().length === 0) {
+    return false;
+  }
+  const textEnd = location.offset + textValue.length;
+  return offsetStart >= location.offset && offsetEnd <= textEnd;
+}
+function isOffsetWithinSourceLocation(location, offset) {
+  if (!hasOffsetLocation(location)) {
+    return false;
+  }
+  const endOffset = location.endOffset ?? location.offset + 1;
+  return offset >= location.offset && offset < endOffset;
+}
+function isRangeWithinSourceLocation(location, offsetStart, offsetEnd) {
+  if (!hasOffsetLocation(location)) {
+    return false;
+  }
+  const endOffset = location.endOffset ?? location.offset + 1;
+  return offsetStart >= location.offset && offsetEnd <= endOffset;
+}
+function hasOffsetLocation(location) {
+  return location?.offset !== void 0;
+}
+function getDocumentNode(node) {
+  if (node.nodeType === node.DOCUMENT_NODE) {
+    return node;
+  }
+  return node.ownerDocument ?? void 0;
+}
+
+// src/runtime/tracePause.ts
+var recordedTracePauses = /* @__PURE__ */ new WeakMap();
+function isTraceEnabled(trace) {
+  return trace !== void 0 && (trace.onEvent !== void 0 || trace.onPause !== void 0 || trace.breakpoints !== void 0 && trace.breakpoints.length > 0);
+}
+function emitTraceEvent(trace, event) {
+  trace?.onEvent?.(event);
+  if (trace === void 0 || !isTraceEnabled(trace) || trace.breakpoints === void 0 || trace.breakpoints.length === 0) {
+    return;
+  }
+  const activeTrace = trace;
+  const activeBreakpoints = activeTrace.breakpoints;
+  if (recordedTracePauses.has(activeTrace)) {
+    return;
+  }
+  const matched = activeBreakpoints.some(
+    (breakpoint) => breakpoint.on.includes(event.kind) && breakpoint.node.documentUri === event.node.documentUri && breakpoint.node.kind === event.node.kind && breakpoint.node.path === event.node.path
+  );
+  if (!matched) {
+    return;
+  }
+  const pause = createTracePause(event);
+  recordedTracePauses.set(activeTrace, pause);
+  activeTrace.onPause?.(pause);
+}
+function getRecordedTracePause(trace) {
+  return trace === void 0 ? void 0 : recordedTracePauses.get(trace);
+}
+function resetRecordedTracePause(trace) {
+  if (trace !== void 0) {
+    recordedTracePauses.delete(trace);
+  }
+}
+function createTracePause(event) {
+  const frames = [];
+  if (event.instruction !== void 0) {
+    frames.push({
+      kind: "instruction",
+      label: event.instruction.kind,
+      ...event.instruction.location === void 0 ? {} : { location: event.instruction.location }
+    });
+  }
+  if (event.template !== void 0) {
+    frames.push(createTemplateFrame2(event.template));
+  }
+  return {
+    event,
+    frames
+  };
+}
+function createTemplateFrame2(template) {
+  if (template.match !== void 0) {
+    return {
+      kind: "template",
+      label: `match="${template.match}"`,
+      ...template.location === void 0 ? {} : { location: template.location }
+    };
+  }
+  if (template.name !== void 0) {
+    return {
+      kind: "template",
+      label: `name="${template.name}"`,
+      ...template.location === void 0 ? {} : { location: template.location }
+    };
+  }
+  return {
+    kind: "template",
+    label: "<anonymous>",
+    ...template.location === void 0 ? {} : { location: template.location }
+  };
 }
 
 // src/xdm/types.ts
@@ -18198,6 +18636,9 @@ function buildTemporaryTree(serializedContent) {
 
 // src/xslt/eval/transform.ts
 function runTransform(ir, sourceXml, options) {
+  const trace = options.trace;
+  const sourceDocumentUri = trace?.documentUri ?? "<source-xml>";
+  resetRecordedTracePause(trace);
   if (options.initialMode !== void 0) {
     throw new XsltError(
       XTDE0040,
@@ -18224,17 +18665,25 @@ function runTransform(ir, sourceXml, options) {
   );
   if (options.initialTemplate !== void 0) {
     const initialContext = createContext(createXdmNode(sourceDocument), staticContext, 1, 1, globalVariables);
+    const output2 = renderInitialTemplate(options.initialTemplate, ir, initialContext, trace, sourceDocumentUri);
+    const pause2 = getRecordedTracePause(trace);
     return {
-      output: renderInitialTemplate(options.initialTemplate, ir, initialContext)
+      output: output2,
+      ...pause2 === void 0 ? {} : { pause: pause2 }
     };
   }
+  const output = applyTemplatesToItems(
+    [createXdmNode(sourceDocument)],
+    ir,
+    staticContext,
+    globalVariables,
+    trace,
+    sourceDocumentUri
+  );
+  const pause = getRecordedTracePause(trace);
   return {
-    output: applyTemplatesToItems(
-      [createXdmNode(sourceDocument)],
-      ir,
-      staticContext,
-      globalVariables
-    )
+    output,
+    ...pause === void 0 ? {} : { pause }
   };
 }
 function createStaticContext(ir, options) {
@@ -18253,32 +18702,51 @@ function createContext(item, staticContext, position, size, variables = /* @__PU
     variables
   };
 }
-function applyTemplatesToItems(items, ir, staticContext, variables = /* @__PURE__ */ new Map(), location, withParams = []) {
+function applyTemplatesToItems(items, ir, staticContext, variables = /* @__PURE__ */ new Map(), trace, sourceDocumentUri = "<source-xml>", location, withParams = []) {
   if (items.some((item) => asXdmNode(item) === void 0)) {
     throw createApplyTemplatesNodeSequenceError(items, location);
   }
   return items.map((item, index) => {
     const nodeItem = item;
     const context = createContext(nodeItem, staticContext, index + 1, items.length, variables);
-    return applyTemplateToNode(nodeItem.node, ir, context, withParams);
+    const handle = tryCreateTraceNodeHandle(nodeItem.node, trace, sourceDocumentUri);
+    if (handle !== void 0) {
+      emitTraceEvent2(trace, {
+        kind: "focus-enter",
+        node: handle
+      });
+    }
+    return applyTemplateToNode(nodeItem.node, ir, context, withParams, trace, sourceDocumentUri);
   }).join("");
 }
-function applyTemplateToNode(node, ir, context, withParams = []) {
+function applyTemplateToNode(node, ir, context, withParams = [], trace, sourceDocumentUri = "<source-xml>") {
   const template = findBestMatchingTemplate(node, ir.templates, context.staticContext);
   if (template !== void 0) {
+    const handle = tryCreateTraceNodeHandle(node, trace, sourceDocumentUri);
+    if (handle !== void 0) {
+      emitTraceEvent2(trace, {
+        kind: "template-enter",
+        node: handle,
+        template: {
+          ...template.matchText === void 0 ? {} : { match: template.matchText },
+          ...template.name === void 0 ? {} : { name: template.name },
+          ...template.location === void 0 ? {} : { location: template.location }
+        }
+      });
+    }
     try {
-      return renderTemplate(template, withParams, ir, context);
+      return renderTemplate(template, withParams, ir, context, trace, sourceDocumentUri);
     } catch (error) {
       throw prependXsltErrorFrame(
         error,
-        createTemplateFrame2(template),
+        createTemplateFrame3(template),
         createRelatedLocation("enclosing template", template.location)
       );
     }
   }
-  return renderBuiltInTemplate(node, ir, context.staticContext, context.variables);
+  return renderBuiltInTemplate(node, ir, context.staticContext, context.variables, trace, sourceDocumentUri);
 }
-function renderInitialTemplate(name, ir, context) {
+function renderInitialTemplate(name, ir, context, trace, sourceDocumentUri = "<source-xml>") {
   const normalizedName = normalizeTemplateName(name, context.staticContext);
   const template = findNamedTemplate(normalizedName, ir.templates);
   if (template === void 0) {
@@ -18299,44 +18767,59 @@ function renderInitialTemplate(name, ir, context) {
       } : { suggestions: [suggestion] }
     );
   }
+  const contextNode = asXdmNode(context.contextItem)?.node;
+  if (contextNode !== void 0) {
+    const handle = tryCreateTraceNodeHandle(contextNode, trace, sourceDocumentUri);
+    if (handle !== void 0) {
+      emitTraceEvent2(trace, {
+        kind: "template-enter",
+        node: handle,
+        template: {
+          ...template.matchText === void 0 ? {} : { match: template.matchText },
+          ...template.name === void 0 ? {} : { name: template.name },
+          ...template.location === void 0 ? {} : { location: template.location }
+        }
+      });
+    }
+  }
   try {
-    return renderTemplate(template, [], ir, context);
+    return renderTemplate(template, [], ir, context, trace, sourceDocumentUri);
   } catch (error) {
     throw prependXsltErrorFrame(
       error,
-      createTemplateFrame2(template),
+      createTemplateFrame3(template),
       createRelatedLocation("initial template", template.location)
     );
   }
 }
-function renderInstructions(instructions, ir, context) {
+function renderInstructions(instructions, ir, context, trace, sourceDocumentUri = "<source-xml>") {
   let output = "";
   let currentContext = context;
   for (const instruction of instructions) {
     if (instruction.kind === "variable") {
-      currentContext = bindVariableInstruction(instruction, ir, currentContext);
+      currentContext = bindVariableInstruction(instruction, ir, currentContext, trace, sourceDocumentUri);
       continue;
     }
-    output += renderInstruction(instruction, ir, currentContext);
+    output += renderInstruction(instruction, ir, currentContext, trace, sourceDocumentUri);
   }
   return output;
 }
-function renderInstruction(instruction, ir, context) {
+function renderInstruction(instruction, ir, context, trace, sourceDocumentUri = "<source-xml>") {
   switch (instruction.kind) {
     case "literalText":
       return escapeText(instruction.text);
     case "comment":
-      return `<!--${renderInstructions(instruction.body, ir, context)}-->`;
+      return `<!--${renderInstructions(instruction.body, ir, context, trace, sourceDocumentUri)}-->`;
     case "variable":
       return "";
     case "literalElement": {
       const attributes = instruction.attributes.map((attribute) => ` ${attribute.name}="${escapeAttribute(attribute.value)}"`).join("");
-      const body = renderInstructions(instruction.body, ir, context);
+      const body = renderInstructions(instruction.body, ir, context, trace, sourceDocumentUri);
       return `<${instruction.name}${attributes}>${body}</${instruction.name}>`;
     }
     case "if": {
       try {
-        return evaluateEffectiveBooleanValue(instruction.test, context) ? renderInstructions(instruction.body, ir, context) : "";
+        return evaluateEffectiveBooleanValue(instruction.test, context) ? renderInstructions(instruction.body, ir, context, trace, sourceDocumentUri) : "";
       } catch (error) {
         throw prependXsltErrorFrame(
           error,
@@ -18349,7 +18832,7 @@ function renderInstruction(instruction, ir, context) {
       for (const branch of instruction.whenBranches) {
         try {
           if (evaluateEffectiveBooleanValue(branch.test, context)) {
-            return renderInstructions(branch.body, ir, context);
+            return renderInstructions(branch.body, ir, context, trace, sourceDocumentUri);
           }
         } catch (error) {
           throw prependXsltErrorFrame(
@@ -18359,11 +18842,12 @@ function renderInstruction(instruction, ir, context) {
           );
         }
       }
-      return instruction.otherwiseBody === void 0 ? "" : renderInstructions(instruction.otherwiseBody, ir, context);
+      return instruction.otherwiseBody === void 0 ? "" : renderInstructions(instruction.otherwiseBody, ir, context, trace, sourceDocumentUri);
     }
     case "forEach": {
       try {
         const items = [...evaluate(instruction.select, context)];
+        emitInstructionSelectEvents(items, trace, sourceDocumentUri, "xsl:for-each", instruction.location);
         return items.map((item, index) => renderInstructions(
           instruction.body,
           ir,
@@ -18372,7 +18856,9 @@ function renderInstruction(instruction, ir, context) {
             contextItem: item,
             contextPosition: index + 1,
             contextSize: items.length
-          }
+          },
+          trace,
+          sourceDocumentUri
         )).join("");
       } catch (error) {
         throw prependXsltErrorFrame(
@@ -18397,11 +18883,11 @@ function renderInstruction(instruction, ir, context) {
         );
       }
       try {
-        return renderTemplate(template, instruction.withParams, ir, context);
+        return renderTemplate(template, instruction.withParams, ir, context, trace, sourceDocumentUri);
       } catch (error) {
         throw prependXsltErrorFrame(
           error,
-          createTemplateFrame2(template),
+          createTemplateFrame3(template),
           createRelatedLocation("called template", template.location)
         );
       }
@@ -18409,6 +18895,8 @@ function renderInstruction(instruction, ir, context) {
     case "valueOf": {
       try {
         const items = [...evaluate(instruction.select, context)];
+        emitInstructionSelectEvents(items, trace, sourceDocumentUri, "xsl:value-of", instruction.location);
+        emitValueReadEvents(items, trace, sourceDocumentUri, instruction.location);
         const separator = instruction.separator ?? " ";
         return escapeText(items.map(itemToStringValue).join(separator));
       } catch (error) {
@@ -18422,11 +18910,14 @@ function renderInstruction(instruction, ir, context) {
     case "applyTemplates": {
       try {
         const items = instruction.select === void 0 ? getChildNodeItems(context.contextItem) : [...evaluate(instruction.select, context)];
+        emitInstructionSelectEvents(items, trace, sourceDocumentUri, "xsl:apply-templates", instruction.location);
         return applyTemplatesToItems(
           items,
           ir,
           context.staticContext,
           context.variables,
+          trace,
+          sourceDocumentUri,
           instruction.location,
           instruction.withParams
         );
@@ -18443,9 +18934,9 @@ function renderInstruction(instruction, ir, context) {
     }
   }
 }
-function bindVariableInstruction(instruction, ir, context) {
+function bindVariableInstruction(instruction, ir, context, trace, sourceDocumentUri = "<source-xml>") {
   try {
-    const value = evaluateBindingValue(instruction, ir, context);
+    const value = evaluateBindingValue(instruction, ir, context, trace, sourceDocumentUri);
     const variables = new Map(context.variables);
     variables.set(instruction.name, value);
     variables.set(`{}${instruction.name}`, value);
@@ -18464,43 +18955,43 @@ function bindVariableInstruction(instruction, ir, context) {
     );
   }
 }
-function renderTemplate(template, withParams, ir, context) {
-  const variables = bindTemplateParams(template.params, withParams, ir, context);
+function renderTemplate(template, withParams, ir, context, trace, sourceDocumentUri = "<source-xml>") {
+  const variables = bindTemplateParams(template.params, withParams, ir, context, trace, sourceDocumentUri);
   return renderInstructions(template.body, ir, {
     ...context,
     variables
-  });
+  }, trace, sourceDocumentUri);
 }
-function bindTemplateParams(params, withParams, ir, context) {
+function bindTemplateParams(params, withParams, ir, context, trace, sourceDocumentUri = "<source-xml>") {
   if (params.length === 0 && withParams.length === 0) {
     return context.variables;
   }
   const provided = /* @__PURE__ */ new Map();
   for (const withParam of withParams) {
-    provided.set(withParam.name, evaluateBindingValue(withParam, ir, context));
+    provided.set(withParam.name, evaluateBindingValue(withParam, ir, context, trace, sourceDocumentUri));
   }
   const variables = new Map(context.variables);
   for (const param of params) {
     const value = provided.has(param.name) ? provided.get(param.name) : param.required ? throwMissingTemplateParam(param, [...provided.keys()]) : evaluateBindingValue(param, ir, {
       ...context,
       variables
-    });
+    }, trace, sourceDocumentUri);
     variables.set(param.name, value);
     variables.set(`{}${param.name}`, value);
   }
   return variables;
 }
-function evaluateBindingValue(binding, ir, context) {
+function evaluateBindingValue(binding, ir, context, trace, sourceDocumentUri = "<source-xml>") {
   if (binding.select !== void 0) {
     return [...evaluate(binding.select, context)];
   }
   if (binding.body === void 0) {
     return [createXdmString("")];
   }
-  return evaluateTemporaryTree(binding.body, ir, context);
+  return evaluateTemporaryTree(binding.body, ir, context, trace, sourceDocumentUri);
 }
-function evaluateTemporaryTree(body, ir, context) {
-  return [buildTemporaryTree(renderInstructions(body, ir, context))];
+function evaluateTemporaryTree(body, ir, context, trace, sourceDocumentUri = "<source-xml>") {
+  return [buildTemporaryTree(renderInstructions(body, ir, context, trace, sourceDocumentUri))];
 }
 function throwMissingTemplateParam(param, providedNames) {
   const suggestion = createMissingTemplateParamSuggestion(param.name, providedNames);
@@ -18528,14 +19019,79 @@ function getChildNodeItems(item) {
   }
   return children;
 }
-function renderBuiltInTemplate(node, ir, staticContext, variables) {
+function renderBuiltInTemplate(node, ir, staticContext, variables, trace, sourceDocumentUri = "<source-xml>") {
   if (node.nodeType === node.DOCUMENT_NODE || node.nodeType === node.ELEMENT_NODE) {
-    return applyTemplatesToItems(getChildNodeItems(createXdmNode(node)), ir, staticContext, variables);
+    return applyTemplatesToItems(getChildNodeItems(createXdmNode(node)), ir, staticContext, variables, trace, sourceDocumentUri);
   }
   if (node.nodeType === node.TEXT_NODE || node.nodeType === node.CDATA_SECTION_NODE || node.nodeType === node.ATTRIBUTE_NODE) {
     return escapeText(node.nodeValue ?? "");
   }
   return "";
+}
+function emitTraceEvent2(trace, event) {
+  emitTraceEvent(trace, event);
+}
+function tryCreateTraceNodeHandle(node, trace, sourceDocumentUri) {
+  if (!isTraceEnabled(trace)) {
+    return void 0;
+  }
+  switch (node.nodeType) {
+    case node.DOCUMENT_NODE:
+    case node.ELEMENT_NODE:
+    case node.ATTRIBUTE_NODE:
+    case node.TEXT_NODE:
+    case node.COMMENT_NODE:
+    case node.PROCESSING_INSTRUCTION_NODE:
+      return createXmlNodeHandle(node, sourceDocumentUri);
+    default:
+      return void 0;
+  }
+}
+function emitInstructionSelectEvents(items, trace, sourceDocumentUri, instructionKind, location) {
+  if (!isTraceEnabled(trace)) {
+    return;
+  }
+  for (const item of items) {
+    const nodeItem = asXdmNode(item);
+    if (nodeItem === void 0) {
+      continue;
+    }
+    const handle = tryCreateTraceNodeHandle(nodeItem.node, trace, sourceDocumentUri);
+    if (handle === void 0) {
+      continue;
+    }
+    emitTraceEvent2(trace, {
+      kind: "instruction-select",
+      node: handle,
+      instruction: {
+        kind: instructionKind,
+        ...location === void 0 ? {} : { location }
+      }
+    });
+  }
+}
+function emitValueReadEvents(items, trace, sourceDocumentUri, location) {
+  if (!isTraceEnabled(trace)) {
+    return;
+  }
+  for (const item of items) {
+    const nodeItem = asXdmNode(item);
+    if (nodeItem === void 0) {
+      continue;
+    }
+    const handle = tryCreateTraceNodeHandle(nodeItem.node, trace, sourceDocumentUri);
+    if (handle === void 0) {
+      continue;
+    }
+    emitTraceEvent2(trace, {
+      kind: "value-read",
+      node: handle,
+      instruction: {
+        kind: "xsl:value-of",
+        ...location === void 0 ? {} : { location }
+      }
+    });
+  }
 }
 function itemToStringValue(item) {
   const nodeItem = asXdmNode(item);
@@ -18673,7 +19229,7 @@ function createMissingTemplateParamSuggestion(expectedName, providedNames) {
 function asXdmNode(item) {
   return typeof item === "object" && item !== null && item.xdmKind === "node" ? item : void 0;
 }
-function createTemplateFrame2(template) {
+function createTemplateFrame3(template) {
   if (template.matchText !== void 0) {
     return {
       kind: "template",
@@ -18754,6 +19310,92 @@ function escapeAttribute(value) {
 // src/runtime/index.ts
 function createCompiledDocument(sourceXml) {
   return parseXml(sourceXml, { role: "source-document", sourceName: "<source-xml>" });
+}
+function getTraceDocumentUri(ctx) {
+  return ctx.trace?.documentUri ?? "<source-xml>";
+}
+function tryCreateTraceNodeHandle2(node, ctx) {
+  switch (node.nodeType) {
+    case node.DOCUMENT_NODE:
+    case node.ELEMENT_NODE:
+    case node.ATTRIBUTE_NODE:
+    case node.TEXT_NODE:
+    case node.COMMENT_NODE:
+    case node.PROCESSING_INSTRUCTION_NODE:
+      return createXmlNodeHandle(node, getTraceDocumentUri(ctx));
+    default:
+      return void 0;
+  }
+}
+function emitTraceEvent3(ctx, event) {
+  emitTraceEvent(ctx.trace, event);
+}
+function traceFocusEnter(node, ctx) {
+  if (!isTraceEnabled(ctx.trace)) {
+    return node;
+  }
+  const handle = tryCreateTraceNodeHandle2(node, ctx);
+  if (handle === void 0) {
+    return node;
+  }
+  emitTraceEvent3(ctx, {
+    kind: "focus-enter",
+    node: handle
+  });
+  return node;
+}
+function traceTemplateEnter(node, ctx, template) {
+  if (!isTraceEnabled(ctx.trace)) {
+    return node;
+  }
+  const handle = tryCreateTraceNodeHandle2(node, ctx);
+  if (handle === void 0) {
+    return node;
+  }
+  emitTraceEvent3(ctx, {
+    kind: "template-enter",
+    node: handle,
+    template
+  });
+  return node;
+}
+function traceSelectedNodes(nodes, ctx, instruction) {
+  if (!isTraceEnabled(ctx.trace)) {
+    return nodes;
+  }
+  for (const node of nodes) {
+    const handle = tryCreateTraceNodeHandle2(node, ctx);
+    if (handle === void 0) {
+      continue;
+    }
+    emitTraceEvent3(ctx, {
+      kind: "instruction-select",
+      node: handle,
+      instruction
+    });
+  }
+  return nodes;
+}
+function traceStringValueOfNode(node, ctx, instruction) {
+  if (node === null) {
+    return "";
+  }
+  if (isTraceEnabled(ctx.trace)) {
+    const handle = tryCreateTraceNodeHandle2(node, ctx);
+    if (handle !== void 0) {
+      emitTraceEvent3(ctx, {
+        kind: "instruction-select",
+        node: handle,
+        instruction
+      });
+      emitTraceEvent3(ctx, {
+        kind: "value-read",
+        node: handle,
+        instruction
+      });
+    }
+  }
+  return stringValueOfNode(node);
 }
 function createTemporaryTreeNode(serializedContent) {
   const temporaryDocument = parseXml(`<temporary-root>${serializedContent}</temporary-root>`);
@@ -18939,11 +19581,11 @@ function matchesTemplatePath(node, path, absolute = false) {
   }
   return !absolute || current?.nodeType === node.DOCUMENT_NODE;
 }
-function applyBuiltInTemplatesByPath(startNode, path, renderMatchedNode, absolute = false) {
+function applyBuiltInTemplatesByPath(startNode, path, renderMatchedNode, absolute = false, ctx, instruction) {
   if (path.length === 0) {
     return "";
   }
-  return renderBuiltInTemplateChildren(startNode, path, renderMatchedNode, absolute);
+  return renderBuiltInTemplateChildren(startNode, path, renderMatchedNode, absolute, ctx, instruction, true);
 }
 function selectSimplePathText(startNode, path) {
   const node = selectSimplePathNode(startNode, path);
@@ -19133,7 +19775,7 @@ function collectDescendantElementsByName(node, localName, matches) {
     collectDescendantElementsByName(child, localName, matches);
   }
 }
-function renderBuiltInTemplateChildren(node, path, renderMatchedNode, absolute) {
+function renderBuiltInTemplateChildren(node, path, renderMatchedNode, absolute, ctx, instruction, emitSelectionEvents = false) {
   const childNodes = [];
   for (let index = 0; index < node.childNodes.length; index += 1) {
     const child = node.childNodes.item(index);
@@ -19141,24 +19783,30 @@ function renderBuiltInTemplateChildren(node, path, renderMatchedNode, absolute) 
       childNodes.push(child);
     }
   }
+  if (emitSelectionEvents && ctx !== void 0 && instruction !== void 0) {
+    traceSelectedNodes(childNodes, ctx, instruction);
+  }
   let output = "";
   for (const [index, child] of childNodes.entries()) {
     if (child.nodeType !== child.ELEMENT_NODE) {
       if (child !== null) {
-        output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute, index, childNodes);
+        output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute, index, childNodes, ctx, instruction);
       }
       continue;
     }
-    output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute, index, childNodes);
+    output += renderBuiltInTemplateNode(child, path, renderMatchedNode, absolute, index, childNodes, ctx, instruction);
   }
   return output;
 }
-function renderBuiltInTemplateNode(node, path, renderMatchedNode, absolute, index, nodes) {
+function renderBuiltInTemplateNode(node, path, renderMatchedNode, absolute, index, nodes, ctx, instruction) {
   if (matchesSimplePath(node, path, absolute)) {
     return renderMatchedNode(node, index, nodes);
   }
+  if (ctx !== void 0) {
+    traceFocusEnter(node, ctx);
+  }
   if (node.nodeType === node.DOCUMENT_NODE || node.nodeType === node.ELEMENT_NODE) {
-    return renderBuiltInTemplateChildren(node, path, renderMatchedNode, absolute);
+    return renderBuiltInTemplateChildren(node, path, renderMatchedNode, absolute, ctx, instruction);
   }
   if (node.nodeType === node.TEXT_NODE || node.nodeType === node.CDATA_SECTION_NODE || node.nodeType === node.ATTRIBUTE_NODE) {
     return escapeText2(node.nodeValue ?? "");
@@ -19377,6 +20025,7 @@ function validateInitialModeOption(options) {
   throwUnsupportedNativeInitialMode(options.initialMode);
 }
 function executeNativeTransformPlan(plan, sourceXml, context) {
+  resetRecordedTracePause(context.trace);
   const useInitialTemplateEntry = context.initialTemplate !== void 0 && plan.initialTemplateName !== void 0;
   const activeEntryTemplate = useInitialTemplateEntry && plan.initialTemplateEntryTemplate !== void 0 ? plan.initialTemplateEntryTemplate : plan.entryTemplate;
   const activeCurrentNodeExpression = useInitialTemplateEntry && plan.initialTemplateCurrentNodeExpression !== void 0 ? plan.initialTemplateCurrentNodeExpression : plan.currentNodeExpression;
@@ -19386,9 +20035,19 @@ function executeNativeTransformPlan(plan, sourceXml, context) {
   const activeOutputExpression = useInitialTemplateEntry && plan.initialTemplateOutputExpression !== void 0 ? plan.initialTemplateOutputExpression : plan.outputExpression;
   const activeInitialTemplateName = useInitialTemplateEntry ? plan.initialTemplateName : void 0;
   const helperBindings = plan.runtimeHelpers.length === 0 ? "" : `const { ${plan.runtimeHelpers.join(", ")} } = helpers;`;
+  const isInitialTemplateExecution = activeInitialTemplateName !== void 0;
+  const activeCurrentNodeIsDocument = activeCurrentNodeExpression.code === "document";
+  const needsTraceDocumentBinding = !activeNeedsCurrentNodeBinding;
+  const activeTraceNodeIdentifier = activeNeedsCurrentNodeBinding ? "currentNode" : "document";
+  const activeTemplateInfo = JSON.stringify({
+    ...activeEntryTemplate.matchText === void 0 ? {} : { match: activeEntryTemplate.matchText },
+    ...activeEntryTemplate.name === void 0 ? {} : { name: activeEntryTemplate.name },
+    location: activeEntryTemplate.location
+  });
   const nativeBodyStatements = [
     ...activeSetupStatements.length === 0 ? ["void ctx;"] : [],
-    ...plan.needsDocumentBinding ? ["const document = createCompiledDocument(sourceXml);"] : ["createCompiledDocument(sourceXml);"],
+    ...plan.needsDocumentBinding || needsTraceDocumentBinding ? ["const document = createCompiledDocument(sourceXml);"] : ["createCompiledDocument(sourceXml);"],
+    ...!isInitialTemplateExecution && activeTraceNodeIdentifier !== "document" && !activeCurrentNodeIsDocument ? ["helpers.traceFocusEnter(document, ctx);"] : [],
     ...activeSetupStatements,
     ...activeNeedsCurrentNodeBinding ? [`const currentNode = ${activeCurrentNodeExpression.code};`] : [],
     ...activeCurrentNodeMayBeNull ? [
@@ -19396,6 +20055,8 @@ function executeNativeTransformPlan(plan, sourceXml, context) {
       '  return { output: "" };',
       "}"
     ] : [],
+    ...isInitialTemplateExecution ? [] : [`helpers.traceFocusEnter(${activeTraceNodeIdentifier}, ctx);`],
+    `helpers.traceTemplateEnter(${activeTraceNodeIdentifier}, ctx, ${activeTemplateInfo});`,
     "return {",
     `  output: ${activeOutputExpression.code},`,
     "};"
@@ -19417,7 +20078,9 @@ function executeNativeTransformPlan(plan, sourceXml, context) {
       ...wrappedBodyStatements
     ].filter((statement) => statement.length > 0).join("\n")
   );
-  return executeNative(sourceXml, context, NATIVE_RUNTIME_HELPERS);
+  const result = executeNative(sourceXml, context, NATIVE_RUNTIME_HELPERS);
+  const pause = getRecordedTracePause(context.trace);
+  return pause === void 0 ? result : { ...result, pause };
 }
 function createExecutionFallbackReason(code, message, suggestions) {
   return suggestions === void 0 ? { code, message } : { code, message, suggestions };
@@ -19439,6 +20102,10 @@ var NATIVE_RUNTIME_HELPERS = {
   selectSimplePathText,
   stringValueOfNativeValue,
   stringValueOfNode,
+  traceFocusEnter,
+  traceSelectedNodes,
+  traceStringValueOfNode,
+  traceTemplateEnter,
   prependNativeGlobalBindingError,
   prependNativeInitialTemplateError,
   throwCircularNativeGlobalBinding,
@@ -19481,6 +20148,7 @@ var CompiledStylesheet = class _CompiledStylesheet {
         ok: true,
         diagnostics: this.diagnostics,
         output: result.output,
+        ...result.pause === void 0 ? {} : { pause: result.pause },
         ...result.execution === void 0 ? {} : { execution: result.execution },
         ...notices.length === 0 ? {} : { notices }
       };
@@ -19525,6 +20193,44 @@ function compile(request) {
 function transform(request) {
   return request.stylesheet.transform(request.sourceXml, request.options);
 }
+function resolveSourceXmlNodeHandleAtOffset(request) {
+  try {
+    const document = createCompiledDocument(request.sourceXml.text);
+    const handle = resolveXmlNodeHandleAtOffset(document, request.sourceXml.uri, request.sourceXml.text, request.offset);
+    return {
+      ok: true,
+      diagnostics: [],
+      ...handle === void 0 ? {} : { handle }
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostics: [diagnosticReportFromError(error)]
+    };
+  }
+}
+function resolveSourceXmlNodeHandleInRange(request) {
+  try {
+    const document = createCompiledDocument(request.sourceXml.text);
+    const handle = resolveXmlNodeHandleInRange(
+      document,
+      request.sourceXml.uri,
+      request.sourceXml.text,
+      request.offsetStart,
+      request.offsetEnd
+    );
+    return {
+      ok: true,
+      diagnostics: [],
+      ...handle === void 0 ? {} : { handle }
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostics: [diagnosticReportFromError(error)]
+    };
+  }
+}
 function compileAndTransform(request) {
   const compileResult = compile({
     stylesheet: request.stylesheet,
@@ -19565,7 +20271,8 @@ function getTransformOptions(options) {
     ...options.initialMode === void 0 ? {} : { initialMode: options.initialMode },
     ...options.execution === void 0 ? {} : { execution: options.execution },
     ...options.parameters === void 0 ? {} : { parameters: options.parameters },
-    ...options.baseUri === void 0 ? {} : { baseUri: options.baseUri }
+    ...options.baseUri === void 0 ? {} : { baseUri: options.baseUri },
+    ...options.trace === void 0 ? {} : { trace: options.trace }
   };
 }
 function createFallbackNotices(execution) {
@@ -19674,14 +20381,12 @@ function parseLineMappings(mappingsText) {
   const mappings = [];
   let previousSourceIndex = 0;
   let previousSourceLine = 0;
-  let previousSourceColumn = 0;
   const generatedLines = mappingsText.split(";");
   for (let generatedLineIndex = 0; generatedLineIndex < generatedLines.length; generatedLineIndex += 1) {
     const generatedLine = generatedLines[generatedLineIndex] ?? "";
     if (generatedLine.length === 0) {
       continue;
     }
-    let previousGeneratedColumn = 0;
     for (const segment of generatedLine.split(",")) {
       if (segment.length === 0) {
         continue;
@@ -19690,10 +20395,8 @@ function parseLineMappings(mappingsText) {
       if (decoded.length < 4) {
         continue;
       }
-      previousGeneratedColumn += decoded[0] ?? 0;
       previousSourceIndex += decoded[1] ?? 0;
       previousSourceLine += decoded[2] ?? 0;
-      previousSourceColumn += decoded[3] ?? 0;
       if (previousSourceIndex !== 0) {
         continue;
       }
@@ -19769,12 +20472,24 @@ var BASE64_VLQ_DIGITS2 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01
 // scripts/workbench-site/worker.ts
 self.addEventListener("message", (event) => {
   const request = event.data;
+  const breakpointResolution = resolveTraceBreakpoint(request);
   const result = compileAndTransform({
     stylesheet: request.stylesheet,
     sourceXml: request.sourceXml,
     options: {
       emitGeneratedTs: true,
-      execution: "auto"
+      execution: "auto",
+      ...breakpointResolution.handle === void 0 ? {} : {
+        trace: {
+          documentUri: request.sourceXml.uri,
+          breakpoints: [
+            {
+              node: breakpointResolution.handle,
+              on: [request.traceBreakpoint?.eventKind ?? "template-enter"]
+            }
+          ]
+        }
+      }
     }
   });
   const response = {
@@ -19784,10 +20499,50 @@ self.addEventListener("message", (event) => {
     output: result.ok ? result.output : "",
     diagnostics: result.diagnostics.map(formatDiagnostic2),
     notices: result.ok ? (result.notices ?? []).map(formatNotice) : [],
-    execution: result.ok && result.execution !== void 0 ? `${result.execution.requested} -> ${result.execution.resolved}` : ""
+    execution: result.ok && result.execution !== void 0 ? `${result.execution.requested} -> ${result.execution.resolved}` : "",
+    traceStatus: formatTraceStatus(request, breakpointResolution, result),
+    traceHandle: breakpointResolution.handle === void 0 ? "" : `${breakpointResolution.handle.kind} ${breakpointResolution.handle.path}`,
+    pause: result.ok && result.pause !== void 0 ? JSON.stringify(result.pause, null, 2) : ""
   };
   self.postMessage(response);
 });
+function resolveTraceBreakpoint(request) {
+  const traceBreakpoint = request.traceBreakpoint;
+  if (traceBreakpoint === void 0) {
+    return { diagnostics: [], handle: void 0 };
+  }
+  const selectionResult = traceBreakpoint.offsetStart === traceBreakpoint.offsetEnd ? resolveSourceXmlNodeHandleAtOffset({
+    sourceXml: request.sourceXml,
+    offset: traceBreakpoint.offsetStart
+  }) : resolveSourceXmlNodeHandleInRange({
+    sourceXml: request.sourceXml,
+    offsetStart: traceBreakpoint.offsetStart,
+    offsetEnd: traceBreakpoint.offsetEnd
+  });
+  return {
+    diagnostics: selectionResult.diagnostics.map(formatDiagnostic2),
+    handle: selectionResult.ok ? selectionResult.handle : void 0
+  };
+}
+function formatTraceStatus(request, breakpointResolution, result) {
+  const traceBreakpoint = request.traceBreakpoint;
+  if (traceBreakpoint === void 0) {
+    return 'Select XML text and click "Run XML breakpoint from selection" to capture a pause payload.';
+  }
+  if (breakpointResolution.diagnostics.length > 0) {
+    return breakpointResolution.diagnostics.join("\n");
+  }
+  if (breakpointResolution.handle === void 0) {
+    return "The current XML selection does not resolve to a selectable trace node.";
+  }
+  if (!result.ok) {
+    return `Resolved ${breakpointResolution.handle.path}, but compile or transform failed.`;
+  }
+  if (result.pause === void 0) {
+    return `Resolved ${breakpointResolution.handle.path}, but no ${traceBreakpoint.eventKind} breakpoint fired.`;
+  }
+  return `Paused on ${result.pause.event.kind} for ${result.pause.event.node.path}.`;
+}
 function formatDiagnostic2(diagnostic) {
   const location = diagnostic.primary === void 0 ? "" : ` (${diagnostic.primary.uri ?? "<memory>"}:${diagnostic.primary.lineStart}:${diagnostic.primary.columnStart})`;
   return `${diagnostic.severity.toUpperCase()} ${diagnostic.code}: ${diagnostic.message}${location}`;

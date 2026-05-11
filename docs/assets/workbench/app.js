@@ -69,6 +69,36 @@ var PRESETS = [
   </xsl:template>
 </xsl:stylesheet>`
     }
+  },
+  {
+    id: "xml-breakpoint-trace",
+    label: "XML breakpoint trace",
+    description: "Select a node in the XML pane and pause on the matching trace event.",
+    sourceXml: {
+      uri: "memory:/workbench/xml-breakpoint-trace.xml",
+      text: `<root>
+  <section priority="high">
+    <para>alpha</para>
+    <para>beta</para>
+  </section>
+</root>`
+    },
+    stylesheet: {
+      uri: "memory:/workbench/xml-breakpoint-trace.xsl",
+      text: `<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:template match="/root">
+    <items>
+      <xsl:apply-templates select="section/para"/>
+    </items>
+  </xsl:template>
+
+  <xsl:template match="para">
+    <entry>
+      <xsl:value-of select="."/>
+    </entry>
+  </xsl:template>
+</xsl:stylesheet>`
+    }
   }
 ];
 
@@ -92,6 +122,22 @@ function initializeWorkbench(rootElement) {
         </label>
       </header>
       <p class="weaver-workbench__status" id="weaver-workbench-status">Loading default preset\u2026</p>
+      <section class="weaver-workbench__trace-toolbar" aria-label="XML breakpoint demo controls">
+        <div>
+          <h2>XML breakpoint demo</h2>
+          <p>Select an element, attribute value, or text span in Source XML, then run a trace breakpoint against that selection.</p>
+        </div>
+        <label class="weaver-workbench__trace-field">
+          <span>Pause on</span>
+          <select id="weaver-workbench-trace-kind">
+            <option value="template-enter">template-enter</option>
+            <option value="focus-enter">focus-enter</option>
+            <option value="instruction-select">instruction-select</option>
+            <option value="value-read">value-read</option>
+          </select>
+        </label>
+        <button class="weaver-workbench__trace-button" id="weaver-workbench-trace-run" type="button">Run XML breakpoint from selection</button>
+      </section>
       <div class="weaver-workbench__grid">
         <section class="weaver-workbench__panel">
           <div class="weaver-workbench__panel-header">
@@ -129,6 +175,15 @@ function initializeWorkbench(rootElement) {
           <h2>Notices</h2>
           <ul id="weaver-workbench-notices"></ul>
         </div>
+        <div class="weaver-workbench__message-panel">
+          <h2>Breakpoint</h2>
+          <p class="weaver-workbench__trace-summary" id="weaver-workbench-trace-status">Select XML text and click "Run XML breakpoint from selection" to capture a pause payload.</p>
+          <pre class="weaver-workbench__message-pre" id="weaver-workbench-trace-handle">// No XML breakpoint resolved yet.</pre>
+        </div>
+        <div class="weaver-workbench__message-panel">
+          <h2>Pause payload</h2>
+          <pre class="weaver-workbench__message-pre" id="weaver-workbench-trace-pause">// No pause captured yet.</pre>
+        </div>
       </section>
     </section>
   `;
@@ -141,7 +196,12 @@ function initializeWorkbench(rootElement) {
   const noticesList = rootElement.querySelector("#weaver-workbench-notices");
   const statusElement = rootElement.querySelector("#weaver-workbench-status");
   const executionElement = rootElement.querySelector("#weaver-workbench-execution");
-  if (presetSelect === null || xmlInput === null || xslInput === null || generatedOutput === null || resultOutput === null || diagnosticsList === null || noticesList === null || statusElement === null || executionElement === null) {
+  const traceKindSelect = rootElement.querySelector("#weaver-workbench-trace-kind");
+  const traceRunButton = rootElement.querySelector("#weaver-workbench-trace-run");
+  const traceStatusElement = rootElement.querySelector("#weaver-workbench-trace-status");
+  const traceHandleElement = rootElement.querySelector("#weaver-workbench-trace-handle");
+  const tracePauseElement = rootElement.querySelector("#weaver-workbench-trace-pause");
+  if (presetSelect === null || xmlInput === null || xslInput === null || generatedOutput === null || resultOutput === null || diagnosticsList === null || noticesList === null || statusElement === null || executionElement === null || traceKindSelect === null || traceRunButton === null || traceStatusElement === null || traceHandleElement === null || tracePauseElement === null) {
     return;
   }
   for (const preset of PRESETS) {
@@ -163,6 +223,9 @@ function initializeWorkbench(rootElement) {
     executionElement.textContent = response.execution;
     renderList(diagnosticsList, response.diagnostics, "No diagnostics.");
     renderList(noticesList, response.notices, "No notices.");
+    traceStatusElement.textContent = response.traceStatus;
+    traceHandleElement.textContent = response.traceHandle.length > 0 ? response.traceHandle : "// No XML breakpoint resolved yet.";
+    tracePauseElement.textContent = response.pause.length > 0 ? response.pause : "// No pause captured yet.";
     statusElement.textContent = response.ok ? "Ready." : "Compile or transform failed.";
   });
   const hydratePreset = (presetId) => {
@@ -173,6 +236,10 @@ function initializeWorkbench(rootElement) {
     presetSelect.value = preset.id;
     xmlInput.value = preset.sourceXml.text;
     xslInput.value = preset.stylesheet.text;
+    traceKindSelect.value = "template-enter";
+    traceStatusElement.textContent = 'Select XML text and click "Run XML breakpoint from selection" to capture a pause payload.';
+    traceHandleElement.textContent = "// No XML breakpoint resolved yet.";
+    tracePauseElement.textContent = "// No pause captured yet.";
     runImmediately();
   };
   const queueRun = () => {
@@ -185,7 +252,7 @@ function initializeWorkbench(rootElement) {
       runImmediately();
     }, 250);
   };
-  const runImmediately = () => {
+  const runImmediately = (traceBreakpoint) => {
     const preset = PRESETS.find((entry) => entry.id === presetSelect.value) ?? PRESETS[0];
     if (preset === void 0) {
       return;
@@ -201,12 +268,24 @@ function initializeWorkbench(rootElement) {
       stylesheet: {
         uri: preset.stylesheet.uri,
         text: xslInput.value
-      }
+      },
+      ...traceBreakpoint === void 0 ? {} : { traceBreakpoint }
+    });
+  };
+  const runTraceBreakpoint = () => {
+    const selectionStart = xmlInput.selectionStart ?? 0;
+    const selectionEnd = xmlInput.selectionEnd ?? selectionStart;
+    traceStatusElement.textContent = "Resolving XML selection and running trace breakpoint\u2026";
+    runImmediately({
+      offsetStart: selectionStart,
+      offsetEnd: selectionEnd,
+      eventKind: traceKindSelect.value
     });
   };
   presetSelect.addEventListener("change", () => hydratePreset(presetSelect.value));
   xmlInput.addEventListener("input", queueRun);
   xslInput.addEventListener("input", queueRun);
+  traceRunButton.addEventListener("click", runTraceBreakpoint);
   hydratePreset(DEFAULT_PRESET_ID);
 }
 function renderList(container, items, emptyMessage) {

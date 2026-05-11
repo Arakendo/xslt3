@@ -56,6 +56,24 @@ Checklist reference:
 
 ## Current artifacts
 
+### MVP+6.75 XML node trace debugging
+
+MVP+6.75 is currently closed on executable fixture proof rather than GIF or
+video media.
+
+Current proof:
+
+- executable workbench fixture coverage for the tracked-node user story in
+	`test/workbench.test.ts`
+- parity trace coverage across interpreter, native direct, and native emitted
+	execution in `test/trace.test.ts`
+- public engine-contract note in [XML_NODE_DEBUGGING.md](./XML_NODE_DEBUGGING.md)
+
+The key demonstrated user story is: track a specific input `<para>` node,
+pause when that exact node enters a matched template or becomes the current
+focus, and surface a structured pause payload with template/instruction
+provenance.
+
 ### MVP+6.5 Workbench embed
 
 The live public workbench is available here:
